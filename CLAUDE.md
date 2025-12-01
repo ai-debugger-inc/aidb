@@ -19,7 +19,7 @@ typical, super-fast API. For example:
 - If you want to advance a line, that is a single operation. To skip multiple
   lines, you must execute multiple operations, just like a human using a
   debugger.
-- If you want to use your `launch.json` file, you can. No problem.
+- If you want to use your `launch.json` file, you can.
 
 **User Profile:** Developers building debugging tools + AI agents using MCP for code debugging workflows.
 
@@ -88,19 +88,13 @@ Skills are automatically loaded based on context detection:
 
 ### Avoid Sycophantic Language
 
-- **NEVER** use phrases like "You're absolutely right!", "You're absolutely
-  correct!", "Excellent point!", or similar flattery
-- **NEVER** validate statements as "right" when the user didn't make a factual
-  claim that could be evaluated
-- **NEVER** use general praise or validation as conversational filler
-
-______________________________________________________________________
+- Avoid phrases like "You're absolutely right!", "Excellent point!", or similar flattery
+- Do not validate statements as "right" when no factual claim was made
+- Do not use general praise or validation as conversational filler
 
 ## Testing
 
-For testing strategy, test organization, and execution guidance: Use the `testing-strategy` skill (auto-activates on testing topics).
-
-______________________________________________________________________
+For testing strategy, test organization, and execution guidance, use the `testing-strategy` skill (auto-activates on testing topics).
 
 ## General Prompt Instructions
 
@@ -115,28 +109,19 @@ ______________________________________________________________________
 1. Always check for existing constant/enum patterns that we should adhere to. If
    we find ourselves adding lots of magic strings/numbers, perhaps we need to add
    constants and/or enums.
-1. If you are repeating yourself, DRY it up.
-
-______________________________________________________________________
+1. Refactor to eliminate duplication.
 
 ## Code Reuse
 
-Before implementing new functionality: Use the `code-reuse-enforcement` skill to check for existing utilities and patterns (auto-activates when adding new code).
-
-______________________________________________________________________
+Before implementing new functionality, use the `code-reuse-enforcement` skill to check for existing utilities and patterns (auto-activates when adding new code).
 
 ## Important Notes
 
-- ***DON'T ADD POINTLESS COMMENTS TO THE CODE!!!***
-- Whenever running a project-related Python command, **ALWAYS** use the repo's
-  venv
-- This is a new project, so there's no need to maintain old code. Do not
-  deprecate or implement things with backward compatibility in mind – nuke that
-  shit.
-- **ALWAYS ADD IMPORTS AT THE TOP OF THE FILE!!!** (unless you need to avoid a
-  circular import)
-- When adding logging to the codebase, **DO NOT USE EMOJIS IN THE LOG
-  MESSAGES**.
-- Review our pre-commit setup and try to adhere to the style guidelines as
-  things are built.
-- For DAP protocol questions, refer to our fully-typed DAP implementation here: `src/aidb/dap/protocol.py`
+- Avoid unnecessary comments; code should be self-documenting where possible
+- Always use the repo's venv when running project-related Python commands
+- This is a greenfield project: prefer clean implementations over backward
+  compatibility layers or deprecation patterns
+- Place imports at the top of the file (unless avoiding a circular import)
+- Do not use emojis in log messages
+- Adhere to the style guidelines defined in the pre-commit configuration
+- For DAP protocol questions, refer to our fully-typed DAP implementation: `src/aidb/dap/protocol.py`

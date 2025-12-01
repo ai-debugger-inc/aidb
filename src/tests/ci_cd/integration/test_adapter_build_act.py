@@ -120,7 +120,7 @@ class TestAdapterBuildAct:
         ), "build-act.yaml should have a build job (using matrix strategy)"
 
     @pytest.mark.integration
-    def test_build_act_workflow_uses_versions_yaml(self, repo_root):
+    def test_build_act_workflow_uses_versions_json(self, repo_root):
         """Verify build-act.yaml references versions.json for adapter versions.
 
         The workflow should not hardcode adapter versions.

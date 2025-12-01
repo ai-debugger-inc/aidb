@@ -103,8 +103,8 @@ class TestTestDiscoveryService:
         (common_dir / "test_config.py").write_text("def test_config(): pass")
 
         # Create versions.json
-        versions_yaml = tmp_path / "versions.json"
-        versions_yaml.write_text(
+        versions_file = tmp_path / "versions.json"
+        versions_file.write_text(
             '{"adapters": {"python": "1.0.0", "javascript": "1.0.0", "java": "1.0.0"}}'
         )
 
@@ -380,8 +380,8 @@ class TestTestDiscoveryService:
     ):
         """Test extracting test languages from version manager."""
         # Create versions.json with adapters
-        versions_yaml = tmp_path / "versions.json"
-        versions_yaml.write_text(
+        versions_file = tmp_path / "versions.json"
+        versions_file.write_text(
             '{"adapters": {"python": "1.0.0", "javascript": "1.0.0"}}'
         )
 

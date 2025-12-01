@@ -12,7 +12,7 @@ class TestDocsBuilderService:
     """Test the DocsBuilderService."""
 
     @pytest.fixture
-    def versions_yaml_content(self):
+    def versions_json_content(self):
         """Sample versions.json content."""
         return """{
   "infrastructure": {
@@ -37,11 +37,11 @@ class TestDocsBuilderService:
         return executor
 
     @pytest.fixture
-    def service(self, tmp_path, mock_command_executor, versions_yaml_content):
+    def service(self, tmp_path, mock_command_executor, versions_json_content):
         """Create a DocsBuilderService instance."""
         # Create versions.json
         versions_file = tmp_path / "versions.json"
-        versions_file.write_text(versions_yaml_content)
+        versions_file.write_text(versions_json_content)
 
         # Create the compose file at the expected location
         compose_file = tmp_path / "docs" / "docker-compose.yaml"
@@ -61,12 +61,12 @@ class TestDocsBuilderService:
         self,
         tmp_path,
         mock_command_executor,
-        versions_yaml_content,
+        versions_json_content,
     ):
         """Test service initialization."""
         # Create versions.json
         versions_file = tmp_path / "versions.json"
-        versions_file.write_text(versions_yaml_content)
+        versions_file.write_text(versions_json_content)
 
         compose_file = tmp_path / "docs" / "docker-compose.yaml"
         compose_file.parent.mkdir(parents=True)
@@ -110,12 +110,12 @@ class TestDocsBuilderService:
         self,
         tmp_path,
         mock_command_executor,
-        versions_yaml_content,
+        versions_json_content,
     ):
         """Test ensure_compose_file when file doesn't exist."""
         # Create versions.json
         versions_file = tmp_path / "versions.json"
-        versions_file.write_text(versions_yaml_content)
+        versions_file.write_text(versions_json_content)
 
         with patch(
             "aidb_cli.core.paths.ProjectPaths.DOCS_DOCKER_COMPOSE",
@@ -356,12 +356,12 @@ class TestDocsBuilderService:
     def test_initialization_without_command_executor(
         self,
         tmp_path,
-        versions_yaml_content,
+        versions_json_content,
     ):
         """Test initialization without explicit command executor."""
         # Create versions.json
         versions_file = tmp_path / "versions.json"
-        versions_file.write_text(versions_yaml_content)
+        versions_file.write_text(versions_json_content)
 
         compose_file = tmp_path / "docs" / "docker-compose.yaml"
         compose_file.parent.mkdir(parents=True)

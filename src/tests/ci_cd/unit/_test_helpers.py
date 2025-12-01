@@ -60,7 +60,7 @@ def mock_version_management_sources(**source_returns):
 
 
 @contextmanager
-def mock_script_environment(platform="Linux", machine="x86_64", yaml_data=None):
+def mock_script_environment(platform="Linux", machine="x86_64", json_data=None):
     """Mock common script execution environment.
 
     Parameters
@@ -69,13 +69,13 @@ def mock_script_environment(platform="Linux", machine="x86_64", yaml_data=None):
         Platform name for platform.system()
     machine : str
         Machine type for platform.machine()
-    yaml_data : dict, optional
-        Data to return from yaml.safe_load()
+    json_data : dict, optional
+        Data to return from json.load()
 
     Yields
     ------
     dict
-        Dictionary of mock objects (platform_mock, machine_mock, yaml_mock, open_mock)
+        Dictionary of mock objects (platform_mock, machine_mock, json_mock, open_mock)
     """
     import builtins
     from unittest.mock import mock_open
@@ -83,13 +83,13 @@ def mock_script_environment(platform="Linux", machine="x86_64", yaml_data=None):
     with (
         patch("platform.system", return_value=platform) as platform_mock,
         patch("platform.machine", return_value=machine) as machine_mock,
-        patch("yaml.safe_load", return_value=yaml_data) as yaml_mock,
+        patch("json.load", return_value=json_data) as json_mock,
         patch("builtins.open", mock_open(read_data="")) as open_mock,
     ):
         yield {
             "platform": platform_mock,
             "machine": machine_mock,
-            "yaml": yaml_mock,
+            "json": json_mock,
             "open": open_mock,
         }
 

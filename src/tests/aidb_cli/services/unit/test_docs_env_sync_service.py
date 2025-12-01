@@ -12,7 +12,7 @@ class TestDocsEnvSyncService:
     """Test the DocsEnvSyncService."""
 
     @pytest.fixture
-    def versions_yaml_content(self):
+    def versions_json_content(self):
         """Sample versions.json content."""
         return """{
   "infrastructure": {
@@ -30,11 +30,11 @@ class TestDocsEnvSyncService:
 }"""
 
     @pytest.fixture
-    def service_with_files(self, tmp_path, versions_yaml_content):
+    def service_with_files(self, tmp_path, versions_json_content):
         """Create service with versions.json and env file paths."""
         # Create versions.json
         versions_file = tmp_path / "versions.json"
-        versions_file.write_text(versions_yaml_content)
+        versions_file.write_text(versions_json_content)
 
         # Create docs directory structure
         docs_dir = tmp_path / "scripts" / "install" / "docs"
@@ -53,11 +53,11 @@ class TestDocsEnvSyncService:
             return DocsEnvSyncService(tmp_path)
 
     @pytest.fixture
-    def service_without_env(self, tmp_path, versions_yaml_content):
+    def service_without_env(self, tmp_path, versions_json_content):
         """Create service without existing .env file."""
         # Create versions.json only
         versions_file = tmp_path / "versions.json"
-        versions_file.write_text(versions_yaml_content)
+        versions_file.write_text(versions_json_content)
 
         # Create docs directory but no .env file
         docs_dir = tmp_path / "scripts" / "install" / "docs"
@@ -75,10 +75,10 @@ class TestDocsEnvSyncService:
         ):
             return DocsEnvSyncService(tmp_path)
 
-    def test_service_initialization(self, tmp_path, versions_yaml_content):
+    def test_service_initialization(self, tmp_path, versions_json_content):
         """Test service initialization sets up paths correctly."""
         versions_file = tmp_path / "versions.json"
-        versions_file.write_text(versions_yaml_content)
+        versions_file.write_text(versions_json_content)
 
         with (
             patch(
@@ -118,13 +118,13 @@ class TestDocsEnvSyncService:
     def test_hash_changes_with_file_modification(
         self,
         service_with_files,
-        versions_yaml_content,
+        versions_json_content,
     ):
         """Test that hash changes when versions.json is modified."""
         initial_hash = service_with_files._compute_source_hash()
 
         # Modify versions.json
-        modified_content = versions_yaml_content.replace("3.12-slim", "3.13-slim")
+        modified_content = versions_json_content.replace("3.12-slim", "3.13-slim")
         service_with_files.versions_file.write_text(modified_content)
 
         new_hash = service_with_files._compute_source_hash()
@@ -270,7 +270,7 @@ class TestDocsEnvSyncService:
     def test_sync_after_versions_change(
         self,
         service_with_files,
-        versions_yaml_content,
+        versions_json_content,
     ):
         """Test complete workflow: sync, modify versions, sync again."""
         # Initial sync
@@ -282,7 +282,7 @@ class TestDocsEnvSyncService:
         assert service_with_files.needs_sync() is False
 
         # Modify versions.json
-        modified_content = versions_yaml_content.replace("3.12-slim", "3.13-slim")
+        modified_content = versions_json_content.replace("3.12-slim", "3.13-slim")
         service_with_files.versions_file.write_text(modified_content)
 
         # Create a new service instance to force reload of versions.json
@@ -328,10 +328,10 @@ class TestDocsEnvSyncService:
         # Should have comment section for global packages
         assert any("Global package versions" in line for line in lines)
 
-    def test_hash_cache_directory_creation(self, tmp_path, versions_yaml_content):
+    def test_hash_cache_directory_creation(self, tmp_path, versions_json_content):
         """Test that hash cache directory is created if needed."""
         versions_file = tmp_path / "versions.json"
-        versions_file.write_text(versions_yaml_content)
+        versions_file.write_text(versions_json_content)
 
         with (
             patch(

@@ -40,7 +40,7 @@ class TestDetectRepoRoot:
         result = detect_repo_root(deep_dir)
         assert result == tmp_path
 
-    def test_only_versions_yaml_not_sufficient(self, tmp_path: Path) -> None:
+    def test_only_versions_json_not_sufficient(self, tmp_path: Path) -> None:
         """Test that only versions.json is not sufficient."""
         (tmp_path / "versions.json").touch()
 
