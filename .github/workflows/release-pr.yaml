@@ -1,0 +1,815 @@
+name: PR-Based Release
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+jobs:
+  # Job 0: Load versions from versions.yaml
+  load-versions:
+    uses: ./.github/workflows/load-versions.yaml
+
+  # Job 1: Validate and extract version from release branch
+  validate-and-extract-version:
+    runs-on: ubuntu-latest
+    needs: load-versions
+    if: startsWith(github.head_ref, 'release/')
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.extract.outputs.version }}
+      tag_name: ${{ steps.extract.outputs.tag_name }}
+      is_valid: ${{ steps.extract.outputs.is_valid }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Extract and validate version
+        id: extract
+        uses: ./.github/actions/extract-version
+        with:
+          branch_name: ${{ github.head_ref }}
+          fail_on_invalid: true
+
+      - name: Validate release notes exist and format
+        run: |
+          VERSION="${{ steps.extract.outputs.version }}"
+          RELEASE_NOTES_FILE="docs/release-notes/${VERSION}.md"
+
+          if [ ! -f "$RELEASE_NOTES_FILE" ]; then
+            echo "::error::Release notes file not found: $RELEASE_NOTES_FILE"
+            echo "::error::Please create release notes at $RELEASE_NOTES_FILE before cutting release $VERSION"
+            echo "::error::See documentation: https://github.com/${{ github.repository }}/blob/main/docs/developer-guide/ci-cd.md#cutting-a-release"
+            echo "::error::Template: Include sections for Features, Changes, Fixed, and Breaking Changes"
+            exit 1
+          fi
+
+          # Check if file has content
+          if [ ! -s "$RELEASE_NOTES_FILE" ]; then
+            echo "::error::Release notes file is empty: $RELEASE_NOTES_FILE"
+            echo "::error::See documentation: https://github.com/${{ github.repository }}/blob/main/docs/developer-guide/ci-cd.md#cutting-a-release"
+            exit 1
+          fi
+
+          # Check minimum line count
+          LINE_COUNT=$(wc -l < "$RELEASE_NOTES_FILE")
+          if [ "$LINE_COUNT" -lt 5 ]; then
+            echo "::error::Release notes too short ($LINE_COUNT lines, minimum 5): $RELEASE_NOTES_FILE"
+            echo "::error::Please provide comprehensive release notes with details about changes"
+            echo "::error::See documentation: https://github.com/${{ github.repository }}/blob/main/docs/developer-guide/ci-cd.md#cutting-a-release"
+            echo "::error::Recommended sections: ## Features, ## Changes, ## Fixed, ## Breaking Changes"
+            exit 1
+          fi
+
+          # Check for standard sections (warning only)
+          if ! grep -qiE "^##.*(Features|Changes|Fixed|Breaking)" "$RELEASE_NOTES_FILE"; then
+            echo "::warning::Release notes missing standard sections (Features/Changes/Fixed/Breaking)"
+            echo "::warning::Consider adding these sections for better organization"
+          fi
+
+          echo "✅ Release notes validated: $RELEASE_NOTES_FILE ($LINE_COUNT lines)"
+
+  # Job 2: Run comprehensive test suite via orchestrator (uses pre-loaded versions)
+  run-tests:
+    needs: [load-versions, validate-and-extract-version]
+    uses: ./.github/workflows/test-parallel.yaml
+    with:
+      skip_coverage: true
+      python-version: ${{ needs.load-versions.outputs.python-version }}
+      node-version: ${{ needs.load-versions.outputs.node-version }}
+      java-version: ${{ needs.load-versions.outputs.java-version }}
+      java-distribution: ${{ needs.load-versions.outputs.java-distribution }}
+    secrets: inherit
+
+  # Job 4: Build VS Code extension (runs in parallel with tests)
+  build-extension:
+    runs-on: ubuntu-latest
+    needs: [load-versions, validate-and-extract-version]
+    timeout-minutes: 15
+    outputs:
+      vsix_path: ${{ steps.build.outputs.vsix_path }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ needs.load-versions.outputs.node-version }}
+
+      - name: Cache extension node_modules
+        uses: actions/cache@v4
+        with:
+          path: src/extensions/aidb-vscode-bridge/node_modules
+          key: ${{ runner.os }}-extension-${{ hashFiles('src/extensions/aidb-vscode-bridge/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-extension-
+
+      - name: Build VS Code extension
+        id: build
+        run: |
+          cd src/extensions/aidb-vscode-bridge
+
+          # Install dependencies
+          npm ci || npm install
+          npm install -g @vscode/vsce
+
+          # Update version to match release
+          VERSION="${{ needs.validate-and-extract-version.outputs.version }}"
+          npm version $VERSION --no-git-tag-version --allow-same-version
+
+          # Build and package
+          npm run compile
+          vsce package --out aidb-vscode-bridge.vsix
+
+          # Copy to resources
+          mkdir -p ../../aidb/resources/extensions
+          cp aidb-vscode-bridge.vsix ../../aidb/resources/extensions/
+
+          echo "vsix_path=src/extensions/aidb-vscode-bridge/aidb-vscode-bridge.vsix" >> $GITHUB_OUTPUT
+          echo "✅ Extension built successfully"
+
+      - name: Upload extension artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: vscode-extension
+          path: src/extensions/aidb-vscode-bridge/aidb-vscode-bridge.vsix
+          retention-days: 30
+
+  # Job 5: Build wheel
+  build-wheel:
+    runs-on: ubuntu-latest
+    needs: [load-versions, build-extension]
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Download extension artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: vscode-extension
+          path: build/vsix/
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ needs.load-versions.outputs.python-version }}
+
+      - name: Install project dependencies
+        run: |
+          chmod +x scripts/install/src/install.sh
+          ./scripts/install/src/install.sh -v
+
+      - name: Restore VSIX into package resources
+        run: |
+          mkdir -p src/aidb/resources/extensions
+          cp build/vsix/aidb-vscode-bridge.vsix src/aidb/resources/extensions/
+
+      - name: Verify package import
+        run: |
+          source venv/bin/activate
+          echo "Testing package imports..."
+          python -c "
+          import sys
+          sys.path.insert(0, 'src')
+          try:
+              import aidb
+              import aidb_mcp
+              import aidb_common
+              from aidb_common.config.runtime import config
+              assert isinstance(config.get_log_level(), str)
+              print('✅ Package imports successful')
+          except Exception as e:
+              print(f'❌ Import failed: {e}')
+              exit(1)
+          "
+
+      - name: Run critical smoke tests
+        run: |
+          source venv/bin/activate
+          echo "Running smoke tests if test file exists..."
+          if [ -f "src/tests/smoke/test_basic_session.py" ]; then
+            python -m pytest src/tests/smoke/test_basic_session.py::TestSessionLifecycle::test_api_instantiation -v
+          else
+            echo "No smoke tests found; skipping."
+          fi
+
+      - name: Build wheel
+        run: |
+          source venv/bin/activate
+          python -m build
+          echo "Built packages:"
+          ls -la dist/
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: distribution
+          path: dist/
+          retention-days: 30
+
+  # Job 6: Upload to TestPyPI and run smoke tests (waits for tests to pass)
+  test-pypi-upload:
+    runs-on: ubuntu-latest
+    needs: [load-versions, build-wheel, run-tests, validate-and-extract-version]
+    timeout-minutes: 15
+    outputs:
+      success: ${{ steps.smoke.outputs.success || steps.smoke_skip.outputs.success || 'false' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Download wheel artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: distribution
+          path: dist/
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ needs.load-versions.outputs.python-version }}
+          cache: 'pip'
+
+      - name: Install twine
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install twine
+
+      - name: Upload to TestPyPI
+        if: ${{ vars.CD_SKIP_PYPI != 'true' }}
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.TESTPYPI_TOKEN }}
+        run: |
+          echo "📦 Uploading to TestPyPI..."
+          twine upload --repository testpypi dist/*
+          echo "✅ Upload to TestPyPI successful"
+
+      - name: Skip TestPyPI upload (CD_SKIP_PYPI enabled)
+        if: ${{ vars.CD_SKIP_PYPI == 'true' }}
+        run: |
+          echo "ℹ️  Skipping TestPyPI upload: CD_SKIP_PYPI is set to true"
+          echo "This is typically used for testing the release workflow end-to-end."
+          echo "Wheel artifact available in GitHub Actions artifacts."
+
+      - name: Run TestPyPI smoke test
+        if: ${{ vars.CD_SKIP_PYPI != 'true' }}
+        id: smoke
+        uses: ./.github/actions/smoke-test
+        with:
+          source: testpypi
+          version: ${{ needs.validate-and-extract-version.outputs.version }}
+          wait_seconds: 180
+
+      - name: Skip TestPyPI smoke test (CD_SKIP_PYPI enabled)
+        if: ${{ vars.CD_SKIP_PYPI == 'true' }}
+        id: smoke_skip
+        run: |
+          echo "ℹ️  Skipping TestPyPI smoke test: CD_SKIP_PYPI is set to true"
+          echo "success=true" >> $GITHUB_OUTPUT
+
+      - name: Add TestPyPI summary
+        if: always()
+        run: |
+          VERSION="${{ needs.validate-and-extract-version.outputs.version }}"
+          PACKAGE_URL="https://test.pypi.org/project/aidb/$VERSION/"
+          SKIPPED="${{ vars.CD_SKIP_PYPI == 'true' }}"
+
+          echo "## 📦 TestPyPI Upload" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$SKIPPED" = "true" ]; then
+            echo "ℹ️  **Status**: Skipped (CD_SKIP_PYPI enabled)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Wheel artifacts are available in GitHub Actions artifacts for manual testing." >> $GITHUB_STEP_SUMMARY
+          else
+            if [ "${{ steps.smoke.outputs.success }}" = "true" ]; then
+              echo "✅ **Status**: Upload and smoke test successful" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "❌ **Status**: Smoke test failed" >> $GITHUB_STEP_SUMMARY
+            fi
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Package Information:" >> $GITHUB_STEP_SUMMARY
+            echo "- **Version**: \`$VERSION\`" >> $GITHUB_STEP_SUMMARY
+            echo "- **Package URL**: [$PACKAGE_URL]($PACKAGE_URL)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Installation:" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+            echo "pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ aidb==$VERSION" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Job 7: Upload to Production PyPI and run smoke tests
+  prod-pypi-upload:
+    runs-on: ubuntu-latest
+    needs: [load-versions, test-pypi-upload, validate-and-extract-version]
+    # Only proceed if CD_SKIP_PYPI is enabled OR TestPyPI smoke test passed
+    if: ${{ vars.CD_SKIP_PYPI == 'true' || needs.test-pypi-upload.outputs.success == 'true' }}
+    timeout-minutes: 15
+    outputs:
+      success: ${{ steps.smoke.outputs.success }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Download wheel artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: distribution
+          path: dist/
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ needs.load-versions.outputs.python-version }}
+          cache: 'pip'
+
+      - name: Install twine
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install twine
+
+      - name: Upload to Production PyPI
+        if: ${{ vars.CD_SKIP_PYPI != 'true' }}
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          echo "📦 Uploading to Production PyPI..."
+          twine upload dist/*
+          echo "✅ Upload to Production PyPI successful"
+
+      - name: Skip Production PyPI upload (CD_SKIP_PYPI enabled)
+        if: ${{ vars.CD_SKIP_PYPI == 'true' }}
+        run: |
+          echo "ℹ️  Skipping Production PyPI upload: CD_SKIP_PYPI is set to true"
+          echo "This is typically used for testing the release workflow end-to-end."
+          echo "Wheel artifact available in GitHub Actions artifacts."
+
+      - name: Run Production PyPI smoke test
+        if: ${{ vars.CD_SKIP_PYPI != 'true' }}
+        id: smoke
+        uses: ./.github/actions/smoke-test
+        with:
+          source: pypi
+          version: ${{ needs.validate-and-extract-version.outputs.version }}
+          wait_seconds: 120
+
+      - name: Skip Production PyPI smoke test (CD_SKIP_PYPI enabled)
+        if: ${{ vars.CD_SKIP_PYPI == 'true' }}
+        run: |
+          echo "ℹ️  Skipping Production PyPI smoke test: CD_SKIP_PYPI is set to true"
+
+      - name: Add Production PyPI summary
+        if: always()
+        run: |
+          VERSION="${{ needs.validate-and-extract-version.outputs.version }}"
+          PACKAGE_URL="https://pypi.org/project/aidb/$VERSION/"
+          SKIPPED="${{ vars.CD_SKIP_PYPI == 'true' }}"
+
+          echo "## 📦 Production PyPI Upload" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$SKIPPED" = "true" ]; then
+            echo "ℹ️  **Status**: Skipped (CD_SKIP_PYPI enabled)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Wheel artifacts are available in GitHub Actions artifacts for manual testing." >> $GITHUB_STEP_SUMMARY
+          else
+            if [ "${{ steps.smoke.outputs.success }}" = "true" ]; then
+              echo "✅ **Status**: Upload and smoke test successful" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "❌ **Status**: Smoke test failed" >> $GITHUB_STEP_SUMMARY
+            fi
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Package Information:" >> $GITHUB_STEP_SUMMARY
+            echo "- **Version**: \`$VERSION\`" >> $GITHUB_STEP_SUMMARY
+            echo "- **Package URL**: [$PACKAGE_URL]($PACKAGE_URL)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Installation:" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+            echo "pip install aidb==$VERSION" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Job 8: Create draft GitHub release
+  create-draft-release:
+    runs-on: ubuntu-latest
+    needs: [prod-pypi-upload, validate-and-extract-version]
+    timeout-minutes: 5
+    outputs:
+      release_created: ${{ steps.create.outputs.release_created }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Download extension artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: vscode-extension
+          path: build/vsix/
+
+      - name: Check for existing draft release
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.validate-and-extract-version.outputs.version }}"
+          TAG_NAME="${{ needs.validate-and-extract-version.outputs.tag_name }}"
+
+          # Check if draft release exists
+          if gh release view "$TAG_NAME" --json isDraft --jq '.isDraft' 2>/dev/null | grep -q true; then
+            echo "⚠️  Draft release $TAG_NAME already exists, deleting..."
+            gh release delete "$TAG_NAME" --yes --cleanup-tag || true
+            echo "draft_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "No existing draft release found"
+            echo "draft_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create draft release
+        id: create
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.validate-and-extract-version.outputs.version }}"
+          TAG_NAME="${{ needs.validate-and-extract-version.outputs.tag_name }}"
+          RELEASE_NOTES_FILE="docs/release-notes/${VERSION}.md"
+
+          echo "📝 Reading release notes from $RELEASE_NOTES_FILE"
+          RELEASE_NOTES=$(cat "$RELEASE_NOTES_FILE")
+
+          # Create draft release with idempotency check
+          if gh release create "$TAG_NAME" \
+            --title "$VERSION" \
+            --notes "$RELEASE_NOTES" \
+            --target main \
+            --draft 2>&1; then
+            echo "✅ Draft release $TAG_NAME created"
+            echo "release_created=true" >> $GITHUB_OUTPUT
+          else
+            # Check if it already exists from concurrent workflow
+            if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+              echo "⚠️  Release $TAG_NAME exists from concurrent workflow, proceeding..."
+              echo "release_created=true" >> $GITHUB_OUTPUT
+            else
+              echo "::error::Failed to create release $TAG_NAME"
+              exit 1
+            fi
+          fi
+
+      - name: Upload extension to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${{ needs.validate-and-extract-version.outputs.tag_name }}"
+          gh release upload "$TAG_NAME" "build/vsix/aidb-vscode-bridge.vsix" --clobber
+          echo "✅ Extension uploaded to draft release"
+
+      - name: Add workflow summary
+        run: |
+          VERSION="${{ needs.validate-and-extract-version.outputs.version }}"
+          TAG_NAME="${{ needs.validate-and-extract-version.outputs.tag_name }}"
+
+          echo "## 📦 Draft Release Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: $VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag**: $TAG_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: Draft (will be published on PR merge)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "[View Draft Release](https://github.com/${{ github.repository }}/releases/tag/$TAG_NAME)" >> $GITHUB_STEP_SUMMARY
+
+  # Job 9: Generate adapter build matrix dynamically from versions.yaml
+  # Note: Does not depend on create-draft-release - matrix generation can happen early
+  generate-adapter-matrix:
+    runs-on: ubuntu-latest
+    needs: [load-versions, validate-and-extract-version]
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ needs.load-versions.outputs.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pyyaml
+
+      - name: Generate build matrix
+        id: generate
+        run: |
+          # Generate matrix for GHA workflow
+          matrix=$(python3 .github/scripts/utils/matrix_generator.py --workflow gha --format github)
+          echo "$matrix" >> $GITHUB_OUTPUT
+
+          # Also display for debugging
+          echo "Generated matrix:"
+          python3 .github/scripts/utils/matrix_generator.py --workflow gha
+
+  # Job 10: Build adapters using dynamic matrix
+  build-adapters:
+    needs: [load-versions, generate-adapter-matrix]
+    name: Build ${{ matrix.adapter }} - ${{ matrix.platform }}-${{ matrix.arch }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: true  # Stop all builds if any adapter fails (all required for release)
+      matrix: ${{fromJson(needs.generate-adapter-matrix.outputs.matrix)}}
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ needs.load-versions.outputs.python-version }}
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pyyaml
+
+      - name: Read adapter configuration
+        id: adapter-config
+        shell: bash
+        run: |
+          python3 << 'EOF'
+          import yaml
+          import os
+
+          with open('versions.yaml', 'r') as f:
+              versions = yaml.safe_load(f)
+
+          adapter = "${{ matrix.adapter }}"
+          config = versions['adapters'][adapter]
+
+          # Extract build dependencies
+          build_deps = config.get('build_deps', {})
+
+          # Write outputs using modern GitHub Actions syntax
+          github_output = os.environ['GITHUB_OUTPUT']
+
+          if adapter == 'javascript':
+              node_version = build_deps.get('node_version', '18')
+              with open(github_output, 'a') as f:
+                  f.write(f"node_version={node_version}\n")
+          elif adapter == 'java':
+              java_version = build_deps.get('java_version', '21')
+              java_distribution = build_deps.get('java_distribution', 'temurin')
+              maven_opts = build_deps.get('maven_opts', '')
+
+              with open(github_output, 'a') as f:
+                  f.write(f"java_version={java_version}\n")
+                  f.write(f"java_distribution={java_distribution}\n")
+                  f.write(f"maven_opts={maven_opts}\n")
+          EOF
+
+      - name: Setup Node.js (for JavaScript adapter)
+        if: matrix.adapter == 'javascript'
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ steps.adapter-config.outputs.node_version }}
+
+      - name: Build adapter
+        uses: ./.github/actions/retry-command
+        env:
+          MAVEN_OPTS: ${{ steps.adapter-config.outputs.maven_opts }}
+        with:
+          command: |
+            python3 .github/scripts/build-adapter.py ${{ matrix.adapter }} \
+              --platform ${{ matrix.platform }} \
+              --arch ${{ matrix.arch }}
+
+      - name: List build outputs
+        shell: bash
+        run: |
+          echo "Build outputs:"
+          ls -la dist/
+          echo "Checksums:"
+          find dist/ -name "*.sha256" -exec cat {} \;
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: ${{ matrix.adapter }}-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
+          retention-days: 30
+
+  # Job 11: Consolidate adapter artifacts
+  consolidate-adapters:
+    runs-on: ubuntu-latest
+    needs: [load-versions, build-adapters, validate-and-extract-version]
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ needs.load-versions.outputs.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pyyaml
+
+      - name: Download Python adapter artifacts
+        uses: actions/download-artifact@v6
+        with:
+          path: artifacts
+          pattern: python-*-*
+
+      - name: Download JavaScript adapter artifacts
+        uses: actions/download-artifact@v6
+        with:
+          path: artifacts
+          pattern: javascript-*-*
+
+      - name: Download Java adapter artifacts
+        uses: actions/download-artifact@v6
+        with:
+          path: artifacts
+          pattern: java-*-*
+
+      - name: Organize and consolidate artifacts
+        run: |
+          mkdir -p consolidated-adapters
+
+          # Verify artifacts directory exists
+          if [ ! -d "artifacts" ]; then
+            echo "::error::Artifacts directory not found!"
+            exit 1
+          fi
+
+          # Verify adapter artifacts exist
+          if [ -z "$(find artifacts/ -name '*.tar.gz' 2>/dev/null)" ]; then
+            echo "::error::No adapter tarballs found in artifacts directory!"
+            exit 1
+          fi
+
+          # Copy all adapter artifacts
+          find artifacts/ -name "*.tar.gz" -exec cp {} consolidated-adapters/ \;
+          find artifacts/ -name "*.sha256" -exec cp {} consolidated-adapters/ \;
+
+          # Verify artifacts were copied
+          TARBALL_COUNT=$(find consolidated-adapters/ -name "*.tar.gz" | wc -l)
+          echo "Copied $TARBALL_COUNT adapter tarballs"
+
+          if [ "$TARBALL_COUNT" -eq 0 ]; then
+            echo "::error::No tarballs were copied to consolidated-adapters!"
+            exit 1
+          fi
+
+          # Verify checksums for all tarballs
+          echo "Verifying adapter checksums..."
+          cd consolidated-adapters
+          CHECKSUM_FAILURES=0
+          for tarball in *.tar.gz; do
+            if [ -f "$tarball" ]; then
+              CHECKSUM_FILE="${tarball}.sha256"
+              if [ -f "$CHECKSUM_FILE" ]; then
+                if sha256sum -c "$CHECKSUM_FILE"; then
+                  echo "✅ Checksum verified: $tarball"
+                else
+                  echo "::error::Checksum verification failed: $tarball"
+                  CHECKSUM_FAILURES=$((CHECKSUM_FAILURES + 1))
+                fi
+              else
+                echo "::warning::No checksum file for $tarball"
+              fi
+            fi
+          done
+          cd ..
+
+          if [ "$CHECKSUM_FAILURES" -gt 0 ]; then
+            echo "::error::$CHECKSUM_FAILURES checksum verification(s) failed!"
+            exit 1
+          fi
+
+          # Generate manifest from versions.yaml
+          python3 << 'EOF'
+          import yaml
+          import json
+          import os
+          from datetime import datetime
+
+          with open('versions.yaml', 'r') as f:
+              versions = yaml.safe_load(f)
+
+          version = "${{ needs.validate-and-extract-version.outputs.version }}"
+
+          manifest = {
+              "version": version,
+              "build_date": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "adapters": {}
+          }
+
+          # Build adapter manifest from versions.yaml
+          for adapter_name, adapter_config in versions['adapters'].items():
+              if not adapter_config.get('enabled', True):
+                  continue
+
+              platforms = []
+              if adapter_name == 'java':
+                  platforms = ['universal']
+              else:
+                  for platform_entry in adapter_config.get('platforms', []):
+                      platforms.append(f"{platform_entry['platform']}-{platform_entry['arch']}")
+
+              manifest['adapters'][adapter_name] = {
+                  'version': adapter_config['version'],
+                  'platforms': platforms
+              }
+
+          # Write manifest
+          with open('consolidated-adapters/manifest.json', 'w') as f:
+              json.dump(manifest, f, indent=2)
+
+          print("Generated manifest:")
+          print(json.dumps(manifest, indent=2))
+          EOF
+
+          echo "Consolidated adapter artifacts:"
+          ls -la consolidated-adapters/
+
+      - name: Upload consolidated artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: adapter-artifacts-all
+          path: consolidated-adapters/
+          retention-days: 7
+
+  # Job 12: Upload adapters to draft release
+  upload-adapters:
+    runs-on: ubuntu-latest
+    needs: [consolidate-adapters, create-draft-release, validate-and-extract-version]
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Download consolidated adapter artifacts
+        uses: actions/download-artifact@v6
+        with:
+          name: adapter-artifacts-all
+          path: adapters/
+
+      - name: Upload adapters to draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${{ needs.validate-and-extract-version.outputs.tag_name }}"
+
+          echo "📎 Uploading adapter binaries to draft release..."
+
+          # Upload all adapter archives
+          for file in adapters/*.tar.gz; do
+            if [ -f "$file" ]; then
+              echo "Uploading $(basename "$file")..."
+              gh release upload "$TAG_NAME" "$file" --clobber
+            fi
+          done
+
+          # Upload checksums
+          for file in adapters/*.sha256; do
+            if [ -f "$file" ]; then
+              echo "Uploading $(basename "$file")..."
+              gh release upload "$TAG_NAME" "$file" --clobber
+            fi
+          done
+
+          # Upload manifest
+          if [ -f "adapters/manifest.json" ]; then
+            echo "Uploading adapter manifest..."
+            gh release upload "$TAG_NAME" "adapters/manifest.json" --clobber
+          fi
+
+          echo "✅ All adapter artifacts uploaded to draft release"

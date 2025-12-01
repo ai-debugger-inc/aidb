@@ -1,0 +1,34 @@
+{# Template for language-specific MCP test runners #}
+{# Variables available: lang, config (from languages.yaml) #}
+  mcp-{{ lang }}:
+    profiles: ["mcp", "mcp-{{ lang }}"]
+    extends: mcp-test-runner
+    container_name: aidb-mcp-{{ lang }}
+    volumes:
+      - *workspace-mount
+      - ${REPO_ROOT:-.}/.cache/container-data/aidb-mcp-{{ lang }}/${PYTEST_SESSION_ID:-latest}/log:/root/.aidb/log:rw
+      - ${REPO_ROOT:-.}/.cache/container-data/aidb-mcp-{{ lang }}/${PYTEST_SESSION_ID:-latest}/pytest:/workspace/pytest-logs:rw
+      - *test-cache-mount
+      - *adapters-mount-rw
+      - *adapters-mount-ro
+      - *docker-socket-mount
+    labels: *mcp-labels
+    environment:
+      <<: *adapter-environment
+      TEST_LANGUAGE: {{ lang }}
+    healthcheck:
+      test: ["CMD-SHELL", "{{ config.healthcheck }}"]
+      interval: 5s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
+    command: |
+      bash -lc '
+        set -euo pipefail
+        cd /workspace
+        python -m pip install {{ config.pip_flags + ' ' if config.pip_flags else '' }}-e .[test,dev] -q
+        python -m pytest ${TEST_PATH:-src/tests/aidb_mcp/} -k {{ config.mcp_test_filter }} \
+          --color=yes \
+          -o log_file=${PYTEST_LOG_DIR:-pytest-logs}/pytest-captured.log \
+          -v 2>&1 | tee ${PYTEST_LOG_DIR:-pytest-logs}/test-results.log
+      '

@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Claude Code Skill Rules Configuration",
+  "description": "Configuration schema for Claude Code skills auto-activation system",
+  "type": "object",
+  "required": ["version", "skills"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$",
+      "description": "Schema version (e.g., '1.0')"
+    },
+    "skills": {
+      "type": "object",
+      "description": "Map of skill names to skill configurations",
+      "patternProperties": {
+        "^[a-z][a-z0-9-]*$": {
+          "type": "object",
+          "required": ["type", "autoInject"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["guardrail", "domain"],
+              "description": "Skill type (validation only, doesn't affect behavior): guardrail or domain"
+            },
+            "enforcement": {
+              "type": "string",
+              "enum": ["block", "suggest", "warn"],
+              "description": "Enforcement level (validation only, doesn't affect behavior)"
+            },
+            "priority": {
+              "type": "string",
+              "enum": ["critical", "high", "medium", "low"],
+              "description": "Priority for skill ordering (validation only)"
+            },
+            "autoInject": {
+              "type": "boolean",
+              "description": "Allow automatic injection when detected (default: true). Set to false for meta-skills that should not inject content."
+            },
+            "requiredSkills": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Other skills that must be loaded before this one (dependency resolution)"
+            },
+            "injectionOrder": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Order for dependency injection (0-100, lower loads first)"
+            },
+            "description": {
+              "type": "string",
+              "minLength": 10,
+              "description": "Clear description sent to AI for intent analysis. This is the PRIMARY detection mechanism - make it comprehensive and specific."
+            },
+            "promptTriggers": {
+              "type": "object",
+              "description": "Keyword triggers for detection (fallback mechanism for short prompts)",
+              "properties": {
+                "keywords": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Keywords for substring matching (case-insensitive). Used as fallback when AI analysis is inconclusive or for prompts <10 words."
+                }
+              },
+              "additionalProperties": false
+            },
+            "affinity": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 2,
+              "description": "Names of complementary skills that should be auto-injected together (bidirectional relationship, max 2). Use skill names, not file paths."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

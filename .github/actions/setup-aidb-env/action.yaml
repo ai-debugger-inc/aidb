@@ -1,0 +1,71 @@
+name: Setup AIDB Environment
+description: Setup Python, cache pip packages, and install AIDB dependencies
+inputs:
+  python-version:
+    description: Python version to install
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Setup Python with dependency caching
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python-version }}
+        cache: 'pip'
+        cache-dependency-path: 'pyproject.toml'
+
+    - name: Cache virtual environment
+      id: cache-venv
+      uses: actions/cache@v4
+      with:
+        path: venv
+        key: ${{ runner.os }}-venv-${{ inputs.python-version }}-${{ hashFiles('pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-venv-${{ inputs.python-version }}-
+
+    - name: Setup environment
+      if: steps.cache-venv.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        chmod +x scripts/install/src/install.sh
+        ./scripts/install/src/install.sh -v
+
+    - name: Refresh editable install (cache hit)
+      if: steps.cache-venv.outputs.cache-hit == 'true'
+      shell: bash
+      run: |
+        source venv/bin/activate
+        pip install -e ".[dev,backend,docs,test]" --no-deps
+
+    - name: Verify environment
+      shell: bash
+      run: |
+        source venv/bin/activate
+        python --version
+        pip list | grep -E "aidb|debugpy|pytest" || echo "Warning: AIDB packages not found"
+        python -c "import aidb; import aidb_cli; import aidb_mcp" || echo "Warning: Failed to import AIDB modules"
+
+    - name: Set adapter paths for CI
+      shell: bash
+      run: |
+        # Dynamically set adapter paths from versions.yaml (single source of truth)
+        source venv/bin/activate
+        python3 << 'EOF'
+        import os
+        import yaml
+
+        with open('versions.yaml', 'r') as f:
+            versions = yaml.safe_load(f)
+
+        github_env = os.environ['GITHUB_ENV']
+        workspace = os.environ['GITHUB_WORKSPACE']
+
+        with open(github_env, 'a') as f:
+            for lang in versions['adapters'].keys():
+                env_var = f"AIDB_{lang.upper()}_ADAPTER_PATH"
+                path = f"{workspace}/.cache/adapters/{lang}"
+                f.write(f"{env_var}={path}\n")
+                print(f"  {env_var}={path}")
+
+        print("✓ Adapter paths configured for CI")
+        EOF

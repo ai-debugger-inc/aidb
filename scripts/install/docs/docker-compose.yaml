@@ -1,0 +1,49 @@
+---
+# Reusable label configuration
+x-docs-labels: &docs-labels
+  com.aidb.project: "aidb"
+  com.aidb.component: "docs"
+  com.aidb.managed: "true"
+  com.aidb.environment: "docs"
+
+services:
+  aidb-docs:
+    build:
+      context: ../../../
+      dockerfile: scripts/install/docs/Dockerfile
+      args:
+        PYTHON_TAG: ${PYTHON_TAG}
+        PIP_VERSION: ${PIP_VERSION:-25.3}
+        SETUPTOOLS_VERSION: ${SETUPTOOLS_VERSION:-80.9.0}
+        WHEEL_VERSION: ${WHEEL_VERSION:-0.45.1}
+    container_name: aidb-docs
+    labels: *docs-labels
+    working_dir: /docs
+    env_file:
+      - .env
+    volumes:
+      - ../../../docs:/docs:ro
+      - ../../../docs/_build/html:/site:ro
+    ports:
+      - "${AIDB_DOCS_PORT:-8000}:8000"
+    entrypoint: ["bash", "-c", "cd /site && python -m http.server 8000"]
+
+  aidb-docs-build:
+    build:
+      context: ../../../
+      dockerfile: scripts/install/docs/Dockerfile
+      args:
+        PYTHON_TAG: ${PYTHON_TAG}
+        PIP_VERSION: ${PIP_VERSION:-25.3}
+        SETUPTOOLS_VERSION: ${SETUPTOOLS_VERSION:-80.9.0}
+        WHEEL_VERSION: ${WHEEL_VERSION:-0.45.1}
+    container_name: aidb-docs-build
+    labels: *docs-labels
+    working_dir: /docs
+    env_file:
+      - .env
+    volumes:
+      - ../../../docs:/docs:rw
+      - ../../../:/workspace:ro
+      - ./docs-build.sh:/docs-build.sh:ro
+    entrypoint: ["bash", "/docs-build.sh"]

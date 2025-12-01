@@ -1,0 +1,187 @@
+name: PyPI Smoke Test
+description: Install package from PyPI (test or prod) and verify basic functionality
+
+inputs:
+  source:
+    description: 'PyPI source: testpypi or pypi'
+    required: true
+  package_name:
+    description: 'Package name to install'
+    required: false
+    default: 'aidb'
+  version:
+    description: 'Package version to install (e.g., 0.1.0)'
+    required: true
+  python_version:
+    description: 'Python version to use for testing'
+    required: false
+    default: '3.10'
+  wait_seconds:
+    description: 'Seconds to wait for package availability'
+    required: false
+    default: '120'
+
+outputs:
+  success:
+    description: 'Whether smoke test passed'
+    value: ${{ steps.test.outputs.success }}
+  error_message:
+    description: 'Error message if test failed'
+    value: ${{ steps.test.outputs.error_message }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python_version }}
+
+    - name: Wait for package availability with retries
+      shell: bash
+      run: |
+        # Determine pip index URL
+        if [[ "${{ inputs.source }}" == "testpypi" ]]; then
+          INDEX_URL="https://test.pypi.org/simple/"
+          SOURCE_NAME="Test PyPI"
+        else
+          INDEX_URL="https://pypi.org/simple/"
+          SOURCE_NAME="PyPI"
+        fi
+
+        echo "⏳ Waiting for package ${{ inputs.package_name }}==${{ inputs.version }} on $SOURCE_NAME..."
+
+        MAX_ATTEMPTS=5
+        WAIT_BETWEEN=30
+        FOUND=false
+
+        for i in $(seq 1 $MAX_ATTEMPTS); do
+          echo "Attempt $i/$MAX_ATTEMPTS..."
+
+          if pip index versions ${{ inputs.package_name }} --index-url $INDEX_URL 2>/dev/null | grep -q "${{ inputs.version }}"; then
+            echo "✅ Package found on $SOURCE_NAME!"
+            FOUND=true
+            break
+          fi
+
+          if [ $i -eq $MAX_ATTEMPTS ]; then
+            echo "::warning::Package not found after $MAX_ATTEMPTS attempts ($((MAX_ATTEMPTS * WAIT_BETWEEN))s total)"
+            echo "::warning::Proceeding with installation attempt anyway..."
+          else
+            echo "Package not yet available, waiting ${WAIT_BETWEEN}s..."
+            sleep $WAIT_BETWEEN
+          fi
+        done
+
+    - name: Create temporary venv
+      shell: bash
+      run: |
+        python -m venv /tmp/smoke-test-venv
+        echo "✅ Created temporary venv at /tmp/smoke-test-venv"
+
+    - name: Install package and run smoke test
+      id: test
+      shell: bash
+      run: |
+        set +e  # Don't exit on error, we want to capture it
+
+        source /tmp/smoke-test-venv/bin/activate
+
+        # Determine pip index URL
+        if [[ "${{ inputs.source }}" == "testpypi" ]]; then
+          INDEX_URL="https://test.pypi.org/simple/"
+          echo "📦 Installing from Test PyPI"
+        else
+          INDEX_URL="https://pypi.org/simple/"
+          echo "📦 Installing from PyPI"
+        fi
+
+        # Install package
+        echo "Installing ${{ inputs.package_name }}==${{ inputs.version }}..."
+        if [[ "${{ inputs.source }}" == "testpypi" ]]; then
+          pip install --index-url "$INDEX_URL" --extra-index-url https://pypi.org/simple/ \
+            ${{ inputs.package_name }}==${{ inputs.version }}
+        else
+          pip install ${{ inputs.package_name }}==${{ inputs.version }}
+        fi
+
+        INSTALL_EXIT_CODE=$?
+        if [[ $INSTALL_EXIT_CODE -ne 0 ]]; then
+          echo "success=false" >> $GITHUB_OUTPUT
+          echo "error_message=Package installation failed" >> $GITHUB_OUTPUT
+          echo "::error::Failed to install package from ${{ inputs.source }}"
+          deactivate
+          exit 1
+        fi
+
+        echo "✅ Package installed successfully"
+
+        # Verify imports
+        echo "🔍 Verifying imports..."
+        cat > /tmp/smoke_test.py << 'PYTHON_SCRIPT'
+        import sys
+        try:
+            import aidb
+            print(f'✅ aidb imported successfully')
+            print(f'✅ aidb version: {aidb.__version__}')
+
+            # Verify core modules are importable
+            import aidb_mcp
+            print(f'✅ aidb_mcp imported successfully')
+
+            import aidb_common
+            print(f'✅ aidb_common imported successfully')
+
+            from aidb_common.config.runtime import config
+            print(f'✅ Config accessible')
+
+            # Basic instantiation test
+            from aidb import AIDB
+            print(f'✅ AIDB class accessible')
+
+            print('✅ All smoke tests passed!')
+            sys.exit(0)
+
+        except Exception as e:
+            print(f'❌ Smoke test failed: {e}')
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
+        PYTHON_SCRIPT
+        python /tmp/smoke_test.py
+
+        TEST_EXIT_CODE=$?
+        if [[ $TEST_EXIT_CODE -ne 0 ]]; then
+          echo "success=false" >> $GITHUB_OUTPUT
+          echo "error_message=Import verification failed" >> $GITHUB_OUTPUT
+          echo "::error::Smoke test failed - imports or basic functionality broken"
+          deactivate
+          exit 1
+        fi
+
+        echo "success=true" >> $GITHUB_OUTPUT
+        echo "error_message=" >> $GITHUB_OUTPUT
+
+        deactivate
+        exit 0
+
+    - name: Cleanup temporary venv
+      if: always()
+      shell: bash
+      run: |
+        rm -rf /tmp/smoke-test-venv
+        echo "🧹 Cleaned up temporary venv"
+
+    - name: Display smoke test results
+      shell: bash
+      run: |
+        echo "### 🧪 Smoke Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Source**: ${{ inputs.source }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Package**: ${{ inputs.package_name }}==${{ inputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Python**: ${{ inputs.python_version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Result**: ${{ steps.test.outputs.success == 'true' && '✅ PASSED' || '❌ FAILED' }}" >> $GITHUB_STEP_SUMMARY
+
+        if [[ "${{ steps.test.outputs.success }}" != "true" ]]; then
+          echo "- **Error**: ${{ steps.test.outputs.error_message }}" >> $GITHUB_STEP_SUMMARY
+        fi

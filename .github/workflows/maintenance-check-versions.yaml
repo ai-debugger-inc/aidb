@@ -1,0 +1,134 @@
+name: Check Infrastructure Version Updates
+
+on:
+  schedule:
+    # Run every 12 hours (twice daily)
+    - cron: '0 */12 * * *'
+  workflow_dispatch:
+
+jobs:
+  load-versions:
+    uses: ./.github/workflows/load-versions.yaml
+
+  check-infrastructure:
+    runs-on: ubuntu-latest
+    needs: load-versions
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ needs.load-versions.outputs.python-version }}
+
+      - name: Install dependencies
+        run: pip install requests packaging pyyaml tomli
+
+      - name: Check version updates
+        id: check
+        run: |
+          python .github/scripts/version_management/cli.py \
+            --config versions.yaml \
+            --section all
+        continue-on-error: true
+
+      - name: Create or update issue if updates available
+        if: steps.check.outcome == 'failure'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const title = 'Infrastructure version updates available';
+            const body = `
+            ## Version Updates Detected
+
+            New versions are available for infrastructure components managed in \`versions.yaml\`.
+
+            **Workflow run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            ### Next Steps
+
+            1. Run locally to see details:
+               \`\`\`bash
+               python .github/scripts/version_management/cli.py --config versions.yaml --section all
+               \`\`\`
+
+            2. Review updates and update \`versions.yaml\` as appropriate
+
+            3. Test changes:
+               \`\`\`bash
+               ./dev-cli versions show
+               ./dev-cli versions docker --format env
+               \`\`\`
+
+            ### What's Checked
+
+            - Infrastructure versions (Python, Node, Java)
+            - Debug adapters (debugpy, vscode-js-debug, java-debug)
+            - Docker images (redis)
+            - Global packages (pip, setuptools, wheel, typescript, ts-node)
+            - debugpy synchronization between versions.yaml and pyproject.toml
+
+            ---
+            *This issue is automatically created by the version check workflow.*
+            *Close this issue after updating versions or if updates are not needed.*
+            `;
+
+            // Check if issue already exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'infrastructure-updates'
+            });
+
+            if (issues.data.length === 0) {
+              // Create new issue
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['dependencies', 'infrastructure', 'infrastructure-updates']
+              });
+              console.log('Created new infrastructure updates issue');
+            } else {
+              // Update existing issue
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues.data[0].number,
+                body: body
+              });
+              console.log('Updated existing infrastructure updates issue #' + issues.data[0].number);
+            }
+
+      - name: Close issue if no updates
+        if: steps.check.outcome == 'success'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            // Find and close the infrastructure-updates issue if it exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'infrastructure-updates'
+            });
+
+            if (issues.data.length > 0) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues.data[0].number,
+                state: 'closed',
+                state_reason: 'completed'
+              });
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues.data[0].number,
+                body: 'All infrastructure versions are up to date. Closing this issue automatically.'
+              });
+              console.log('Closed infrastructure updates issue #' + issues.data[0].number);
+            }

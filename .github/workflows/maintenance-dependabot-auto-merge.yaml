@@ -1,0 +1,296 @@
+# Automated Dependabot PR Management
+# This workflow automatically merges Dependabot PRs to the dependabot-updates staging branch
+#
+# Flow:
+# 1. Dependabot opens PR targeting dependabot-updates branch
+# 2. Sync dependabot-updates with main (merge main into it)
+# 3. Auto-merge the Dependabot PR (squash merge)
+# 4. On failure: comment on PR with resolution instructions and create tracking issue
+
+name: Dependabot Auto-Merge
+
+on:
+  pull_request:
+    branches:
+      - dependabot-updates
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+concurrency:
+  group: dependabot-auto-merge
+  cancel-in-progress: false
+
+jobs:
+  auto-merge-dependabot:
+    runs-on: ubuntu-latest
+    # Only run for Dependabot PRs
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Generate GitHub App Token
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.AIDB_APP_ID }}
+          private-key: ${{ secrets.AIDB_APP_PRIVATE_KEY }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          ref: dependabot-updates
+          fetch-depth: 0
+          token: ${{ steps.generate_token.outputs.token }}
+
+      - name: Configure git
+        run: |
+          git config user.name "aidb-automation[bot]"
+          git config user.email "automation@ai-debugger.com"
+
+      - name: Sync dependabot-updates with main
+        id: sync
+        run: |
+          echo "🔄 Syncing dependabot-updates with main..."
+
+          # Fetch latest main
+          git fetch origin main
+
+          # Try to merge main into dependabot-updates
+          if git merge origin/main --no-edit -m "chore: sync dependabot-updates with main before merging PR #${{ github.event.pull_request.number }}"; then
+            echo "✅ Successfully synced with main"
+            echo "sync_success=true" >> $GITHUB_OUTPUT
+
+            # Push the sync commit
+            git push origin dependabot-updates
+
+            # Brief delay to ensure GitHub processes the commit
+            echo "⏳ Waiting for GitHub to process sync commit..."
+            sleep 3
+          else
+            echo "❌ Merge conflict detected when syncing with main"
+            echo "sync_success=false" >> $GITHUB_OUTPUT
+
+            # Abort the merge
+            git merge --abort
+            exit 1
+          fi
+
+      - name: Wait for mergeable status
+        if: steps.sync.outputs.sync_success == 'true'
+        id: wait_mergeable
+        env:
+          GH_TOKEN: ${{ steps.generate_token.outputs.token }}
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+
+          echo "⏳ Waiting for mergeable status to be computed..."
+
+          TIMEOUT=60
+          ELAPSED=0
+
+          while [ "$ELAPSED" -lt "$TIMEOUT" ]; do
+            MERGEABLE=$(gh pr view $PR_NUMBER --json mergeable --jq '.mergeable')
+
+            if [ "$MERGEABLE" = "MERGEABLE" ]; then
+              echo "✅ PR is mergeable"
+              echo "is_mergeable=true" >> $GITHUB_OUTPUT
+              break
+            elif [ "$MERGEABLE" = "CONFLICTING" ]; then
+              echo "❌ PR has conflicts"
+              echo "is_mergeable=false" >> $GITHUB_OUTPUT
+              exit 1
+            else
+              echo "Status: $MERGEABLE, waiting..."
+              sleep 5
+              ELAPSED=$((ELAPSED + 5))
+            fi
+          done
+
+          if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+            echo "⚠️ Timeout waiting for mergeable status"
+            echo "is_mergeable=unknown" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Enable auto-merge
+        if: steps.wait_mergeable.outputs.is_mergeable == 'true'
+        id: merge
+        env:
+          GH_TOKEN: ${{ steps.generate_token.outputs.token }}
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+
+          echo "🔀 Enabling auto-merge for PR #$PR_NUMBER..."
+
+          # Enable auto-merge (will merge after checks pass)
+          if gh pr merge $PR_NUMBER --auto --squash; then
+            echo "✅ Auto-merge enabled for PR #$PR_NUMBER"
+            echo "auto_merge_enabled=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Failed to enable auto-merge for PR #$PR_NUMBER"
+            echo "auto_merge_enabled=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Wait for merge completion
+        if: steps.merge.outputs.auto_merge_enabled == 'true'
+        env:
+          GH_TOKEN: ${{ steps.generate_token.outputs.token }}
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+
+          echo "⏳ Waiting for PR to merge (checks must pass first)..."
+
+          TIMEOUT=300
+          ELAPSED=0
+
+          while [ "$ELAPSED" -lt "$TIMEOUT" ]; do
+            PR_STATE=$(gh pr view $PR_NUMBER --json state --jq '.state' 2>/dev/null || echo "UNKNOWN")
+
+            if [ "$PR_STATE" = "MERGED" ]; then
+              echo "✅ PR successfully merged!"
+              echo "merge_success=true" >> $GITHUB_OUTPUT
+              break
+            elif [ "$PR_STATE" = "CLOSED" ]; then
+              echo "❌ PR was closed without merging"
+              echo "merge_success=false" >> $GITHUB_OUTPUT
+              exit 1
+            elif [ "$PR_STATE" = "OPEN" ]; then
+              echo "PR still open, waiting for checks... (${ELAPSED}s elapsed)"
+            fi
+
+            sleep 10
+            ELAPSED=$((ELAPSED + 10))
+          done
+
+          if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+            echo "⚠️ Timeout waiting for merge. PR may still merge if checks are running."
+            echo "Auto-merge is enabled, but checks may still be in progress."
+            # Don't fail - auto-merge will complete when checks pass
+          fi
+
+      - name: Comment on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ steps.generate_token.outputs.token }}
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+
+          COMMENT=$(cat << 'EOF'
+          ## ⚠️ Auto-merge Failed
+
+          The automated merge to `dependabot-updates` failed due to conflicts or merge issues.
+
+          ### Manual Resolution Required
+
+          1. Check out the `dependabot-updates` branch locally
+          2. Merge `main` into `dependabot-updates` to sync with latest changes:
+             ```bash
+             git checkout dependabot-updates
+             git pull origin dependabot-updates
+             git merge origin/main
+             # Resolve any conflicts
+             git push origin dependabot-updates
+             ```
+          3. Once synced, this PR should be mergeable
+          4. You can then merge this PR manually or let the workflow retry
+
+          ---
+          *This comment was automatically generated by the Dependabot auto-merge workflow.*
+          EOF
+          )
+
+          gh pr comment $PR_NUMBER --body "$COMMENT"
+
+      - name: Create tracking issue on failure
+        if: failure()
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ steps.generate_token.outputs.token }}
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const prTitle = context.payload.pull_request.title;
+            const prUrl = context.payload.pull_request.html_url;
+            const syncSuccess = '${{ steps.sync.outputs.sync_success }}';
+            const mergeSuccess = '${{ steps.merge.outputs.auto_merge_enabled }}';
+
+            let failureReason = 'Unknown failure';
+            if (syncSuccess === 'false') {
+              failureReason = 'Failed to sync dependabot-updates branch with main (merge conflict)';
+            } else if (mergeSuccess === 'false') {
+              failureReason = 'Failed to enable auto-merge for PR';
+            } else {
+              failureReason = 'Mergeable status check failed or timeout';
+            }
+
+            const title = `🚨 Dependabot auto-merge failed for PR #${prNumber}`;
+            const body = `## Auto-merge Failure
+
+            The automated merge workflow failed for Dependabot PR.
+
+            **PR**: #${prNumber} - ${prTitle}
+            **PR URL**: ${prUrl}
+            **Failure reason**: ${failureReason}
+
+            ### Manual Actions Required
+
+            1. Check the [workflow run logs](${context.payload.repository.html_url}/actions/runs/${context.runId}) for details
+            2. See the PR for automated resolution instructions
+            3. Resolve any merge conflicts if applicable
+            4. Manually merge the PR or re-trigger the workflow
+
+            ### Common Solutions
+
+            - **Merge conflicts**: Follow instructions in PR comment to sync branches
+            - **Failed status checks**: Wait for checks to complete and re-run workflow
+            - **Permission issues**: Verify GitHub App has required permissions
+
+            ---
+            *This issue was automatically created by the Dependabot auto-merge workflow.*
+            *Close this issue once the PR has been successfully merged.*`;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['dependabot', 'auto-merge-failed', 'needs-attention']
+            });
+
+      - name: Summary
+        if: always()
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+
+          echo "## 📊 Dependabot Auto-Merge Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**PR**: #$PR_NUMBER - $PR_TITLE" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.sync.outputs.sync_success }}" = "true" ] && [ "${{ steps.merge.outputs.auto_merge_enabled }}" = "true" ]; then
+            echo "✅ **Status**: Auto-merge enabled" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Actions Taken:" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔄 Synced \`dependabot-updates\` with \`main\`" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔀 Enabled auto-merge for PR #$PR_NUMBER" >> $GITHUB_STEP_SUMMARY
+            echo "- ⏳ PR will merge automatically once all checks pass" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.sync.outputs.sync_success }}" = "false" ]; then
+            echo "❌ **Status**: Failed to sync with main" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Merge conflicts detected when syncing \`dependabot-updates\` with \`main\`." >> $GITHUB_STEP_SUMMARY
+            echo "Manual intervention required. See PR comment for resolution steps." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.merge.outputs.auto_merge_enabled }}" = "false" ]; then
+            echo "❌ **Status**: Failed to enable auto-merge" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Could not enable auto-merge for PR. Check PR status and workflow logs." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Status**: Failed during mergeable status check" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Mergeable status check failed or timed out. Check workflow logs for details." >> $GITHUB_STEP_SUMMARY
+          fi

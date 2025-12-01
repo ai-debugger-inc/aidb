@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# AIDB Development CLI
+# This script provides access to internal development tools.
+# It is NOT included in the PyPI distribution.
+
+set -e
+
+# Resolve symlinks to find the actual script location
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+while [ -L "${SCRIPT_PATH}" ]; do
+    SCRIPT_DIR="$(cd "$(dirname "${SCRIPT_PATH}")" && pwd)"
+    SCRIPT_PATH="$(readlink "${SCRIPT_PATH}")"
+    [[ ${SCRIPT_PATH} != /* ]] && SCRIPT_PATH="${SCRIPT_DIR}/${SCRIPT_PATH}"
+done
+SCRIPT_DIR="$(cd "$(dirname "${SCRIPT_PATH}")" && pwd)"
+
+# Use the virtual environment python to run the dev CLI module
+# Quiet completion generation: when Click asks for shell completion
+# (via the _AIDB_COMPLETE env var), we suppress console/file logging
+# so that eval "$(...)" snippets don't get polluted by logs.
+if [[ -n "${_AIDB_COMPLETE:-}" ]]; then
+  # Ensure no console noise and avoid touching log files during shell startup
+  export AIDB_CONSOLE_LOGGING=0
+  export AIDB_NO_FILE_LOGGING=1
+  # Keep log level reasonable if the user globally set DEBUG
+  export AIDB_LOG_LEVEL="${AIDB_LOG_LEVEL:-WARNING}"
+fi
+
+# Add src directory to PYTHONPATH for development
+export PYTHONPATH="${SCRIPT_DIR}/src:${PYTHONPATH:-}"
+exec "${SCRIPT_DIR}/venv/bin/python" -m aidb_cli "$@"

@@ -1,0 +1,20 @@
+{
+  "name": "express-test-app",
+  "version": "1.0.0",
+  "description": "Minimal Express app for AIDB framework debugging tests",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --inspect server.js"
+  },
+  "keywords": [
+    "express",
+    "test",
+    "debugging"
+  ],
+  "author": "AIDB Test Suite",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

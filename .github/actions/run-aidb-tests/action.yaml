@@ -1,0 +1,136 @@
+name: Run AIDB Tests
+description: Execute AIDB test suite with optional coverage reporting
+inputs:
+  suite:
+    description: Test suite to run (cli, backend, shared, common, logging, mcp, core, frameworks, launch)
+    required: true
+  skip-coverage:
+    description: Skip coverage reporting
+    required: false
+    default: 'false'
+  coverage-flags:
+    description: Codecov flags to apply (defaults to suite name)
+    required: false
+  additional-args:
+    description: Additional arguments to pass to dev-cli test run
+    required: false
+    default: ''
+  artifact-suffix:
+    description: Suffix to append to artifact names for uniqueness (e.g., language for matrix jobs)
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Run tests
+      id: run-tests
+      shell: bash
+      run: |
+        source venv/bin/activate
+        set +e
+        if [[ "${{ inputs.skip-coverage }}" == "true" ]]; then
+          ./dev-cli -v test run -s ${{ inputs.suite }} ${{ inputs.additional-args }} 2>&1 | tee test-output.log
+          TEST_EXIT_CODE=${PIPESTATUS[0]}
+        else
+          ./dev-cli -v test run -s ${{ inputs.suite }} --coverage ${{ inputs.additional-args }} 2>&1 | tee test-output.log
+          TEST_EXIT_CODE=${PIPESTATUS[0]}
+        fi
+        set -e
+        echo "exit_code=$TEST_EXIT_CODE" >> $GITHUB_OUTPUT
+        exit $TEST_EXIT_CODE
+
+    - name: Extract pytest summary
+      if: always()
+      shell: bash
+      run: |
+        if [ -f test-output.log ]; then
+          # Use standalone Python script to format test summary
+          # Save to file AND append to GITHUB_STEP_SUMMARY
+          python ${{ github.action_path }}/../../scripts/format_test_summary.py \
+            test-output.log \
+            "${{ steps.run-tests.outputs.exit_code }}" \
+            "${{ inputs.suite }}" \
+            "${{ github.run_id }}" \
+            "${{ inputs.artifact-suffix }}" \
+            | tee summary.md
+          cat summary.md >> $GITHUB_STEP_SUMMARY
+        else
+          # No test output - create minimal summary and empty flakes data
+          echo "## Test Results: ${{ inputs.suite }}" > summary.md
+          echo "" >> summary.md
+          echo "**Status**: ⚠️ No test output (job may have been cancelled or failed to start)" >> summary.md
+          cat summary.md >> $GITHUB_STEP_SUMMARY
+          # Create empty flakes.json for artifact consistency
+          echo '{"suite": "${{ inputs.suite }}", "flaky_tests": [], "consistently_failing": [], "rerun_count": 0}' > flakes.json
+        fi
+
+    - name: Upload coverage
+      if: inputs.skip-coverage != 'true'
+      uses: codecov/codecov-action@v4
+      with:
+        files: .coverage
+        flags: ${{ inputs.coverage-flags || inputs.suite }}
+        fail_ci_if_error: false
+
+    - name: Upload test summary
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-summary-${{ inputs.suite }}${{ inputs.artifact-suffix && format('-{0}', inputs.artifact-suffix) || '' }}
+        path: |
+          summary.md
+          flakes.json
+        retention-days: 7
+        if-no-files-found: warn
+
+    - name: Prepare logs for upload
+      if: always()
+      shell: bash
+      run: |
+        # Copy ~/.aidb/log/ to a local directory for artifact upload
+        # (tilde expansion doesn't work in actions/upload-artifact paths)
+        echo "=== Preparing logs for artifact upload ==="
+
+        # Check and copy ~/.aidb/log
+        if [ -d "$HOME/.aidb/log" ]; then
+          mkdir -p .aidb/log
+          cp -r "$HOME/.aidb/log"/* .aidb/log/ 2>/dev/null || true
+          echo "Copied ~/.aidb/log to .aidb/log for artifact upload"
+          ls -la .aidb/log/
+        else
+          echo "No ~/.aidb/log directory found"
+        fi
+
+        # Show what's in container-data (for debugging artifact collection)
+        echo ""
+        echo "=== Container data directory contents ==="
+        if [ -d ".cache/container-data" ]; then
+          echo "Container data exists:"
+          find .cache/container-data -type f -name "*.log" 2>/dev/null | head -20 || echo "No log files found"
+          du -sh .cache/container-data/* 2>/dev/null || echo "Could not get sizes"
+        else
+          echo "No .cache/container-data directory found"
+        fi
+
+        # Show pytest-logs
+        echo ""
+        echo "=== pytest-logs directory contents ==="
+        if [ -d "pytest-logs" ]; then
+          find pytest-logs -type f -name "*.log" 2>/dev/null | head -10 || echo "No log files found"
+        else
+          echo "No pytest-logs directory found"
+        fi
+
+    - name: Upload test logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-logs-${{ inputs.suite }}${{ inputs.artifact-suffix && format('-{0}', inputs.artifact-suffix) || '' }}
+        path: |
+          pytest-logs/
+          .cache/container-data/
+          .aidb/log/
+          test-output.log
+        retention-days: 7
+        compression-level: 6
+        if-no-files-found: warn

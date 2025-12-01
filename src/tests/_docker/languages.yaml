@@ -1,0 +1,44 @@
+# Language-specific configuration for Docker Compose generation
+# This file defines metadata for each language adapter used in testing
+#
+# Each language entry specifies:
+# - dockerfile: The Dockerfile to use for building the test image
+# - version_key: Environment variable name for the language version
+# - adapter_env_vars: Environment variables specific to this adapter
+# - healthcheck: Shell command to verify language and adapter are available
+# - pip_flags: Additional flags for pip install (e.g., --break-system-packages for Node)
+# - test_path: Default test path for this language's framework tests
+# - mcp_test_filter: pytest -k filter for MCP tests
+
+languages:
+  python:
+    dockerfile: dockerfiles/Dockerfile.test.python
+    version_key: PYTHON_VERSION
+    adapter_env_vars:
+      AIDB_PYTHON_PATH: /root/.aidb/adapters/python/debugpy/__init__.py
+    healthcheck: "python --version && test -d /root/.aidb/adapters/python"
+    pip_flags: "--root-user-action=ignore"
+    test_path: "src/tests/frameworks/python/"
+    mcp_test_filter: "python"
+
+  javascript:
+    dockerfile: dockerfiles/Dockerfile.test.javascript
+    version_key: NODE_VERSION
+    adapter_env_vars:
+      AIDB_JAVASCRIPT_PATH: /root/.aidb/adapters/javascript/src/dapDebugServer.js
+      NODE_PATH: /root/.aidb/adapters/javascript/node_modules
+    healthcheck: "node --version && test -f /root/.aidb/adapters/javascript/src/dapDebugServer.js"
+    pip_flags: "--root-user-action=ignore --break-system-packages"
+    test_path: "src/tests/frameworks/javascript/"
+    mcp_test_filter: "javascript"
+
+  java:
+    dockerfile: dockerfiles/Dockerfile.test.java
+    version_key: JAVA_VERSION
+    adapter_env_vars:
+      AIDB_JAVA_PATH: /root/.aidb/adapters/java/java-debug.jar
+      JDT_LS_HOME: ${JDT_LS_HOME:-/opt/jdtls}
+    healthcheck: "java -version && test -f /root/.aidb/adapters/java/java-debug.jar"
+    pip_flags: "--root-user-action=ignore --break-system-packages"
+    test_path: "src/tests/frameworks/java/"
+    mcp_test_filter: "java"

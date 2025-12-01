@@ -1,0 +1,255 @@
+{
+  "version": "1.0",
+  "skills": {
+    "skill-developer": {
+      "type": "domain",
+      "enforcement": "suggest",
+      "priority": "high",
+      "autoInject": true,
+      "requiredSkills": [],
+      "description": "Guide for creating and managing Claude Code skills. Covers skill structure, YAML frontmatter, trigger types (keywords, AI-powered intent analysis), enforcement levels (validation only), hook mechanisms (UserPromptSubmit with auto-injection), session tracking, 500-line rule, progressive disclosure, and relationship to CLAUDE.md. Use when creating new skills, modifying skill-rules.json, understanding triggers, debugging skill activation, or understanding the skills system architecture.",
+      "promptTriggers": {
+        "keywords": [
+          "Claude Code skill",
+          "skill system",
+          "create skill",
+          "add skill",
+          "skill triggers",
+          "skill rules",
+          "skill hook",
+          "skill activation",
+          "skill development",
+          "skill-rules.json",
+          "intent-analysis-prompt",
+          "UserPromptSubmit hook",
+          "progressive disclosure",
+          "500-line rule",
+          "modify skill",
+          "update skill",
+          "skill configuration",
+          "skill detection",
+          "skill keywords",
+          "skill description",
+          "autoInject",
+          "affinity skills",
+          "skill documentation",
+          "SKILL.md"
+        ]
+      }
+    },
+    "adapter-development": {
+      "type": "guardrail",
+      "enforcement": "block",
+      "priority": "critical",
+      "autoInject": true,
+      "requiredSkills": [],
+      "affinity": ["aidb-architecture", "dap-protocol-guide"],
+      "description": "Critical guardrail for implementing debug adapters. Covers component delegation (ProcessManager, PortManager, LaunchOrchestrator), lifecycle hooks, language-specific patterns (Python/JavaScript/Java), and adapter configuration. Required when modifying aidb/adapters/ or adding new language support.",
+      "promptTriggers": {
+        "keywords": [
+          "adapter",
+          "debugpy",
+          "vscode-js-debug",
+          "java-debug",
+          "JDT",
+          "JDT LS",
+          "launch orchestration",
+          "process manager",
+          "port manager"
+        ]
+      }
+    },
+    "dap-protocol-guide": {
+      "type": "domain",
+      "enforcement": "suggest",
+      "priority": "high",
+      "autoInject": true,
+      "requiredSkills": [],
+      "affinity": ["aidb-architecture"],
+      "description": "Guide for working with DAP protocol types and DAP client implementation. Use ONLY when working directly in src/aidb/dap/protocol/ or src/aidb/dap/client/. For adapter work, use adapter-development instead.",
+      "promptTriggers": {
+        "keywords": [
+          "DAP protocol",
+          "DAP specification",
+          "DAP message",
+          "DAP client",
+          "protocol.py",
+          "InitializeRequest type",
+          "SetBreakpointsRequest",
+          "StackTraceRequest",
+          "ScopesRequest",
+          "VariablesRequest",
+          "EvaluateRequest",
+          "DAP response body",
+          "DAP event handling",
+          "sequence number",
+          "variablesReference",
+          "protocol types",
+          "protocol message"
+        ]
+      }
+    },
+    "testing-strategy": {
+      "type": "domain",
+      "enforcement": "suggest",
+      "priority": "high",
+      "autoInject": true,
+      "requiredSkills": [],
+      "description": "Guide for implementing AIDB tests following E2E-first philosophy. Covers DebugInterface abstraction, shared suite architecture, framework tests, and MCP response validation. Use when creating tests, debugging test failures, or understanding test infrastructure.",
+      "promptTriggers": {
+        "keywords": [
+          "test",
+          "DebugInterface",
+          "E2E test",
+          "integration test",
+          "framework test",
+          "pytest",
+          "adapter trace",
+          "logs"
+        ]
+      }
+    },
+    "mcp-tools-development": {
+      "type": "domain",
+      "enforcement": "suggest",
+      "priority": "high",
+      "autoInject": true,
+      "requiredSkills": [],
+      "affinity": ["aidb-architecture"],
+      "description": "Guide for creating and modifying AIDB MCP tools with agent optimization. Covers handler patterns, response system, token optimization, and session management. Use when working with aidb_mcp/ or implementing new MCP tool handlers.",
+      "promptTriggers": {
+        "keywords": [
+          "MCP tool",
+          "MCP server",
+          "agent optimization",
+          "tool handler",
+          "dogfood mcp"
+        ]
+      }
+    },
+    "code-reuse-enforcement": {
+      "type": "guardrail",
+      "enforcement": "block",
+      "priority": "critical",
+      "autoInject": true,
+      "requiredSkills": [],
+      "description": "Critical guardrail preventing code duplication and magic strings. Enforces discovery of existing constants, enums, and utilities BEFORE writing new code. Use when adding any literals, utility functions, or new constants.",
+      "promptTriggers": {
+        "keywords": [
+          "add constant",
+          "create enum",
+          "magic string",
+          "duplicate code",
+          "shared utils",
+          "common utils",
+          "consts/enums",
+          "DRY"
+        ]
+      }
+    },
+    "dev-cli-development": {
+      "type": "domain",
+      "enforcement": "suggest",
+      "priority": "high",
+      "autoInject": true,
+      "requiredSkills": [],
+      "description": "Guide for developing AIDB dev-cli commands and services using Click framework",
+      "promptTriggers": {
+        "keywords": [
+          "dev-cli",
+          "CLI command",
+          "Click command",
+          "Click group",
+          "CLI service",
+          "CommandExecutor",
+          "CliOutput",
+          "BaseService",
+          "test orchestration",
+          "docker orchestration",
+          "adapter building",
+          "test program generation",
+          "dap protocol generation"
+        ]
+      }
+    },
+    "ci-cd-workflows": {
+      "type": "domain",
+      "enforcement": "suggest",
+      "priority": "high",
+      "autoInject": true,
+      "requiredSkills": [],
+      "description": "Guide for GitHub Actions workflows, adapter builds, releases, and CI/CD configuration. Includes GitHub CLI for CI observability, test artifacts, job summaries, and log analysis. Use when working with .github/workflows/ files, versions.yaml, testing-config.yaml, troubleshooting CI pipeline issues, or analyzing CI test failures. For general testing, use testing-strategy instead.",
+      "promptTriggers": {
+        "keywords": [
+          "GitHub Actions workflow",
+          "GitHub Actions CI",
+          ".github/workflows/",
+          "versions.yaml",
+          "testing-config.yaml",
+          "workflow dispatch",
+          "workflow matrix",
+          "composite action",
+          "reusable workflow",
+          "GitHub runner",
+          "act local CI",
+          "CI pipeline failure",
+          "workflow trigger",
+          "PyPI release",
+          "adapter build workflow",
+          "gh run download",
+          "test artifacts",
+          "test-logs artifact",
+          "CI job logs",
+          "GitHub workflow logs",
+          "job summary",
+          "CI observability",
+          "pytest summary",
+          "CI test failure",
+          "workflow failed",
+          "action failed"
+        ]
+      }
+    },
+    "troubleshooting": {
+      "type": "domain",
+      "enforcement": "suggest",
+      "priority": "high",
+      "autoInject": true,
+      "requiredSkills": [],
+      "description": "Guide for troubleshooting AIDB issues across all components. Covers investigation workflows, log locations, common failure modes, and routing to component-specific skills. Use when debugging AIDB behavior, investigating errors, or performing root cause analysis.",
+      "promptTriggers": {
+        "keywords": [
+          "troubleshoot",
+          "debug AIDB runtime",
+          "RCA",
+          "root cause",
+          "triage runtime issue",
+          "AIDB not working",
+          "why is AIDB",
+          "AIDB failing",
+          "AIDB timeout",
+          "AIDB crash",
+          "AIDB hanging"
+        ]
+      }
+    },
+    "aidb-architecture": {
+      "type": "domain",
+      "enforcement": "suggest",
+      "priority": "high",
+      "autoInject": true,
+      "requiredSkills": [],
+      "description": "Comprehensive architectural reference for AIDB core and MCP integration. Covers 6-layer architecture: MCP, API, Session, Adapter, DAP Client, Protocol. Use when explaining overall system design, component organization, or data flow patterns.",
+      "promptTriggers": {
+        "keywords": [
+          "aidb architecture",
+          "architecture overview",
+          "architectural design",
+          "system architecture",
+          "layer architecture",
+          "component architecture"
+        ]
+      }
+    }
+  }
+}

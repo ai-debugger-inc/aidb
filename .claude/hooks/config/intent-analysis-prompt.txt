@@ -1,0 +1,74 @@
+Analyze this user prompt and determine which domain skills are relevant for the PRIMARY task.
+
+User prompt: "{{USER_PROMPT}}"
+
+Available skills:
+{{SKILL_DESCRIPTIONS}}
+
+IMPORTANT SCORING GUIDANCE:
+- 0.9-1.0: User is DIRECTLY working on this domain (editing code, implementing features, writing tests)
+- 0.7-0.9: User needs this domain knowledge to complete their primary task
+- 0.5-0.7: Domain is related but not essential to primary task
+- 0.3-0.5: Domain mentioned in passing or as background context
+- 0.0-0.3: Not relevant to primary task
+
+EXAMPLES OF WHAT NOT TO SUGGEST:
+- "Investigate the code" → Do NOT suggest troubleshooting (researching code ≠ debugging runtime issues)
+- "Read the logs" → Do NOT suggest troubleshooting if examining config/code (not live debugging)
+- "Check the test file" → Do NOT suggest testing-strategy unless writing/running tests
+- "Look at adapter code" → Do NOT suggest adapter-development unless modifying adapters
+- "How does X work?" → Research/understanding ≠ implementing features
+
+CRITICAL SELECTION RULES:
+- You MUST select ONLY the TOP 2 most relevant skills for the primary task (confidence > 0.65)
+- Be extremely selective - prioritize the 2 skills most essential to completing the main action
+- Additional related skills should be marked 0.5-0.7 (suggested, not critical)
+- If no skills are truly essential, return 0 critical skills
+- Focus on MAIN ACTION, not tangential mentions
+
+MULTI-DOMAIN WORK DETECTION:
+- If the prompt involves ACTIVE work across multiple domains, score both high (0.75-0.90)
+  Examples:
+  * "Modify the Python adapter's DAP protocol handling" → adapter-development (0.90) + dap-protocol-guide (0.85)
+  * "Write tests for the MCP tools" → testing-strategy (0.90) + mcp-tools-development (0.85)
+  * "Fix the CI workflow that builds adapters" → ci-cd-workflows (0.90) + adapter-development (0.75)
+
+- If the prompt is META-LEVEL (testing/checking/understanding the system itself), deprioritize:
+  Examples:
+  * "Skill system check: adapter, mcp, testing" → Likely troubleshooting/research, not active work
+  * "How does the adapter system work?" → Research, not implementation (score 0.50-0.65)
+  * "Check if the MCP tools are working" → troubleshooting (0.75), not mcp-tools-development (0.55)
+
+- KEYWORD SOUP (listing many domains without clear action) should score lower (0.50-0.65):
+  Examples:
+  * "Review: adapters, mcp, testing, ci/cd, backend" → Ambiguous intent, likely research (all 0.50-0.60)
+  * Exception: If context suggests active work across domains, score higher
+
+META-SKILL DETECTION (Skills System Itself):
+- The skill-developer skill should ONLY score high (0.85-0.95) for prompts about the SKILLS SYSTEM ITSELF
+- Questions about HOW the skills system works, HOW skills are loaded, or MODIFYING skill configuration
+  Examples of HIGH relevance (0.85-0.95):
+  * "How does the skills activation hook work?" → skill-developer (0.90)
+  * "Explain the intent analysis prompt" → skill-developer (0.90)
+  * "Why isn't skill X loading?" → skill-developer (0.90)
+  * "How are skills detected and injected?" → skill-developer (0.90)
+  * "Modify skill-rules.json" → skill-developer (0.90)
+  * "Add a new skill trigger pattern" → skill-developer (0.90)
+  * "Debug the UserPromptSubmit hook" → skill-developer (0.85)
+  * "Explain how intent patterns work" → skill-developer (0.85)
+
+- Do NOT score skill-developer high for:
+  * Using existing domain skills (adapter-development, testing-strategy, etc.) → (0.0-0.3)
+  * General questions about adapters, MCP tools, testing, etc. → Use domain-specific skills instead
+  * Working with actual code (not skill system code) → (0.0-0.3)
+
+Return JSON with confidence scores (0.0-1.0) for each skill's relevance to the PRIMARY task intent.
+Only include skills with confidence > 0.4.
+
+Response format:
+{
+  "primary_intent": "brief description of main task",
+  "skills": [
+    {"name": "skill-name", "confidence": 0.95, "reason": "why this skill is relevant"}
+  ]
+}

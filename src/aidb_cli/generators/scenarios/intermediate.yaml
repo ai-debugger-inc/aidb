@@ -1,0 +1,302 @@
+# Intermediate test scenarios for generator testing
+
+scenarios:
+  # Array operations with iteration
+  - id: array_operations
+    name: "Array Operations"
+    description: "Test array declaration, indexing, modification, and iteration"
+    category: "variables"
+    complexity: "intermediate"
+    constructs:
+      - type: "array"
+        name: "numbers"
+        data_type: "integer"
+        values: [10, 20, 30, 40, 50]
+        marker: "var.init.array"
+      - type: "print"
+        message: "Array created with 5 elements"
+        marker: "func.print.created"
+      - type: "loop"
+        loop_type: "for"
+        variable: "num"
+        iterable: "numbers"
+        marker: "flow.loop.iterate"
+        body:
+          - type: "print"
+            message: "Element: {num}"
+            marker: "func.print.element"
+      - type: "print"
+        message: "Iteration complete"
+        marker: "func.print.done"
+    expected_markers:
+      var.init.array: 1
+      func.print.created: 2
+      flow.loop.iterate: 3
+      func.print.element: 4
+      func.print.done: 5
+
+  # Nested loops (2 levels)
+  - id: nested_loops
+    name: "Nested Loops"
+    description: "Test debugger stepping through nested loop constructs"
+    category: "control_flow"
+    complexity: "intermediate"
+    constructs:
+      - type: "variable"
+        name: "total"
+        data_type: "integer"
+        initial_value: 0
+        marker: "var.init.total"
+      - type: "print"
+        message: "Starting nested loops"
+        marker: "func.print.start"
+      - type: "loop"
+        loop_type: "for"
+        variable: "i"
+        start: 0
+        end: 3
+        marker: "flow.loop.outer"
+        body:
+          - type: "loop"
+            loop_type: "for"
+            variable: "j"
+            start: 0
+            end: 3
+            marker: "flow.loop.inner"
+            body:
+              - type: "variable"
+                name: "total"
+                operation: "add"
+                value: "1"
+                marker: "var.add.total"
+              - type: "print"
+                message: "i={i}, j={j}, total={total}"
+                marker: "func.print.iteration"
+      - type: "print"
+        message: "Final total: {total}"
+        marker: "func.print.final"
+    expected_markers:
+      var.init.total: 1
+      func.print.start: 2
+      flow.loop.outer: 3
+      flow.loop.inner: 4
+      var.add.total: 5
+      func.print.iteration: 6
+      func.print.final: 7
+
+  # Function call chain (multiple functions calling each other)
+  - id: function_chain
+    name: "Function Call Chain"
+    description: "Test stepping through multiple function calls and returns"
+    category: "functions"
+    complexity: "intermediate"
+    constructs:
+      - type: "function"
+        name: "add"
+        parameters:
+          - name: "a"
+            type: "integer"
+          - name: "b"
+            type: "integer"
+        return_type: "integer"
+        marker: "func.def.add"
+        body:
+          - type: "print"
+            message: "Adding {a} + {b}"
+            marker: "func.print.add"
+          - type: "return"
+            value: "a + b"
+            marker: "func.return.add"
+      - type: "function"
+        name: "multiply"
+        parameters:
+          - name: "x"
+            type: "integer"
+          - name: "y"
+            type: "integer"
+        return_type: "integer"
+        marker: "func.def.multiply"
+        body:
+          - type: "print"
+            message: "Multiplying {x} * {y}"
+            marker: "func.print.multiply"
+          - type: "return"
+            value: "x * y"
+            marker: "func.return.multiply"
+      - type: "function"
+        name: "calculate"
+        parameters:
+          - name: "a"
+            type: "integer"
+          - name: "b"
+            type: "integer"
+          - name: "c"
+            type: "integer"
+        return_type: "integer"
+        marker: "func.def.calculate"
+        body:
+          - type: "print"
+            message: "Calculating (a + b) * c"
+            marker: "func.print.calculate"
+          - type: "function"
+            operation: "call"
+            name: "add"
+            arguments: ["a", "b"]
+            result_variable: "sum"
+            marker: "func.call.add"
+          - type: "function"
+            operation: "call"
+            name: "multiply"
+            arguments: ["sum", "c"]
+            result_variable: "result"
+            marker: "func.call.multiply"
+          - type: "return"
+            value: "result"
+            marker: "func.return.calculate"
+      - type: "function"
+        name: "main"
+        parameters: []
+        marker: "func.def.main"
+        body:
+          - type: "print"
+            message: "Starting calculation"
+            marker: "func.print.start"
+          - type: "function"
+            operation: "call"
+            name: "calculate"
+            arguments: [10, 20, 3]
+            result_variable: "answer"
+            marker: "func.call.calculate"
+          - type: "print"
+            message: "Result: {answer}"
+            marker: "func.print.result"
+    expected_markers:
+      func.def.add: 1
+      func.print.add: 2
+      func.return.add: 3
+      func.def.multiply: 4
+      func.print.multiply: 5
+      func.return.multiply: 6
+      func.def.calculate: 7
+      func.print.calculate: 8
+      func.call.add: 9
+      func.call.multiply: 10
+      func.return.calculate: 11
+      func.def.main: 12
+      func.print.start: 13
+      func.call.calculate: 14
+      func.print.result: 15
+
+  # Nested conditionals
+  - id: nested_conditionals
+    name: "Nested Conditionals"
+    description: "Test debugger navigation through nested if/else branches"
+    category: "control_flow"
+    complexity: "intermediate"
+    constructs:
+      - type: "variable"
+        name: "x"
+        data_type: "integer"
+        initial_value: 15
+        marker: "var.init.x"
+      - type: "variable"
+        name: "y"
+        data_type: "integer"
+        initial_value: 25
+        marker: "var.init.y"
+      - type: "print"
+        message: "Testing x={x}, y={y}"
+        marker: "func.print.start"
+      - type: "conditional"
+        condition: "x > 10"
+        marker: "flow.if.x_greater_10"
+        true_body:
+          - type: "print"
+            message: "x is greater than 10"
+            marker: "func.print.x_gt_10"
+          - type: "conditional"
+            condition: "y > 20"
+            marker: "flow.if.y_greater_20"
+            true_body:
+              - type: "print"
+                message: "Both x > 10 and y > 20"
+                marker: "func.print.both_true"
+            false_body:
+              - type: "print"
+                message: "x > 10 but y <= 20"
+                marker: "func.print.x_only"
+        false_body:
+          - type: "print"
+            message: "x is not greater than 10"
+            marker: "func.print.x_not_gt_10"
+      - type: "print"
+        message: "Done testing"
+        marker: "func.print.done"
+    expected_markers:
+      var.init.x: 1
+      var.init.y: 2
+      func.print.start: 3
+      flow.if.x_greater_10: 4
+      func.print.x_gt_10: 5
+      flow.if.y_greater_20: 6
+      func.print.both_true: 7
+      func.print.x_only: 8
+      func.print.x_not_gt_10: 9
+      func.print.done: 10
+
+  # Complex expressions
+  - id: complex_expressions
+    name: "Complex Expressions"
+    description: "Test variable inspection with complex mathematical and string expressions"
+    category: "variables"
+    complexity: "intermediate"
+    constructs:
+      - type: "variable"
+        name: "a"
+        data_type: "integer"
+        initial_value: 10
+        marker: "var.init.a"
+      - type: "variable"
+        name: "b"
+        data_type: "integer"
+        initial_value: 20
+        marker: "var.init.b"
+      - type: "variable"
+        name: "c"
+        data_type: "integer"
+        initial_value: 5
+        marker: "var.init.c"
+      - type: "print"
+        message: "Variables: a={a}, b={b}, c={c}"
+        marker: "func.print.vars"
+      - type: "variable"
+        name: "result"
+        data_type: "integer"
+        initial_value: "(a + b) * c - 10"
+        marker: "var.calc.result"
+      - type: "print"
+        message: "Calculated result: {result}"
+        marker: "func.print.result"
+      - type: "variable"
+        name: "name"
+        data_type: "string"
+        initial_value: "Test User"
+        marker: "var.init.name"
+      - type: "variable"
+        name: "greeting"
+        data_type: "string"
+        initial_value: '"Hello, " + name + "!"'
+        marker: "var.concat.greeting"
+      - type: "print"
+        message: "Greeting: {greeting}"
+        marker: "func.print.greeting"
+    expected_markers:
+      var.init.a: 1
+      var.init.b: 2
+      var.init.c: 3
+      func.print.vars: 4
+      var.calc.result: 5
+      func.print.result: 6
+      var.init.name: 7
+      var.concat.greeting: 8
+      func.print.greeting: 9

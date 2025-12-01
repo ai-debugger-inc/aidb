@@ -1,0 +1,132 @@
+# Critical test scenarios for stress-testing debugger capabilities
+
+scenarios:
+  # Syntax error program - test debugger error handling
+  - id: syntax_error_unclosed_bracket
+    name: "Syntax Error - Unclosed Bracket"
+    description: "Test debugger behavior with unclosed bracket/parenthesis syntax error"
+    category: "error_handling"
+    complexity: "advanced"
+    constructs:
+      # Valid code before error
+      - type: "variable"
+        name: "counter"
+        data_type: "integer"
+        initial_value: 0
+        marker: "var.init.counter"
+      - type: "print"
+        message: "Starting program"
+        marker: "func.print.start"
+      # Introduce syntax error - function with unclosed parenthesis
+      - type: "syntax_error"
+        error_type: "unclosed_bracket"
+        marker: "error.syntax.unclosed"
+      # Unreachable code after error
+      - type: "print"
+        message: "This code is unreachable"
+        marker: "func.print.unreachable"
+    expected_markers:
+      var.init.counter: 1
+      func.print.start: 2
+      error.syntax.unclosed: 3
+      func.print.unreachable: 4
+
+  # Infinite loop program - test debugger pause/interrupt capabilities
+  - id: infinite_loop_with_counter
+    name: "Infinite Loop with Counter"
+    description: "Test debugger pause/interrupt with infinite while(true) loop"
+    category: "debugging"
+    complexity: "advanced"
+    constructs:
+      - type: "variable"
+        name: "counter"
+        data_type: "integer"
+        initial_value: 0
+        marker: "var.init.counter"
+      - type: "loop"
+        loop_type: "while"
+        condition: "true"
+        marker: "flow.loop.infinite"
+        body:
+          - type: "variable"
+            name: "counter"
+            operation: "increment"
+            marker: "var.increment.counter"
+          - type: "conditional"
+            condition: "counter % 100 == 0"
+            marker: "flow.if.modulo"
+            true_body:
+              - type: "print"
+                message: "Still running: {counter}"
+                marker: "func.print.progress"
+    expected_markers:
+      var.init.counter: 1
+      flow.loop.infinite: 2
+      var.increment.counter: 3
+      flow.if.modulo: 4
+      func.print.progress: 5
+
+  # Stack overflow program - test debugger stability with deep recursion
+  - id: recursive_stack_overflow
+    name: "Recursive Stack Overflow"
+    description: "Test debugger behavior with infinite recursion causing stack overflow"
+    category: "debugging"
+    complexity: "advanced"
+    constructs:
+      - type: "function"
+        name: "recursive_function"
+        parameters:
+          - name: "depth"
+            data_type: "integer"
+        marker: "func.def.recursive"
+        body:
+          - type: "print"
+            message: "Depth: {depth}"
+            marker: "func.print.depth"
+          - type: "function"
+            operation: "call"
+            name: "recursive_function"
+            arguments: ["depth + 1"]
+            marker: "func.call.recursive"
+      - type: "function"
+        operation: "call"
+        name: "recursive_function"
+        arguments: [0]
+        marker: "func.call.start"
+    expected_markers:
+      func.def.recursive: 1
+      func.print.depth: 2
+      func.call.recursive: 3
+      func.call.start: 4
+
+  # Large data structure program - test debugger with moderately large arrays
+  - id: large_array_operations
+    name: "Large Array Operations"
+    description: "Test debugger performance with moderately large data structures"
+    category: "performance"
+    complexity: "advanced"
+    constructs:
+      - type: "array"
+        name: "large_numbers"
+        data_type: "integer"
+        size: 3000
+        initialize: "range"
+        marker: "var.create.large_array"
+      - type: "loop"
+        loop_type: "for"
+        iterable: "large_numbers"
+        variable: "item"
+        marker: "flow.loop.iterate"
+        body:
+          - type: "conditional"
+            condition: "item % 500 == 0"
+            marker: "flow.if.checkpoint"
+            true_body:
+              - type: "print"
+                message: "Checkpoint: {item}"
+                marker: "func.print.checkpoint"
+    expected_markers:
+      var.create.large_array: 1
+      flow.loop.iterate: 2
+      flow.if.checkpoint: 3
+      func.print.checkpoint: 4

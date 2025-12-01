@@ -1,0 +1,52 @@
+{# Template for language-specific framework test runners #}
+{# Variables available: lang, config (from languages.yaml), build_args (from versions.yaml) #}
+  test-runner-{{ lang }}:
+    profiles: ["{{ lang }}", "frameworks", "launch"]
+    build:
+      context: ${REPO_ROOT:-../../..}
+      dockerfile: src/tests/_docker/{{ config.dockerfile }}
+      args: *build-args
+    image: aidb-test-{{ lang }}:${IMAGE_TAG:-latest}
+    container_name: aidb-test-{{ lang }}
+    volumes:
+      - *workspace-mount
+      # Container-specific cache directories for parallel execution
+      - ${REPO_ROOT:-.}/.cache/container-data/aidb-test-{{ lang }}/${PYTEST_SESSION_ID:-latest}/log:/root/.aidb/log:rw
+      - ${REPO_ROOT:-.}/.cache/container-data/aidb-test-{{ lang }}/${PYTEST_SESSION_ID:-latest}/pytest:/workspace/pytest-logs:rw
+      # Build tool dependency caches (Maven/Gradle for Java)
+      - ${REPO_ROOT:-.}/.cache/maven/repository:/root/.m2/repository:rw
+      - ${REPO_ROOT:-.}/.cache/gradle:/root/.gradle:rw
+      - *test-cache-mount
+      - *adapters-mount-rw
+      - *adapters-mount-ro
+      - *docker-socket-mount
+    environment:
+      <<: *adapter-environment
+      TEST_SUITE: ${TEST_SUITE:-frameworks}
+      TEST_LANGUAGE: ${TEST_LANGUAGE:-{{ lang }}}
+      CONTAINER_NAME: aidb-test-{{ lang }}
+    working_dir: /workspace
+    networks:
+      - test-network
+    tmpfs:
+      - /tmp:exec
+    stdin_open: true
+    tty: true
+    labels: *test-labels
+    healthcheck:
+      test: ["CMD-SHELL", "{{ config.healthcheck }}"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    command: |
+      bash -lc '
+        set -euo pipefail
+        echo "{{ lang.title() }} Test Runner Started"
+        cd /workspace
+        python -m pip install {{ config.pip_flags + ' ' if config.pip_flags else '' }}-e .[test,dev] -q
+        python -m pytest ${TEST_PATH:-{{ config.test_path }}} \
+          --color=yes \
+          -o log_file=${PYTEST_LOG_DIR:-pytest-logs}/pytest-captured.log \
+          -v 2>&1 | tee ${PYTEST_LOG_DIR:-pytest-logs}/test-results.log
+      '

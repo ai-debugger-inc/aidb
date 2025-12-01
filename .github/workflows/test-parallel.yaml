@@ -1,0 +1,298 @@
+name: Tests (Parallel)
+
+on:
+  push:
+    branches: [main, develop]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/ISSUE_TEMPLATE/**'
+      - 'LICENSE'
+      - '.gitignore'
+      - '.claude/**'
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: 'Specific test suite to run'
+        type: choice
+        options: [all, cli, shared, common, logging, mcp, core, frameworks, launch, ci_cd]
+        default: all
+      skip_coverage:
+        description: 'Skip coverage reporting for faster execution'
+        type: boolean
+        default: false
+      debug_logging:
+        description: 'Enable trace-level logging (equivalent to dev-cli -vvv)'
+        type: boolean
+        default: true
+  workflow_call:
+    inputs:
+      suite:
+        description: 'Specific test suite to run'
+        type: string
+        default: 'all'
+      skip_coverage:
+        description: 'Skip coverage reporting for faster execution'
+        type: boolean
+        default: false
+      debug_logging:
+        description: 'Enable trace-level logging (equivalent to dev-cli -vvv)'
+        type: boolean
+        default: true
+      # Optional pre-loaded versions to avoid redundant load-versions call
+      python-version:
+        description: 'Python version (if already loaded by caller)'
+        type: string
+        required: false
+      node-version:
+        description: 'Node version (if already loaded by caller)'
+        type: string
+        required: false
+      java-version:
+        description: 'Java version (if already loaded by caller)'
+        type: string
+        required: false
+      java-distribution:
+        description: 'Java distribution (if already loaded by caller)'
+        type: string
+        required: false
+
+env:
+  IS_GITHUB: ${{ vars.IS_GITHUB || 'false' }}  # Use repo variable, default to false for ACT
+  AIDB_LOG_LEVEL: ${{ (inputs.debug_logging == true) && 'TRACE' || 'INFO' }}
+  AIDB_ADAPTER_TRACE: ${{ (inputs.debug_logging == true) && '1' || '0' }}
+  AIDB_CONSOLE_LOGGING: '1'
+  AIDB_JAVA_STARTDEBUG_TIMEOUT: '20'  # CI needs longer timeout due to slower I/O and resource contention
+  AIDB_JAVA_LSP_TIMEOUT: '60'  # Global LSP timeout for all LSP requests (initialize, executeCommand, etc.)
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+
+jobs:
+  # Always load versions
+  load-versions:
+    uses: ./.github/workflows/load-versions.yaml
+
+  # Build jobs - using reusable workflows
+  # Use caller-provided versions if available, otherwise use loaded versions
+  build-adapters:
+    needs: load-versions
+    if: ${{ !cancelled() }}
+    uses: ./.github/workflows/build-adapters.yaml
+    with:
+      python-version: ${{ inputs.python-version || needs.load-versions.outputs.python-version }}
+
+  build-docker-images:
+    needs: load-versions
+    if: ${{ !cancelled() }}
+    uses: ./.github/workflows/build-docker.yaml
+    with:
+      python-version: ${{ inputs.python-version || needs.load-versions.outputs.python-version }}
+
+  # Standard test suite jobs - using reusable workflows
+  # All tests gated behind builds to avoid wasting CI minutes on failed builds
+  test-cli:
+    needs: [load-versions, build-adapters, build-docker-images]
+    if: |
+      !cancelled() && (
+        github.event_name != 'workflow_dispatch' ||
+        inputs.suite == 'all' ||
+        inputs.suite == 'cli'
+      )
+    uses: ./.github/workflows/test-suite.yaml
+    with:
+      suite: cli
+      suite-name: CLI Tests
+      python-version: ${{ inputs.python-version || needs.load-versions.outputs.python-version }}
+      skip-coverage: ${{ inputs.skip_coverage || false }}
+      debug_logging: ${{ inputs.debug_logging || true }}
+      needs-adapters: false
+      needs-docker: false
+
+  test-shared:
+    needs: [load-versions, build-adapters, build-docker-images]
+    if: |
+      !cancelled() && (
+        github.event_name != 'workflow_dispatch' ||
+        inputs.suite == 'all' ||
+        inputs.suite == 'shared'
+      )
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ${{ fromJson(needs.load-versions.outputs.adapter-languages-json) }}
+    uses: ./.github/workflows/test-shared.yaml
+    with:
+      language: ${{ matrix.language }}
+      python-version: ${{ inputs.python-version || needs.load-versions.outputs.python-version }}
+      skip-coverage: ${{ inputs.skip_coverage || false }}
+      debug_logging: ${{ inputs.debug_logging || true }}
+      all-adapter-languages: ${{ needs.load-versions.outputs.adapter-languages }}
+
+  test-shared-utils:
+    needs: [load-versions, build-adapters, build-docker-images]
+    if: |
+      !cancelled() && (
+        github.event_name != 'workflow_dispatch' ||
+        inputs.suite == 'all' ||
+        inputs.suite == 'common' ||
+        inputs.suite == 'logging'
+      )
+    name: Shared Utils (${{ matrix.suite }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [common, logging]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup AIDB environment
+        uses: ./.github/actions/setup-aidb-env
+        with:
+          python-version: ${{ inputs.python-version || needs.load-versions.outputs.python-version }}
+
+      - name: Run tests
+        uses: ./.github/actions/run-aidb-tests
+        with:
+          suite: ${{ matrix.suite }}
+          skip-coverage: ${{ inputs.skip_coverage || false }}
+
+  test-mcp:
+    needs: [load-versions, build-adapters, build-docker-images]
+    if: |
+      !cancelled() && (
+        github.event_name != 'workflow_dispatch' ||
+        inputs.suite == 'all' ||
+        inputs.suite == 'mcp'
+      )
+    uses: ./.github/workflows/test-suite.yaml
+    with:
+      suite: mcp
+      suite-name: MCP Server Tests
+      python-version: ${{ inputs.python-version || needs.load-versions.outputs.python-version }}
+      skip-coverage: ${{ inputs.skip_coverage || false }}
+      debug_logging: ${{ inputs.debug_logging || true }}
+      needs-adapters: true
+      needs-docker: true
+      all-adapter-languages: ${{ needs.load-versions.outputs.adapter-languages }}
+
+  test-core:
+    needs: [load-versions, build-adapters]
+    if: |
+      !cancelled() && (
+        github.event_name != 'workflow_dispatch' ||
+        inputs.suite == 'all' ||
+        inputs.suite == 'core'
+      )
+    uses: ./.github/workflows/test-suite.yaml
+    with:
+      suite: core
+      suite-name: Core Tests (DAP, Session, API, Adapters)
+      python-version: ${{ inputs.python-version || needs.load-versions.outputs.python-version }}
+      skip-coverage: ${{ inputs.skip_coverage || false }}
+      debug_logging: ${{ inputs.debug_logging || true }}
+      needs-adapters: true
+      needs-docker: false
+      all-adapter-languages: ${{ needs.load-versions.outputs.adapter-languages }}
+
+  # Framework tests - matrix strategy across languages
+  test-frameworks:
+    needs: [load-versions, build-adapters, build-docker-images]
+    if: |
+      !cancelled() && (
+        github.event_name != 'workflow_dispatch' ||
+        inputs.suite == 'all' ||
+        inputs.suite == 'frameworks'
+      )
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ${{ fromJson(needs.load-versions.outputs.adapter-languages-json) }}
+    uses: ./.github/workflows/test-frameworks.yaml
+    with:
+      language: ${{ matrix.language }}
+      python-version: ${{ inputs.python-version || needs.load-versions.outputs.python-version }}
+      node-version: ${{ inputs.node-version || needs.load-versions.outputs.node-version }}
+      java-version: ${{ inputs.java-version || needs.load-versions.outputs.java-version }}
+      java-distribution: ${{ inputs.java-distribution || needs.load-versions.outputs.java-distribution }}
+      skip-coverage: ${{ inputs.skip_coverage || false }}
+      debug_logging: ${{ inputs.debug_logging || true }}
+      all-adapter-languages: ${{ needs.load-versions.outputs.adapter-languages }}
+
+  test-launch:
+    needs: [load-versions, build-adapters, build-docker-images]
+    if: |
+      !cancelled() && (
+        github.event_name != 'workflow_dispatch' ||
+        inputs.suite == 'all' ||
+        inputs.suite == 'launch'
+      )
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ${{ fromJson(needs.load-versions.outputs.adapter-languages-json) }}
+    uses: ./.github/workflows/test-launch.yaml
+    with:
+      language: ${{ matrix.language }}
+      python-version: ${{ inputs.python-version || needs.load-versions.outputs.python-version }}
+      skip-coverage: ${{ inputs.skip_coverage || false }}
+      debug_logging: ${{ inputs.debug_logging || true }}
+      all-adapter-languages: ${{ needs.load-versions.outputs.adapter-languages }}
+
+  test-ci-cd:
+    needs: [load-versions, build-adapters, build-docker-images]
+    if: |
+      !cancelled() && (
+        github.event_name != 'workflow_dispatch' ||
+        inputs.suite == 'all' ||
+        inputs.suite == 'ci_cd'
+      )
+    uses: ./.github/workflows/test-suite.yaml
+    with:
+      suite: ci_cd
+      suite-name: CI/CD Tests
+      python-version: ${{ inputs.python-version || needs.load-versions.outputs.python-version }}
+      skip-coverage: ${{ inputs.skip_coverage || false }}
+      debug_logging: ${{ inputs.debug_logging || true }}
+      needs-adapters: false
+      needs-docker: false
+
+  test-summary:
+    name: Test Summary
+    needs: [test-cli, test-shared, test-shared-utils, test-mcp, test-core, test-frameworks, test-launch, test-ci-cd]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Download all test summaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-summary-*
+          path: summaries/
+
+      - name: Aggregate flaky tests
+        run: |
+          python3 .github/scripts/aggregate_flakes_report.py \
+            --summaries-dir summaries/ \
+            --run-id ${{ github.run_id }} \
+            --output flaky-tests-report.json \
+            >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload flaky tests report
+        uses: actions/upload-artifact@v4
+        with:
+          name: flaky-tests-report
+          path: flaky-tests-report.json
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Generate job summary
+        env:
+          RESULTS_JSON: ${{ toJson(needs) }}
+        run: |
+          python3 .github/scripts/format_job_summary.py

@@ -1,0 +1,195 @@
+# AIDB Versions Configuration - Single Source of Truth
+#
+# This file is consumed by:
+#   - CI/CD workflows (.github/workflows/)
+#   - Docker builds (docker-compose.yaml, Dockerfiles)
+#   - CLI commands (./dev-cli versions)
+#   - Version update automation (.github/scripts/check_version_updates.py)
+#
+# Schema:
+#   - version: AIDB release version
+#   - infrastructure: Runtime environments (Python, Node, Java)
+#     - docker_tag: Base image tags for Dockerfiles (e.g., "3.12-slim")
+#   - adapters: Debug adapter versions
+#   - global_packages: Build tool versions (pip, setuptools, wheel, typescript, ts-node)
+#   - runtimes: Runtime requirements (informational)
+#   - platforms: OS/architecture matrix
+#   - github_actions: CI/CD configuration
+#
+# Automation Strategy (Dual System):
+#   1. versions.yaml (this file) - Managed by custom automation
+#      - check_version_updates.py monitors infrastructure, adapters, global_packages
+#      - Scheduled workflow runs every 12 hours
+#      - Creates GitHub issue when updates available
+#
+#   2. pyproject.toml - Managed by Dependabot
+#      - Dependabot monitors Python dependencies (runtime, dev, test)
+#      - Creates PRs automatically for dependency updates
+#      - See .github/dependabot.yaml for configuration
+#
+# debugpy Special Case:
+#   - versions.yaml: Exact pin for adapter builds (adapters.python.version)
+#   - pyproject.toml: Minimum constraint for runtime API usage (debugpy>=X.Y.Z)
+#   - Validation: check_version_updates.py ensures pyproject.toml min >= adapter version
+#
+# Validation:
+#   python .github/scripts/quick_validate_versions.py --config versions.yaml
+#
+# Future: If this file exceeds 400-500 lines, consider splitting into versions/ directory.
+# The VersionManager API is designed to support this refactor transparently.
+
+# AIDB version (used for releases)
+version: "0.0.1"
+
+# Infrastructure versions for Docker builds (SINGLE SOURCE OF TRUTH)
+infrastructure:
+  python:
+    version: "3.12"
+    docker_tag: "3.12-slim"
+    type: "stable"
+    end_of_life: "2028-10"
+    notes: "Stable production version (3.13 is very new)"
+  node:
+    version: "22"
+    docker_tag: "22-slim"
+    type: "lts"
+    end_of_life: "2027-04-30"
+    notes: "Latest LTS (Jod)"
+  java:
+    version: "21"
+    # No docker_tag - we use debian's openjdk package
+    type: "lts"
+    end_of_life: "2031-09"
+    notes: "Latest stable LTS (25 is in preparation)"
+
+adapters:
+  python:
+    version: "1.8.16"
+    repo: "microsoft/debugpy"
+    repository: "https://github.com/microsoft/debugpy.git"
+    ref: "v1.8.16"
+    description: "Microsoft Python Debug Adapter (debugpy)"
+    universal: false  # Needs platform-specific builds
+    build_deps:
+      python_version: "3.12"
+      build_command: "python setup.py build"
+      package_files:
+        - "debugpy/**"
+        - "LICENSE"
+        - "README.md"
+
+  javascript:
+    version: v1.105.0
+    repo: microsoft/vscode-js-debug
+    description: "Microsoft vscode-js-debug adapter"
+    build_deps:
+      node_version: "18"
+      build_command: "npm ci && npm run compile"
+      output_path: "dist"
+      package_files:
+        - "dist/**"
+        - "package.json"
+        - "package.nls.json"
+        - "README.md"
+        - "LICENSE"
+
+  java:
+    version: 0.53.1
+    repo: microsoft/java-debug
+    description: "Microsoft Java Debug Adapter"
+    universal: true  # Java adapter works on all platforms
+    build_deps:
+      java_version: "21"
+      java_distribution: "temurin"
+      build_command: "./mvnw clean install"
+      maven_opts: "-Djdk.xml.maxGeneralEntitySizeLimit=0 -Djdk.xml.maxParameterEntitySizeLimit=0"
+      output_path: "com.microsoft.java.debug.plugin/target"
+      jar_pattern: "com.microsoft.java.debug.plugin-*.jar"
+    # Eclipse JDT Language Server (required for Java debugging)
+    jdtls_version: 1.55.0-202511271007
+
+# Global package manager dependencies (build tools, NOT project dependencies)
+global_packages:
+  pip:
+    pip:
+      version: "25.3"
+      description: "Python package installer"
+    setuptools:
+      version: "80.9.0"
+      description: "Python package build tool"
+    wheel:
+      version: "0.45.1"
+      description: "Python wheel package format"
+
+  npm:
+    typescript:
+      version: "5.9.3"
+      description: "TypeScript compiler"
+    ts_node:
+      version: "10.9.2"
+      description: "TypeScript execution engine"
+
+# Runtime requirements (informational)
+runtimes:
+  javascript:
+    min_version: "18.0.0"
+    recommended: "22.0.0"
+
+  java:
+    min_version: "17"
+    recommended: "21"
+
+  python:
+    min_version: "3.10"
+    recommended: "3.12"
+    debug_package: "debugpy>=1.8.0"
+
+# Platform mapping for builds
+platforms:
+  - os: ubuntu-latest
+    platform: linux
+    arch: x64
+  - os: ubuntu-latest
+    platform: linux
+    arch: arm64
+  - os: macos-latest
+    platform: darwin
+    arch: arm64
+  - os: macos-15
+    platform: darwin
+    arch: x64
+  - os: windows-latest
+    platform: windows
+    arch: x64
+  - os: windows-latest
+    platform: windows
+    arch: arm64
+
+# GitHub Actions runner dependencies
+github_actions:
+  system_deps:
+    - git                    # For cloning repositories
+    - python                 # For build orchestrator script
+    - pip                    # For installing PyYAML
+
+  per_adapter:
+    javascript:
+      setup_actions:
+        - actions/setup-node@v4
+      system_packages: []
+      notes: "Requires Node.js and npm. Gulp is installed via package.json"
+
+    java:
+      setup_actions:
+        - actions/setup-java@v4
+      system_packages: []
+      environment_vars:
+        MAVEN_OPTS: "Java XML parsing compatibility flags"
+      notes: "Uses Maven wrapper (mvnw) - no system Maven required"
+
+  caching:
+    strategy: "Cache build dependencies to speed up builds"
+    paths:
+      - "~/.npm"           # Node.js package cache
+      - "~/.cache/pip"     # Python package cache
+      - "~/.m2/repository" # Maven dependency cache

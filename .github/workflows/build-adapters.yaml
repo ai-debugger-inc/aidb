@@ -1,0 +1,45 @@
+name: Build Debug Adapters (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: Python version to use
+        type: string
+        required: true
+
+env:
+  PYTHON_VERSION: ${{ inputs.python-version }}
+
+jobs:
+  build-adapters:
+    name: Build Debug Adapters
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup AIDB environment
+        uses: ./.github/actions/setup-aidb-env
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Install act
+        run: |
+          curl -s https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
+          sudo mv bin/act /usr/local/bin/
+          act --version
+
+      - name: Build debug adapters
+        run: |
+          source venv/bin/activate
+          ./dev-cli -v adapters build
+
+      - name: Upload adapter artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: debug-adapters
+          path: .cache/adapters/
+          retention-days: 1
+          compression-level: 6

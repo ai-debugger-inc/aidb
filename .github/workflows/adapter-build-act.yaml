@@ -1,0 +1,228 @@
+name: Build Debug Adapters (ACT Local)
+
+on:
+  workflow_dispatch:
+    inputs:
+      adapters:
+        description: 'Comma-separated list of adapters to build (python,javascript,java)'
+        required: false
+        default: 'python'
+        type: string
+      platform:
+        description: 'Target platform (linux, darwin, windows)'
+        required: false
+        type: string
+      arch:
+        description: 'Target architecture (x64, arm64)'
+        required: false
+        type: string
+
+jobs:
+  generate-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Generate build matrix
+        id: generate
+        env:
+          ADAPTERS_INPUT: ${{ github.event.inputs.adapters || 'python' }}
+          PLATFORM_INPUT: ${{ github.event.inputs.platform || '' }}
+          ARCH_INPUT: ${{ github.event.inputs.arch || '' }}
+        run: |
+          set -e
+          set -o pipefail
+
+          # Install dependencies in same step to ensure availability
+          pip3 install --break-system-packages pyyaml
+
+          # Generate full matrix (outputs as JSON, not github format)
+          matrix_json=$(python3 .github/scripts/utils/matrix_generator.py --workflow act --format json)
+
+          # Validate matrix is not empty
+          if [ -z "$matrix_json" ] || [ "$matrix_json" = "null" ]; then
+            echo "ERROR: Matrix generation produced empty output"
+            exit 1
+          fi
+
+          # Filter matrix based on inputs
+          if [ -n "$ADAPTERS_INPUT" ]; then
+            echo "Filtering matrix for adapters: $ADAPTERS_INPUT"
+            # Use jq to filter the matrix
+            matrix_json=$(echo "$matrix_json" | jq --arg adapters "$ADAPTERS_INPUT" '
+              ($adapters | split(",")) as $allowed |
+              {include: [.include[] | select(.adapter as $a | $allowed | any(. == $a))]}
+            ')
+          fi
+
+          # Output in GitHub Actions format
+          echo "matrix=$(echo "$matrix_json" | jq -c .)" >> $GITHUB_OUTPUT
+
+          # Display filtered matrix
+          echo "Final matrix:"
+          echo "$matrix_json" | jq .
+
+  build-adapters:
+    needs: generate-matrix
+    runs-on: ubuntu-latest  # Always ubuntu for ACT (runs in container)
+    strategy:
+      fail-fast: false
+      matrix: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
+
+    name: Build ${{ matrix.adapter }} (${{ matrix.platform }}-${{ matrix.arch }})
+
+    steps:
+      - name: Checkout aidb repository
+        uses: actions/checkout@v5
+
+      - name: Display environment info
+        run: |
+          echo "=== Environment Information ==="
+          echo "Adapter: ${{ matrix.adapter }}"
+          echo "Platform: ${{ matrix.platform }}"
+          echo "Architecture: ${{ matrix.arch }}"
+          echo "Python version: $(python3 --version)"
+          echo "Node version: $(node --version 2>/dev/null || echo 'Not installed')"
+          echo "Java version: $(java -version 2>&1 | head -n1 || echo 'Not installed')"
+          echo "Current directory: $(pwd)"
+          echo "==============================="
+
+      - name: Read adapter configuration
+        id: adapter-config
+        run: |
+          set -e
+          set -o pipefail
+
+          # Install dependencies in same step to ensure availability
+          pip3 install --break-system-packages pyyaml
+
+          python3 << 'EOF'
+          import yaml
+          import os
+
+          with open('versions.yaml', 'r') as f:
+              versions = yaml.safe_load(f)
+
+          adapter = "${{ matrix.adapter }}"
+          config = versions['adapters'][adapter]
+          build_deps = config.get('build_deps', {})
+          github_env = os.environ['GITHUB_ENV']
+
+          if adapter == 'javascript':
+              node_version = build_deps.get('node_version', '18')
+              with open(github_env, 'a') as f:
+                  f.write(f"NODE_VERSION={node_version}\n")
+          elif adapter == 'java':
+              java_version = build_deps.get('java_version', '21')
+              java_distribution = build_deps.get('java_distribution', 'temurin')
+              maven_opts = build_deps.get('maven_opts', '')
+              with open(github_env, 'a') as f:
+                  f.write(f"JAVA_VERSION={java_version}\n")
+                  f.write(f"JAVA_DISTRIBUTION={java_distribution}\n")
+                  f.write(f"MAVEN_OPTS={maven_opts}\n")
+          elif adapter == 'python':
+              python_version = build_deps.get('python_version', '3.12')
+              with open(github_env, 'a') as f:
+                  f.write(f"PYTHON_VERSION={python_version}\n")
+          EOF
+
+      - name: Install adapter build dependencies
+        run: |
+          sudo apt-get update -qq
+
+          if [ "${{ matrix.adapter }}" = "javascript" ]; then
+            echo "Node.js: $(node --version) (required: v${{ env.NODE_VERSION }})"
+          fi
+
+          if [ "${{ matrix.adapter }}" = "python" ]; then
+            echo "Python: $(python3 --version) (required: ${{ env.PYTHON_VERSION }})"
+            sudo apt-get install -y -qq python3-dev build-essential
+          fi
+
+          if [ "${{ matrix.adapter }}" = "java" ]; then
+            echo "Java adapter: Built from source using Maven (JDK ${{ env.JAVA_VERSION }} required)"
+          fi
+
+      - name: Build adapter
+        id: build
+        env:
+          MAVEN_OPTS: ${{ env.MAVEN_OPTS }}
+        run: |
+          echo "Building ${{ matrix.adapter }} adapter..."
+
+          # Run the build script
+          python3 .github/scripts/build-adapter.py ${{ matrix.adapter }} \
+            --platform ${{ matrix.platform }} \
+            --arch ${{ matrix.arch }}
+
+          echo "Build completed successfully"
+
+      - name: Copy adapter to cache directory
+        run: |
+          echo "Copying adapter to local cache..."
+
+          # Create cache directory structure (clear old files first)
+          cache_dir=".cache/adapters/${{ matrix.adapter }}"
+          rm -rf "$cache_dir"
+          mkdir -p "$cache_dir"
+
+          # Extract the built adapter to cache
+          # The build script creates a tarball in dist/
+          tarball=$(ls dist/*.tar.gz | head -n1)
+
+          if [ -f "$tarball" ]; then
+            echo "Extracting $tarball to $cache_dir"
+            tar -xzf "$tarball" -C "$cache_dir" --strip-components=1
+
+            # For JavaScript, verify dapDebugServer.js is in src/ subdirectory
+            if [ "${{ matrix.adapter }}" = "javascript" ]; then
+              if [ -f "$cache_dir/src/dapDebugServer.js" ]; then
+                echo "✓ dapDebugServer.js found at src/ subdirectory"
+              else
+                echo "⚠ dapDebugServer.js not found at src/, checking for it..."
+                find "$cache_dir" -name "dapDebugServer.js" -type f
+              fi
+            fi
+
+            echo "✓ Adapter copied to $cache_dir"
+            ls -la "$cache_dir" | head -10
+          else
+            echo "❌ No tarball found in dist/"
+            ls -la dist/
+            exit 1
+          fi
+
+      - name: Verify adapter files
+        run: |
+          echo "=== Verifying adapter installation ==="
+          cache_dir=".cache/adapters/${{ matrix.adapter }}"
+
+          if [ "${{ matrix.adapter }}" = "javascript" ]; then
+            # Check for JavaScript adapter binary (in src/ subdirectory)
+            if [ -f "$cache_dir/src/dapDebugServer.js" ]; then
+              echo "✓ JavaScript adapter binary found"
+              echo "  Size: $(du -h $cache_dir/src/dapDebugServer.js | cut -f1)"
+            else
+              echo "❌ JavaScript adapter binary not found at $cache_dir/src/dapDebugServer.js"
+              exit 1
+            fi
+          elif [ "${{ matrix.adapter }}" = "java" ]; then
+            # Check for Java adapter JAR
+            jar_file=$(find "$cache_dir" -name "*.jar" | head -n1)
+            if [ -n "$jar_file" ]; then
+              echo "✓ Java adapter JAR found: $jar_file"
+              echo "  Size: $(du -h $jar_file | cut -f1)"
+            else
+              echo "❌ Java adapter JAR not found"
+              exit 1
+            fi
+          fi
+
+          echo "=== Cache directory contents ==="
+          ls -la "$cache_dir" | head -20
+
+      # No artifact upload needed - files are directly in .cache/adapters/
+      # No cleanup needed - ACT handles that automatically

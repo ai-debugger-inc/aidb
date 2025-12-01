@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "aidb-debug": {
+      "command": "$CLAUDE_PROJECT_DIR/venv/bin/python",
+      "args": ["-m", "aidb_mcp.cli"],
+      "env": {
+        "PYTHONPATH": "$CLAUDE_PROJECT_DIR/src",
+        "AIDB_LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}

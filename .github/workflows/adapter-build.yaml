@@ -1,0 +1,321 @@
+name: Build Debug Adapters
+
+# This workflow builds debug adapters for all supported platforms and uploads
+# them to existing GitHub releases.
+#
+# IMPORTANT: This workflow does NOT create releases. It only attaches adapter
+# artifacts to releases created by the main release workflow.
+#
+# Triggers:
+#   - release:published - Automatically builds adapters when a release is published
+#   - workflow_dispatch - Manual trigger for testing/rebuilding adapters
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:  # Manual trigger for testing
+    inputs:
+      version:
+        description: 'Version to build adapters for (e.g., 1.0.0)'
+        required: false
+        type: string
+
+env:
+  AIDB_VERSION: "0.0.1"  # Increment to invalidate caches
+  IS_GITHUB: ${{ vars.IS_GITHUB || 'false' }}  # Use repo variable, default to false for ACT
+
+jobs:
+  load-versions:
+    uses: ./.github/workflows/load-versions.yaml
+
+  generate-matrix:
+    runs-on: ubuntu-latest
+    needs: load-versions
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ needs.load-versions.outputs.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pyyaml
+
+      - name: Generate build matrix
+        id: generate
+        run: |
+          # Generate matrix for GHA workflow
+          matrix=$(python3 .github/scripts/utils/matrix_generator.py --workflow gha --format github)
+          echo "$matrix" >> $GITHUB_OUTPUT
+
+          # Also display for debugging
+          echo "Generated matrix:"
+          python3 .github/scripts/utils/matrix_generator.py --workflow gha
+
+  build-adapters:
+    needs: [load-versions, generate-matrix]
+    name: Build ${{ matrix.adapter }} - ${{ matrix.platform }}-${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix: ${{fromJson(needs.generate-matrix.outputs.matrix)}}
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout aidb
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ needs.load-versions.outputs.python-version }}
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pyyaml
+
+      - name: Read adapter configuration
+        id: adapter-config
+        shell: bash
+        run: |
+          python3 << 'EOF'
+          import yaml
+          import os
+
+          with open('versions.yaml', 'r') as f:
+              versions = yaml.safe_load(f)
+
+          adapter = "${{ matrix.adapter }}"
+          config = versions['adapters'][adapter]
+
+          # Extract build dependencies
+          build_deps = config.get('build_deps', {})
+
+          # Write outputs using modern GitHub Actions syntax
+          github_output = os.environ['GITHUB_OUTPUT']
+
+          if adapter == 'javascript':
+              node_version = build_deps.get('node_version', '18')
+              with open(github_output, 'a') as f:
+                  f.write(f"node_version={node_version}\n")
+          elif adapter == 'java':
+              java_version = build_deps.get('java_version', '21')
+              java_distribution = build_deps.get('java_distribution', 'temurin')
+              maven_opts = build_deps.get('maven_opts', '')
+
+              with open(github_output, 'a') as f:
+                  f.write(f"java_version={java_version}\n")
+                  f.write(f"java_distribution={java_distribution}\n")
+                  f.write(f"maven_opts={maven_opts}\n")
+          EOF
+
+      - name: Setup Node.js (for JavaScript adapter)
+        if: matrix.adapter == 'javascript'
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ steps.adapter-config.outputs.node_version }}
+
+      - name: Setup Java (for Java adapter)
+        if: matrix.adapter == 'java'
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ steps.adapter-config.outputs.java_distribution }}
+          java-version: ${{ steps.adapter-config.outputs.java_version }}
+
+      - name: Cache build dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            ~/.cache/pip
+            ~/.m2/repository
+          key: ${{ runner.os }}-build-deps-${{ env.AIDB_VERSION }}-${{ hashFiles('versions.yaml', 'pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-build-deps-${{ env.AIDB_VERSION }}-
+            ${{ runner.os }}-build-deps-
+
+      - name: Cache JS adapter node_modules
+        if: matrix.adapter == 'javascript'
+        uses: actions/cache@v4
+        with:
+          path: build/vscode-js-debug/node_modules
+          key: ${{ runner.os }}-${{ matrix.arch }}-js-adapter-${{ hashFiles('versions.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.arch }}-js-adapter-
+
+      - name: Validate build environment
+        run: |
+          python3 .github/scripts/validation/build_env.py --adapters ${{ matrix.adapter }}
+
+      - name: Build adapter
+        uses: ./.github/actions/retry-command
+        env:
+          MAVEN_OPTS: ${{ steps.adapter-config.outputs.maven_opts }}
+        with:
+          command: |
+            python3 .github/scripts/build-adapter.py ${{ matrix.adapter }} \
+              --platform ${{ matrix.platform }} \
+              --arch ${{ matrix.arch }}
+
+      - name: List build outputs
+        shell: bash
+        run: |
+          echo "Build outputs:"
+          ls -la dist/
+          echo "Checksums:"
+          find dist/ -name "*.sha256" -exec cat {} \;
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: ${{ matrix.adapter }}-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
+          retention-days: 30
+
+  consolidate-artifacts:
+    # Consolidate artifacts for release and other workflows
+    # Always run (no longer conditional on tags)
+    needs: [load-versions, build-adapters]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ needs.load-versions.outputs.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pyyaml
+
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          else
+            # Fallback (shouldn't happen with current triggers)
+            VERSION="${{ github.ref_name }}"
+          fi
+          echo "Version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Validate release exists (manual dispatch only)
+        if: github.event_name == 'workflow_dispatch' && env.IS_GITHUB == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if ! gh release view "$VERSION" > /dev/null 2>&1; then
+            echo "❌ Error: Release $VERSION does not exist"
+            echo ""
+            echo "This workflow builds adapters for existing releases."
+            echo "Please ensure the release is created first:"
+            echo "  1. Use the release workflow (.github/workflows/release-pr.yaml)"
+            echo "  2. Or create the release manually: gh release create $VERSION"
+            echo ""
+            echo "Then retry this workflow."
+            exit 1
+          fi
+          echo "✓ Release $VERSION exists. Proceeding with adapter builds."
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v6
+        with:
+          path: artifacts
+
+      - name: Organize and consolidate artifacts
+        run: |
+          mkdir -p consolidated-adapters
+
+          # Copy all adapter artifacts
+          find artifacts/ -name "*.tar.gz" -exec cp {} consolidated-adapters/ \;
+          find artifacts/ -name "*.sha256" -exec cp {} consolidated-adapters/ \;
+
+          # Generate manifest from versions.yaml
+          python3 << 'EOF'
+          import yaml
+          import json
+          import os
+          from datetime import datetime
+
+          with open('versions.yaml', 'r') as f:
+              versions = yaml.safe_load(f)
+
+          version = "${{ steps.version.outputs.version }}"
+
+          manifest = {
+              "version": version,
+              "build_date": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "adapters": {}
+          }
+
+          # Build adapter manifest from versions.yaml
+          for adapter_name, adapter_config in versions['adapters'].items():
+              if not adapter_config.get('enabled', True):
+                  continue
+
+              platforms = []
+              if adapter_name == 'java':
+                  platforms = ['universal']
+              else:
+                  for platform_entry in adapter_config.get('platforms', []):
+                      platforms.append(f"{platform_entry['platform']}-{platform_entry['arch']}")
+
+              manifest['adapters'][adapter_name] = {
+                  'version': adapter_config['version'],
+                  'platforms': platforms
+              }
+
+          # Write manifest
+          with open('consolidated-adapters/manifest.json', 'w') as f:
+              json.dump(manifest, f, indent=2)
+
+          print("Generated manifest:")
+          print(json.dumps(manifest, indent=2))
+          EOF
+
+          echo "Consolidated adapter artifacts:"
+          ls -la consolidated-adapters/
+          echo "Total size: $(du -sh consolidated-adapters/ | cut -f1)"
+
+      - name: Upload consolidated artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: adapter-artifacts-all
+          path: consolidated-adapters/
+          retention-days: 7  # Keep for release workflow to consume
+
+      - name: Upload adapters to release
+        if: env.IS_GITHUB == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Verify release exists (it MUST exist since we trigger on release:published)
+          if ! gh release view "$VERSION" > /dev/null 2>&1; then
+            echo "Error: Release $VERSION does not exist"
+            echo "This workflow should only run after a release is published by the main workflow"
+            echo "Workflow event: ${{ github.event_name }}"
+            exit 1
+          fi
+
+          echo "Uploading adapter artifacts to existing release $VERSION..."
+          gh release upload "$VERSION" consolidated-adapters/* --clobber
+          echo "✓ Successfully uploaded adapter artifacts to release $VERSION"

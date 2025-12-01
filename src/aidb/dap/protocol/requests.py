@@ -1,0 +1,804 @@
+"""DAP Protocol - DAP request message classes.
+
+Auto-generated from Debug Adapter Protocol specification. Do not edit
+manually."""
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Optional
+
+from .base import Request
+
+if TYPE_CHECKING:
+    from .bodies import (
+        AttachRequestArguments,
+        BreakpointLocationsArguments,
+        CancelArguments,
+        CompletionsArguments,
+        ConfigurationDoneArguments,
+        ContinueArguments,
+        DataBreakpointInfoArguments,
+        DisassembleArguments,
+        DisconnectArguments,
+        EvaluateArguments,
+        ExceptionInfoArguments,
+        GotoArguments,
+        GotoTargetsArguments,
+        InitializeRequestArguments,
+        LaunchRequestArguments,
+        LoadedSourcesArguments,
+        LocationsArguments,
+        ModulesArguments,
+        NextArguments,
+        PauseArguments,
+        ReadMemoryArguments,
+        RestartArguments,
+        RestartFrameArguments,
+        ReverseContinueArguments,
+        RunInTerminalRequestArguments,
+        ScopesArguments,
+        SetBreakpointsArguments,
+        SetDataBreakpointsArguments,
+        SetExceptionBreakpointsArguments,
+        SetExpressionArguments,
+        SetFunctionBreakpointsArguments,
+        SetInstructionBreakpointsArguments,
+        SetVariableArguments,
+        SourceArguments,
+        StackTraceArguments,
+        StartDebuggingRequestArguments,
+        StepBackArguments,
+        StepInArguments,
+        StepInTargetsArguments,
+        StepOutArguments,
+        TerminateArguments,
+        TerminateThreadsArguments,
+        VariablesArguments,
+        WriteMemoryArguments,
+    )
+
+
+@dataclass
+class AttachRequest(Request):
+    """The `attach` request is sent from the client to the debug adapter to
+    attach to a debuggee that is already running.
+
+    Since attaching is debugger/runtime specific, the arguments for this request
+    are not part of this specification.
+    """
+
+    # _spec.json#1442
+
+    arguments: Optional["AttachRequestArguments"] = None
+    command: str = "attach"
+
+
+@dataclass
+class BreakpointLocationsRequest(Request):
+    """The `breakpointLocations` request returns all possible locations for
+    source breakpoints in a given range.
+
+    Clients should only call this request if the corresponding capability
+    `supportsBreakpointLocationsRequest` is true.
+    """
+
+    # _spec.json#1650
+
+    arguments: Optional["BreakpointLocationsArguments"] = None
+    command: str = "breakpointLocations"
+
+
+@dataclass
+class CancelRequest(Request):
+    """The `cancel` request is used by the client in two situations: - to
+    indicate that it is no longer interested in the result produced by a
+    specific request issued earlier - to cancel a progress sequence. Clients
+    should only call this request if the corresponding capability
+    `supportsCancelRequest` is true. This request has a hint characteristic: a
+    debug adapter can only be expected to make a 'best effort' in honoring this
+    request but there are no guarantees. The `cancel` request may return an
+    error if it could not cancel an operation but a client should refrain from
+    presenting this error to end users. The request that got cancelled still
+    needs to send a response back. This can either be a normal result (`success`
+    attribute true) or an error response (`success` attribute false and the
+    `message` set to `cancelled`). Returning partial results from a cancelled
+    request is possible but please note that a client has no generic way for
+    detecting that a response is partial or not. The progress that got cancelled
+    still needs to send a `progressEnd` event back. A client should not assume
+    that progress just got cancelled after sending the `cancel` request."""
+
+    # _spec.json#195
+
+    arguments: Optional["CancelArguments"] = None
+    command: str = "cancel"
+
+
+@dataclass
+class CompletionsRequest(Request):
+    """Returns a list of possible completions for a given caret position and
+    text.
+
+    Clients should only call this request if the corresponding capability
+    `supportsCompletionsRequest` is true.
+    """
+
+    # _spec.json#3798
+
+    arguments: Optional["CompletionsArguments"] = None
+    command: str = "completions"
+
+
+@dataclass
+class ConfigurationDoneRequest(Request):
+    """This request indicates that the client has finished initialization of the
+    debug adapter.
+
+    So it is the last request in the sequence of configuration requests (which
+    was started by the `initialized` event). Clients should only call this
+    request if the corresponding capability `supportsConfigurationDoneRequest`
+    is true.
+    """
+
+    # _spec.json#1343
+
+    arguments: Optional["ConfigurationDoneArguments"] = None
+    command: str = "configurationDone"
+
+
+@dataclass
+class ContinueRequest(Request):
+    """The request resumes execution of all threads.
+
+    If the debug adapter supports single thread execution (see capability
+    `supportsSingleThreadExecutionRequests`), setting the `singleThread`
+    argument to true resumes only the specified thread. If not all threads were
+    resumed, the `allThreadsContinued` attribute of the response should be set
+    to false.
+    """
+
+    # _spec.json#2230
+
+    arguments: Optional["ContinueArguments"] = None
+    command: str = "continue"
+
+
+@dataclass
+class DataBreakpointInfoRequest(Request):
+    """Obtains information on a possible data breakpoint that could be set on an
+    expression or variable.
+
+    Clients should only call this request if the corresponding capability
+    `supportsDataBreakpoints` is true.
+    """
+
+    # _spec.json#1978
+
+    arguments: Optional["DataBreakpointInfoArguments"] = None
+    command: str = "dataBreakpointInfo"
+
+
+@dataclass
+class DisassembleRequest(Request):
+    """Disassembles code stored at the provided location.
+
+    Clients should only call this request if the corresponding capability
+    `supportsDisassembleRequest` is true.
+    """
+
+    # _spec.json#4120
+
+    arguments: Optional["DisassembleArguments"] = None
+    command: str = "disassemble"
+
+
+@dataclass
+class DisconnectRequest(Request):
+    """The `disconnect` request asks the debug adapter to disconnect from the
+    debuggee (thus ending the debug session) and then to shut down itself (the
+    debug adapter).
+
+    In addition, the debug adapter must terminate the debuggee if it was started
+    with the `launch` request. If an `attach` request was used to connect to the
+    debuggee, then the debug adapter must not terminate the debuggee. This
+    implicit behavior of when to terminate the debuggee can be overridden with
+    the `terminateDebuggee` argument (which is only supported by a debug adapter
+    if the corresponding capability `supportTerminateDebuggee` is true).
+    """
+
+    # _spec.json#1550
+
+    arguments: Optional["DisconnectArguments"] = None
+    command: str = "disconnect"
+
+
+@dataclass
+class EvaluateRequest(Request):
+    """Evaluates the given expression in the context of a stack frame.
+
+    The expression has access to any variables and arguments that are in scope.
+    """
+
+    # _spec.json#3407
+
+    arguments: Optional["EvaluateArguments"] = None
+    command: str = "evaluate"
+
+
+@dataclass
+class ExceptionInfoRequest(Request):
+    """Retrieves the details of the exception that caused this event to be
+    raised.
+
+    Clients should only call this request if the corresponding capability
+    `supportsExceptionInfoRequest` is true.
+    """
+
+    # _spec.json#3881
+
+    arguments: Optional["ExceptionInfoArguments"] = None
+    command: str = "exceptionInfo"
+
+
+@dataclass
+class GotoRequest(Request):
+    """The request sets the location where the debuggee will continue to run.
+
+    This makes it possible to skip the execution of code or to execute code
+    again. The code between the current location and the goto target is not
+    executed but skipped. The debug adapter first sends the response and then a
+    `stopped` event with reason `goto`. Clients should only call this request if
+    the corresponding capability `supportsGotoTargetsRequest` is true (because
+    only then goto targets exist that can be passed as arguments).
+    """
+
+    # _spec.json#2638
+
+    arguments: Optional["GotoArguments"] = None
+    command: str = "goto"
+
+
+@dataclass
+class GotoTargetsRequest(Request):
+    """This request retrieves the possible goto targets for the specified source
+    location.
+
+    These targets can be used in the `goto` request. Clients should only call
+    this request if the corresponding capability `supportsGotoTargetsRequest` is
+    true.
+    """
+
+    # _spec.json#3719
+
+    arguments: Optional["GotoTargetsArguments"] = None
+    command: str = "gotoTargets"
+
+
+@dataclass
+class InitializeRequest(Request):
+    """The `initialize` request is sent as the first request from the client to
+    the debug adapter in order to configure it with client capabilities and to
+    retrieve capabilities from the debug adapter.
+
+    Until the debug adapter has responded with an `initialize` response, the
+    client must not send any additional requests or events to the debug adapter.
+    In addition the debug adapter is not allowed to send any requests or events
+    to the client until it has responded with an `initialize` response. The
+    `initialize` request may only be sent once.
+    """
+
+    # _spec.json#1218
+
+    arguments: Optional["InitializeRequestArguments"] = None
+    command: str = "initialize"
+
+
+@dataclass
+class LaunchRequest(Request):
+    """This launch request is sent from the client to the debug adapter to start
+    the debuggee with or without debugging (if `noDebug` is true).
+
+    Since launching is debugger/runtime specific, the arguments for this request
+    are not part of this specification.
+    """
+
+    # _spec.json#1383
+
+    arguments: Optional["LaunchRequestArguments"] = None
+    command: str = "launch"
+
+
+@dataclass
+class LoadedSourcesRequest(Request):
+    """Retrieves the set of all sources currently loaded by the debugged
+    process.
+
+    Clients should only call this request if the corresponding capability
+    `supportsLoadedSourcesRequest` is true.
+    """
+
+    # _spec.json#3347
+
+    arguments: Optional["LoadedSourcesArguments"] = None
+    command: str = "loadedSources"
+
+
+@dataclass
+class LocationsRequest(Request):
+    """Looks up information about a location reference previously returned by
+    the debug adapter."""
+
+    # _spec.json#4204
+
+    arguments: Optional["LocationsArguments"] = None
+    command: str = "locations"
+
+
+@dataclass
+class ModulesRequest(Request):
+    """Modules can be retrieved from the debug adapter with this request which
+    can either return all modules or a range of modules to support paging.
+
+    Clients should only call this request if the corresponding capability
+    `supportsModulesRequest` is true.
+    """
+
+    # _spec.json#3272
+
+    arguments: Optional["ModulesArguments"] = None
+    command: str = "modules"
+
+
+@dataclass
+class NextRequest(Request):
+    """The request executes one step (in the given granularity) for the
+    specified thread and allows all other threads to run freely by resuming
+    them.
+
+    If the debug adapter supports single thread execution (see capability
+    `supportsSingleThreadExecutionRequests`), setting the `singleThread`
+    argument to true prevents other suspended threads from resuming. The debug
+    adapter first sends the response and then a `stopped` event (with reason
+    `step`) after the step has completed.
+    """
+
+    # _spec.json#2298
+
+    arguments: Optional["NextArguments"] = None
+    command: str = "next"
+
+
+@dataclass
+class PauseRequest(Request):
+    """The request suspends the debuggee.
+
+    The debug adapter first sends the response and then a `stopped` event (with
+    reason `pause`) after the thread has been paused successfully.
+    """
+
+    # _spec.json#2693
+
+    arguments: Optional["PauseArguments"] = None
+    command: str = "pause"
+
+
+@dataclass
+class ReadMemoryRequest(Request):
+    """Reads bytes from memory at the provided location.
+
+    Clients should only call this request if the corresponding capability
+    `supportsReadMemoryRequest` is true.
+    """
+
+    # _spec.json#3961
+
+    arguments: Optional["ReadMemoryArguments"] = None
+    command: str = "readMemory"
+
+
+@dataclass
+class RestartFrameRequest(Request):
+    """The request restarts execution of the specified stack frame.
+
+    The debug adapter first sends the response and then a `stopped` event (with
+    reason `restart`) after the restart has completed. Clients should only call
+    this request if the corresponding capability `supportsRestartFrame` is true.
+    """
+
+    # _spec.json#2588
+
+    arguments: Optional["RestartFrameArguments"] = None
+    command: str = "restartFrame"
+
+
+@dataclass
+class RestartRequest(Request):
+    """Restarts a debug session.
+
+    Clients should only call this request if the corresponding capability
+    `supportsRestartRequest` is true. If the capability is missing or has the
+    value false, a typical client emulates `restart` by terminating the debug
+    adapter first and then launching it anew.
+    """
+
+    # _spec.json#1497
+
+    arguments: Optional["RestartArguments"] = None
+    command: str = "restart"
+
+
+@dataclass
+class ReverseContinueRequest(Request):
+    """The request resumes backward execution of all threads.
+
+    If the debug adapter supports single thread execution (see capability
+    `supportsSingleThreadExecutionRequests`), setting the `singleThread`
+    argument to true resumes only the specified thread. If not all threads were
+    resumed, the `allThreadsContinued` attribute of the response should be set
+    to false. Clients should only call this request if the corresponding
+    capability `supportsStepBack` is true.
+    """
+
+    # _spec.json#2534
+
+    arguments: Optional["ReverseContinueArguments"] = None
+    command: str = "reverseContinue"
+
+
+@dataclass
+class RunInTerminalRequest(Request):
+    """This request is sent from the debug adapter to the client to run a
+    command in a terminal.
+
+    This is typically used to launch the debuggee in a terminal provided by the
+    client. This request should only be called if the corresponding client
+    capability `supportsRunInTerminalRequest` is true. Client implementations of
+    `runInTerminal` are free to run the command however they choose including
+    issuing the command to a command line interpreter (aka 'shell'). Argument
+    strings passed to the `runInTerminal` request must arrive verbatim in the
+    command to be run. As a consequence, clients which use a shell are
+    responsible for escaping any special shell characters in the argument
+    strings to prevent them from being interpreted (and modified) by the shell.
+    Some users may wish to take advantage of shell processing in the argument
+    strings. For clients which implement `runInTerminal` using an intermediary
+    shell, the `argsCanBeInterpretedByShell` property can be set to true. In
+    this case the client is requested not to escape any special shell characters
+    in the argument strings.
+    """
+
+    # _spec.json#1054
+
+    arguments: Optional["RunInTerminalRequestArguments"] = None
+    command: str = "runInTerminal"
+
+
+@dataclass
+class ScopesRequest(Request):
+    """The request returns the variable scopes for a given stack frame ID."""
+
+    # _spec.json#2829
+
+    arguments: Optional["ScopesArguments"] = None
+    command: str = "scopes"
+
+
+@dataclass
+class SetBreakpointsRequest(Request):
+    """Sets multiple breakpoints for a single source and clears all previous
+    breakpoints in that source.
+
+    To clear all breakpoint for a source, specify an empty array. When a
+    breakpoint is hit, a `stopped` event (with reason `breakpoint`) is
+    generated.
+    """
+
+    # _spec.json#1736
+
+    arguments: Optional["SetBreakpointsArguments"] = None
+    command: str = "setBreakpoints"
+
+
+@dataclass
+class SetDataBreakpointsRequest(Request):
+    """Replaces all existing data breakpoints with new data breakpoints.
+
+    To clear all data breakpoints, specify an empty array. When a data
+    breakpoint is hit, a `stopped` event (with reason `data breakpoint`) is
+    generated. Clients should only call this request if the corresponding
+    capability `supportsDataBreakpoints` is true.
+    """
+
+    # _spec.json#2084
+
+    arguments: Optional["SetDataBreakpointsArguments"] = None
+    command: str = "setDataBreakpoints"
+
+
+@dataclass
+class SetExceptionBreakpointsRequest(Request):
+    """The request configures the debugger's response to thrown exceptions.
+
+    Each of the `filters`, `filterOptions`, and `exceptionOptions` in the
+    request are independent configurations to a debug adapter indicating a kind
+    of exception to catch. An exception thrown in a program should result in a
+    `stopped` event from the debug adapter (with reason `exception`) if any of
+    the configured filters match. Clients should only call this request if the
+    corresponding capability `exceptionBreakpointFilters` returns one or more
+    filters.
+    """
+
+    # _spec.json#1897
+
+    arguments: Optional["SetExceptionBreakpointsArguments"] = None
+    command: str = "setExceptionBreakpoints"
+
+
+@dataclass
+class SetExpressionRequest(Request):
+    """Evaluates the given `value` expression and assigns it to the `expression`
+    which must be a modifiable l-value.
+
+    The expressions have access to any variables and arguments that are in scope
+    of the specified frame. Clients should only call this request if the
+    corresponding capability `supportsSetExpression` is true. If a debug adapter
+    implements both `setExpression` and `setVariable`, a client uses
+    `setExpression` if the variable has an `evaluateName` property.
+    """
+
+    # _spec.json#3541
+
+    arguments: Optional["SetExpressionArguments"] = None
+    command: str = "setExpression"
+
+
+@dataclass
+class SetFunctionBreakpointsRequest(Request):
+    """Replaces all existing function breakpoints with new function breakpoints.
+
+    To clear all function breakpoints, specify an empty array. When a function
+    breakpoint is hit, a `stopped` event (with reason `function breakpoint`) is
+    generated. Clients should only call this request if the corresponding
+    capability `supportsFunctionBreakpoints` is true.
+    """
+
+    # _spec.json#1824
+
+    arguments: Optional["SetFunctionBreakpointsArguments"] = None
+    command: str = "setFunctionBreakpoints"
+
+
+@dataclass
+class SetInstructionBreakpointsRequest(Request):
+    """Replaces all existing instruction breakpoints.
+
+    Typically, instruction breakpoints would be set from a disassembly window.
+    To clear all instruction breakpoints, specify an empty array. When an
+    instruction breakpoint is hit, a `stopped` event (with reason `instruction
+    breakpoint`) is generated. Clients should only call this request if the
+    corresponding capability `supportsInstructionBreakpoints` is true.
+    """
+
+    # _spec.json#2157
+
+    arguments: Optional["SetInstructionBreakpointsArguments"] = None
+    command: str = "setInstructionBreakpoints"
+
+
+@dataclass
+class SetVariableRequest(Request):
+    """Set the variable with the given name in the variable container to a new
+    value.
+
+    Clients should only call this request if the corresponding capability
+    `supportsSetVariable` is true. If a debug adapter implements both
+    `setVariable` and `setExpression`, a client will only use `setExpression` if
+    the variable has an `evaluateName` property.
+    """
+
+    # _spec.json#2989
+
+    arguments: Optional["SetVariableArguments"] = None
+    command: str = "setVariable"
+
+
+@dataclass
+class SourceRequest(Request):
+    """The request retrieves the source code for a given source reference."""
+
+    # _spec.json#3094
+
+    arguments: Optional["SourceArguments"] = None
+    command: str = "source"
+
+
+@dataclass
+class StackTraceRequest(Request):
+    """The request returns a stacktrace from the current execution state of a
+    given thread.
+
+    A client can request all stack frames by omitting the startFrame and levels
+    arguments. For performance-conscious clients and if the corresponding
+    capability `supportsDelayedStackTraceLoading` is true, stack frames can be
+    retrieved in a piecemeal way with the `startFrame` and `levels` arguments.
+    The response of the `stackTrace` request may contain a `totalFrames`
+    property that hints at the total number of frames in the stack. If a client
+    needs this total number upfront, it can issue a request for a single (first)
+    frame and depending on the value of `totalFrames` decide how to proceed. In
+    any case a client should be prepared to receive fewer frames than requested,
+    which is an indication that the end of the stack has been reached.
+    """
+
+    # _spec.json#2743
+
+    arguments: Optional["StackTraceArguments"] = None
+    command: str = "stackTrace"
+
+
+@dataclass
+class StartDebuggingRequest(Request):
+    """This request is sent from the debug adapter to the client to start a new
+    debug session of the same type as the caller.
+
+    This request should only be sent if the corresponding client capability
+    `supportsStartDebuggingRequest` is true. A client implementation of
+    `startDebugging` should start a new debug session (of the same type as the
+    caller) in the same way that the caller's session was started. If the client
+    supports hierarchical debug sessions, the newly created session can be
+    treated as a child of the caller session.
+    """
+
+    # _spec.json#1158
+
+    arguments: Optional["StartDebuggingRequestArguments"] = None
+    command: str = "startDebugging"
+
+
+@dataclass
+class StepBackRequest(Request):
+    """The request executes one backward step (in the given granularity) for the
+    specified thread and allows all other threads to run backward freely by
+    resuming them.
+
+    If the debug adapter supports single thread execution (see capability
+    `supportsSingleThreadExecutionRequests`), setting the `singleThread`
+    argument to true prevents other suspended threads from resuming. The debug
+    adapter first sends the response and then a `stopped` event (with reason
+    `step`) after the step has completed. Clients should only call this request
+    if the corresponding capability `supportsStepBack` is true.
+    """
+
+    # _spec.json#2476
+
+    arguments: Optional["StepBackArguments"] = None
+    command: str = "stepBack"
+
+
+@dataclass
+class StepInRequest(Request):
+    """The request resumes the given thread to step into a function/method and
+    allows all other threads to run freely by resuming them.
+
+    If the debug adapter supports single thread execution (see capability
+    `supportsSingleThreadExecutionRequests`), setting the `singleThread`
+    argument to true prevents other suspended threads from resuming. If the
+    request cannot step into a target, `stepIn` behaves like the `next` request.
+    The debug adapter first sends the response and then a `stopped` event (with
+    reason `step`) after the step has completed. If there are multiple
+    function/method calls (or other targets) on the source line, the argument
+    `targetId` can be used to control into which target the `stepIn` should
+    occur. The list of possible targets for a given source line can be retrieved
+    via the `stepInTargets` request.
+    """
+
+    # _spec.json#2356
+
+    arguments: Optional["StepInArguments"] = None
+    command: str = "stepIn"
+
+
+@dataclass
+class StepInTargetsRequest(Request):
+    """This request retrieves the possible step-in targets for the specified
+    stack frame.
+
+    These targets can be used in the `stepIn` request. Clients should only call
+    this request if the corresponding capability `supportsStepInTargetsRequest`
+    is true.
+    """
+
+    # _spec.json#3649
+
+    arguments: Optional["StepInTargetsArguments"] = None
+    command: str = "stepInTargets"
+
+
+@dataclass
+class StepOutRequest(Request):
+    """The request resumes the given thread to step out (return) from a
+    function/method and allows all other threads to run freely by resuming them.
+
+    If the debug adapter supports single thread execution (see capability
+    `supportsSingleThreadExecutionRequests`), setting the `singleThread`
+    argument to true prevents other suspended threads from resuming. The debug
+    adapter first sends the response and then a `stopped` event (with reason
+    `step`) after the step has completed.
+    """
+
+    # _spec.json#2418
+
+    arguments: Optional["StepOutArguments"] = None
+    command: str = "stepOut"
+
+
+@dataclass
+class TerminateRequest(Request):
+    """The `terminate` request is sent from the client to the debug adapter in
+    order to shut down the debuggee gracefully.
+
+    Clients should only call this request if the capability
+    `supportsTerminateRequest` is true. Typically a debug adapter implements
+    `terminate` by sending a software signal which the debuggee intercepts in
+    order to clean things up properly before terminating itself. Please note
+    that this request does not directly affect the state of the debug session:
+    if the debuggee decides to veto the graceful shutdown for any reason by not
+    terminating itself, then the debug session just continues. Clients can
+    surface the `terminate` request as an explicit command or they can integrate
+    it into a two stage Stop command that first sends `terminate` to request a
+    graceful shutdown, and if that fails uses `disconnect` for a forceful
+    shutdown.
+    """
+
+    # _spec.json#1604
+
+    arguments: Optional["TerminateArguments"] = None
+    command: str = "terminate"
+
+
+@dataclass
+class TerminateThreadsRequest(Request):
+    """The request terminates the threads with the given ids.
+
+    Clients should only call this request if the corresponding capability
+    `supportsTerminateThreadsRequest` is true.
+    """
+
+    # _spec.json#3222
+
+    arguments: Optional["TerminateThreadsArguments"] = None
+    command: str = "terminateThreads"
+
+
+@dataclass
+class ThreadsRequest(Request):
+    """The request retrieves a list of all threads."""
+
+    # _spec.json#3169
+
+    arguments: None = None
+    command: str = "threads"
+
+
+@dataclass
+class VariablesRequest(Request):
+    """Retrieves all child variables for the given variable reference.
+
+    A filter can be used to limit the fetched children to either named or
+    indexed children.
+    """
+
+    # _spec.json#2899
+
+    arguments: Optional["VariablesArguments"] = None
+    command: str = "variables"
+
+
+@dataclass
+class WriteMemoryRequest(Request):
+    """Writes bytes to memory at the provided location.
+
+    Clients should only call this request if the corresponding capability
+    `supportsWriteMemoryRequest` is true.
+    """
+
+    # _spec.json#4042
+
+    arguments: Optional["WriteMemoryArguments"] = None
+    command: str = "writeMemory"

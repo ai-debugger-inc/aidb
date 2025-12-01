@@ -1,0 +1,84 @@
+name: Framework Tests (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      language:
+        description: Language to test (python, javascript, java)
+        type: string
+        required: true
+      python-version:
+        description: Python version to use
+        type: string
+        required: true
+      node-version:
+        description: Node.js version to use
+        type: string
+        required: false
+      java-version:
+        description: Java version to use
+        type: string
+        required: false
+      java-distribution:
+        description: Java distribution to use
+        type: string
+        required: false
+      skip-coverage:
+        description: Skip coverage reporting
+        type: boolean
+        default: false
+      debug_logging:
+        description: Enable trace-level logging
+        type: boolean
+        default: true
+      all-adapter-languages:
+        description: Comma-separated list of all adapter languages from versions.yaml
+        type: string
+        required: false
+        default: ''
+
+env:
+  IS_GITHUB: ${{ vars.IS_GITHUB || 'false' }}  # Use repo variable, default to false for ACT
+  AIDB_LOG_LEVEL: ${{ (inputs.debug_logging == true) && 'TRACE' || 'INFO' }}
+  AIDB_ADAPTER_TRACE: ${{ (inputs.debug_logging == true) && '1' || '0' }}
+  AIDB_CONSOLE_LOGGING: '1'
+  PYTHON_VERSION: ${{ inputs.python-version }}
+
+jobs:
+  test-frameworks:
+    name: Framework Tests (${{ inputs.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup AIDB environment
+        uses: ./.github/actions/setup-aidb-env
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Setup multi-language runtime
+        uses: ./.github/actions/setup-multi-lang
+        with:
+          node-version: ${{ inputs.node-version }}
+          java-version: ${{ inputs.java-version }}
+          java-distribution: ${{ inputs.java-distribution }}
+
+      - name: Download test artifacts
+        uses: ./.github/actions/download-test-artifacts
+        with:
+          include-adapters: 'true'
+          include-docker: 'true'
+          docker-languages: ${{ inputs.language }}
+          all-adapter-languages: ${{ inputs.all-adapter-languages }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run framework tests
+        uses: ./.github/actions/run-aidb-tests
+        with:
+          suite: frameworks
+          skip-coverage: ${{ inputs.skip-coverage }}
+          coverage-flags: frameworks-${{ inputs.language }}
+          additional-args: -l ${{ inputs.language }}
+          artifact-suffix: ${{ inputs.language }}

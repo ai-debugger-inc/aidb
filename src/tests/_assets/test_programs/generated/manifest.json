@@ -1,0 +1,728 @@
+{
+  "generator_version": "1.0.0",
+  "scenarios": {
+    "basic_exception": {
+      "category": "debugging",
+      "description": "Try/catch/finally block with error handling",
+      "expected_markers": {
+        "java": {
+          "flow.catch.exception": 13,
+          "flow.finally.cleanup": 15,
+          "flow.try.start": 10,
+          "func.print.attempt": 11,
+          "func.print.cleanup": 16,
+          "func.print.error": 14,
+          "func.print.result": 18,
+          "var.assign.result": 12,
+          "var.init.result": 9
+        },
+        "javascript": {
+          "flow.catch.exception": 11,
+          "flow.finally.cleanup": 17,
+          "flow.try.start": 8,
+          "func.print.attempt": 9,
+          "func.print.cleanup": 18,
+          "func.print.error": 13,
+          "func.print.result": 20,
+          "var.assign.result": 10,
+          "var.init.result": 7
+        },
+        "python": {
+          "flow.catch.exception": 14,
+          "flow.finally.cleanup": 16,
+          "flow.try.start": 11,
+          "func.print.attempt": 12,
+          "func.print.cleanup": 17,
+          "func.print.error": 15,
+          "func.print.result": 18,
+          "var.assign.result": 13,
+          "var.init.result": 10
+        }
+      },
+      "files": {
+        "java": {
+          "marker_count": 9,
+          "path": "src/tests/_assets/test_programs/generated/basic_exception/TestProgram.java"
+        },
+        "javascript": {
+          "marker_count": 9,
+          "path": "src/tests/_assets/test_programs/generated/basic_exception/test_program.js"
+        },
+        "python": {
+          "marker_count": 9,
+          "path": "src/tests/_assets/test_programs/generated/basic_exception/test_program.py"
+        }
+      },
+      "id": "basic_exception",
+      "name": "Basic Exception Handling"
+    },
+    "basic_for_loop": {
+      "category": "control_flow",
+      "description": "Simple for loop with counter and breakpoints",
+      "expected_markers": {
+        "java": {
+          "flow.loop.main": 10,
+          "func.print.final": 14,
+          "func.print.iteration": 12,
+          "var.add.total": 11,
+          "var.init.total": 9
+        },
+        "javascript": {
+          "flow.loop.main": 8,
+          "func.print.final": 12,
+          "func.print.iteration": 10,
+          "var.add.total": 9,
+          "var.init.total": 7
+        },
+        "python": {
+          "flow.loop.main": 11,
+          "func.print.final": 14,
+          "func.print.iteration": 13,
+          "var.add.total": 12,
+          "var.init.total": 10
+        }
+      },
+      "files": {
+        "java": {
+          "marker_count": 5,
+          "path": "src/tests/_assets/test_programs/generated/basic_for_loop/TestProgram.java"
+        },
+        "javascript": {
+          "marker_count": 5,
+          "path": "src/tests/_assets/test_programs/generated/basic_for_loop/test_program.js"
+        },
+        "python": {
+          "marker_count": 5,
+          "path": "src/tests/_assets/test_programs/generated/basic_for_loop/test_program.py"
+        }
+      },
+      "id": "basic_for_loop",
+      "name": "Basic For Loop"
+    },
+    "basic_variables": {
+      "category": "variables",
+      "description": "Test variable declaration, assignment, and inspection",
+      "expected_markers": {
+        "java": {
+          "func.print.counter": 12,
+          "var.assign.counter": 10,
+          "var.increment.counter": 11,
+          "var.init.counter": 9
+        },
+        "javascript": {
+          "func.print.counter": 10,
+          "var.assign.counter": 8,
+          "var.increment.counter": 9,
+          "var.init.counter": 7
+        },
+        "python": {
+          "func.print.counter": 13,
+          "var.assign.counter": 11,
+          "var.increment.counter": 12,
+          "var.init.counter": 10
+        }
+      },
+      "files": {
+        "java": {
+          "marker_count": 4,
+          "path": "src/tests/_assets/test_programs/generated/basic_variables/TestProgram.java"
+        },
+        "javascript": {
+          "marker_count": 4,
+          "path": "src/tests/_assets/test_programs/generated/basic_variables/test_program.js"
+        },
+        "python": {
+          "marker_count": 4,
+          "path": "src/tests/_assets/test_programs/generated/basic_variables/test_program.py"
+        }
+      },
+      "id": "basic_variables",
+      "name": "Basic Variable Operations"
+    },
+    "basic_while_loop": {
+      "category": "control_flow",
+      "description": "Simple while loop with condition and break",
+      "expected_markers": {
+        "java": {
+          "flow.loop.while": 10,
+          "func.print.counter": 11,
+          "func.print.final": 14,
+          "var.increment.counter": 12,
+          "var.init.counter": 9
+        },
+        "javascript": {
+          "flow.loop.while": 8,
+          "func.print.counter": 9,
+          "func.print.final": 12,
+          "var.increment.counter": 10,
+          "var.init.counter": 7
+        },
+        "python": {
+          "flow.loop.while": 11,
+          "func.print.counter": 12,
+          "func.print.final": 14,
+          "var.increment.counter": 13,
+          "var.init.counter": 10
+        }
+      },
+      "files": {
+        "java": {
+          "marker_count": 5,
+          "path": "src/tests/_assets/test_programs/generated/basic_while_loop/TestProgram.java"
+        },
+        "javascript": {
+          "marker_count": 5,
+          "path": "src/tests/_assets/test_programs/generated/basic_while_loop/test_program.js"
+        },
+        "python": {
+          "marker_count": 5,
+          "path": "src/tests/_assets/test_programs/generated/basic_while_loop/test_program.py"
+        }
+      },
+      "id": "basic_while_loop",
+      "name": "Basic While Loop"
+    },
+    "conditionals": {
+      "category": "control_flow",
+      "description": "If/else chains with multiple conditions",
+      "expected_markers": {
+        "java": {
+          "flow.if.less_than": 10,
+          "flow.if.less_than_ten": 13,
+          "func.print.between": 14,
+          "func.print.complete": 19,
+          "func.print.greater": 16,
+          "func.print.less": 11,
+          "var.init.value": 9
+        },
+        "javascript": {
+          "flow.if.less_than": 8,
+          "flow.if.less_than_ten": 11,
+          "func.print.between": 12,
+          "func.print.complete": 17,
+          "func.print.greater": 14,
+          "func.print.less": 9,
+          "var.init.value": 7
+        },
+        "python": {
+          "flow.if.less_than": 11,
+          "flow.if.less_than_ten": 14,
+          "func.print.between": 15,
+          "func.print.complete": 18,
+          "func.print.greater": 17,
+          "func.print.less": 12,
+          "var.init.value": 10
+        }
+      },
+      "files": {
+        "java": {
+          "marker_count": 7,
+          "path": "src/tests/_assets/test_programs/generated/conditionals/TestProgram.java"
+        },
+        "javascript": {
+          "marker_count": 7,
+          "path": "src/tests/_assets/test_programs/generated/conditionals/test_program.js"
+        },
+        "python": {
+          "marker_count": 7,
+          "path": "src/tests/_assets/test_programs/generated/conditionals/test_program.py"
+        }
+      },
+      "id": "conditionals",
+      "name": "Conditional Statements"
+    },
+    "simple_function": {
+      "category": "functions",
+      "description": "Test function definition and calling",
+      "expected_markers": {
+        "java": {
+          "func.call.add": 17,
+          "func.def.add_numbers": 8,
+          "func.def.main": 14,
+          "func.print.sum": 18,
+          "func.return.result": 10,
+          "var.calc.result": 9,
+          "var.init.x": 15,
+          "var.init.y": 16
+        },
+        "javascript": {
+          "func.call.add": 14,
+          "func.def.add_numbers": 6,
+          "func.def.main": 11,
+          "func.print.sum": 15,
+          "func.return.result": 8,
+          "var.calc.result": 7,
+          "var.init.x": 12,
+          "var.init.y": 13
+        },
+        "python": {
+          "func.call.add": 16,
+          "func.def.add_numbers": 9,
+          "func.def.main": 13,
+          "func.print.sum": 17,
+          "func.return.result": 11,
+          "var.calc.result": 10,
+          "var.init.x": 14,
+          "var.init.y": 15
+        }
+      },
+      "files": {
+        "java": {
+          "marker_count": 8,
+          "path": "src/tests/_assets/test_programs/generated/simple_function/TestProgram.java"
+        },
+        "javascript": {
+          "marker_count": 8,
+          "path": "src/tests/_assets/test_programs/generated/simple_function/test_program.js"
+        },
+        "python": {
+          "marker_count": 8,
+          "path": "src/tests/_assets/test_programs/generated/simple_function/test_program.py"
+        }
+      },
+      "id": "simple_function",
+      "name": "Simple Function Definition and Call"
+    },
+    "array_operations": {
+      "id": "array_operations",
+      "name": "Array Operations",
+      "category": "data_structures",
+      "description": "Test array declaration, indexing, modification, and iteration",
+      "expected_markers": {
+        "java": {
+          "var.init.array": 9,
+          "func.print.created": 10,
+          "flow.loop.iterate": 11,
+          "func.print.element": 12,
+          "func.print.done": 14
+        },
+        "javascript": {
+          "var.init.array": 7,
+          "func.print.created": 8,
+          "flow.loop.iterate": 9,
+          "func.print.element": 10,
+          "func.print.done": 12
+        },
+        "python": {
+          "var.init.array": 10,
+          "func.print.created": 11,
+          "flow.loop.iterate": 12,
+          "func.print.element": 13,
+          "func.print.done": 14
+        }
+      },
+      "files": {
+        "java": {
+          "path": "src/tests/_assets/test_programs/generated/array_operations/TestProgram.java",
+          "marker_count": 5
+        },
+        "javascript": {
+          "path": "src/tests/_assets/test_programs/generated/array_operations/test_program.js",
+          "marker_count": 5
+        },
+        "python": {
+          "path": "src/tests/_assets/test_programs/generated/array_operations/test_program.py",
+          "marker_count": 5
+        }
+      }
+    },
+    "complex_expressions": {
+      "id": "complex_expressions",
+      "name": "Complex Expressions",
+      "category": "expressions",
+      "description": "Test complex mathematical and string expressions",
+      "expected_markers": {
+        "java": {
+          "var.init.a": 9,
+          "var.init.b": 10,
+          "var.init.c": 11,
+          "func.print.vars": 12,
+          "var.calc.result": 13,
+          "func.print.result": 14,
+          "var.init.name": 15,
+          "var.concat.greeting": 16,
+          "func.print.greeting": 17
+        },
+        "javascript": {
+          "var.init.a": 7,
+          "var.init.b": 8,
+          "var.init.c": 9,
+          "func.print.vars": 10,
+          "var.calc.result": 11,
+          "func.print.result": 12,
+          "var.init.name": 13,
+          "var.concat.greeting": 14,
+          "func.print.greeting": 15
+        },
+        "python": {
+          "var.init.a": 10,
+          "var.init.b": 11,
+          "var.init.c": 12,
+          "func.print.vars": 13,
+          "var.calc.result": 14,
+          "func.print.result": 15,
+          "var.init.name": 16,
+          "var.concat.greeting": 17,
+          "func.print.greeting": 18
+        }
+      },
+      "files": {
+        "java": {
+          "path": "src/tests/_assets/test_programs/generated/complex_expressions/TestProgram.java",
+          "marker_count": 9
+        },
+        "javascript": {
+          "path": "src/tests/_assets/test_programs/generated/complex_expressions/test_program.js",
+          "marker_count": 9
+        },
+        "python": {
+          "path": "src/tests/_assets/test_programs/generated/complex_expressions/test_program.py",
+          "marker_count": 9
+        }
+      }
+    },
+    "function_chain": {
+      "id": "function_chain",
+      "name": "Function Chain",
+      "category": "functions",
+      "description": "Test nested function calls and call stack depth",
+      "expected_markers": {
+        "java": {
+          "func.def.add": 8,
+          "func.print.add": 9,
+          "func.return.add": 10,
+          "func.def.multiply": 13,
+          "func.print.multiply": 14,
+          "func.return.multiply": 15,
+          "func.def.calculate": 18,
+          "func.print.calculate": 19,
+          "func.call.add": 20,
+          "func.call.multiply": 21,
+          "func.return.calculate": 22,
+          "func.def.main": 26,
+          "func.print.start": 27,
+          "func.call.calculate": 28,
+          "func.print.result": 29
+        },
+        "javascript": {
+          "func.def.add": 6,
+          "func.print.add": 7,
+          "func.return.add": 8,
+          "func.def.multiply": 11,
+          "func.print.multiply": 12,
+          "func.return.multiply": 13,
+          "func.def.calculate": 16,
+          "func.print.calculate": 17,
+          "func.call.add": 18,
+          "func.call.multiply": 19,
+          "func.return.calculate": 20,
+          "func.def.main": 23,
+          "func.print.start": 24,
+          "func.call.calculate": 25,
+          "func.print.result": 26
+        },
+        "python": {
+          "func.def.add": 9,
+          "func.print.add": 10,
+          "func.return.add": 11,
+          "func.def.multiply": 13,
+          "func.print.multiply": 14,
+          "func.return.multiply": 15,
+          "func.def.calculate": 17,
+          "func.print.calculate": 18,
+          "func.call.add": 19,
+          "func.call.multiply": 20,
+          "func.return.calculate": 21,
+          "func.def.main": 23,
+          "func.print.start": 24,
+          "func.call.calculate": 25,
+          "func.print.result": 26
+        }
+      },
+      "files": {
+        "java": {
+          "path": "src/tests/_assets/test_programs/generated/function_chain/TestProgram.java",
+          "marker_count": 15
+        },
+        "javascript": {
+          "path": "src/tests/_assets/test_programs/generated/function_chain/test_program.js",
+          "marker_count": 15
+        },
+        "python": {
+          "path": "src/tests/_assets/test_programs/generated/function_chain/test_program.py",
+          "marker_count": 15
+        }
+      }
+    },
+    "infinite_loop_with_counter": {
+      "id": "infinite_loop_with_counter",
+      "name": "Infinite Loop with Counter",
+      "category": "control_flow",
+      "description": "Test infinite loop with break condition",
+      "expected_markers": {
+        "java": {
+          "var.init.counter": 9,
+          "flow.loop.infinite": 10,
+          "var.increment.counter": 11,
+          "flow.if.modulo": 12,
+          "func.print.progress": 13
+        },
+        "javascript": {
+          "var.init.counter": 7,
+          "flow.loop.infinite": 8,
+          "var.increment.counter": 9,
+          "flow.if.modulo": 10,
+          "func.print.progress": 11
+        },
+        "python": {
+          "var.init.counter": 10,
+          "flow.loop.infinite": 11,
+          "var.increment.counter": 12,
+          "flow.if.modulo": 13,
+          "func.print.progress": 14
+        }
+      },
+      "files": {
+        "java": {
+          "path": "src/tests/_assets/test_programs/generated/infinite_loop_with_counter/TestProgram.java",
+          "marker_count": 5
+        },
+        "javascript": {
+          "path": "src/tests/_assets/test_programs/generated/infinite_loop_with_counter/test_program.js",
+          "marker_count": 5
+        },
+        "python": {
+          "path": "src/tests/_assets/test_programs/generated/infinite_loop_with_counter/test_program.py",
+          "marker_count": 5
+        }
+      }
+    },
+    "large_array_operations": {
+      "id": "large_array_operations",
+      "name": "Large Array Operations",
+      "category": "performance",
+      "description": "Test performance with large array operations",
+      "expected_markers": {
+        "java": {
+          "var.create.large_array": 11,
+          "flow.loop.iterate": 12,
+          "flow.if.checkpoint": 13,
+          "func.print.checkpoint": 14
+        },
+        "javascript": {
+          "var.create.large_array": 7,
+          "flow.loop.iterate": 8,
+          "flow.if.checkpoint": 9,
+          "func.print.checkpoint": 10
+        },
+        "python": {
+          "var.create.large_array": 10,
+          "flow.loop.iterate": 11,
+          "flow.if.checkpoint": 12,
+          "func.print.checkpoint": 13
+        }
+      },
+      "files": {
+        "java": {
+          "path": "src/tests/_assets/test_programs/generated/large_array_operations/TestProgram.java",
+          "marker_count": 4
+        },
+        "javascript": {
+          "path": "src/tests/_assets/test_programs/generated/large_array_operations/test_program.js",
+          "marker_count": 4
+        },
+        "python": {
+          "path": "src/tests/_assets/test_programs/generated/large_array_operations/test_program.py",
+          "marker_count": 4
+        }
+      }
+    },
+    "nested_conditionals": {
+      "id": "nested_conditionals",
+      "name": "Nested Conditionals",
+      "category": "control_flow",
+      "description": "Test deeply nested if/else chains",
+      "expected_markers": {
+        "java": {
+          "var.init.x": 9,
+          "var.init.y": 10,
+          "func.print.start": 11,
+          "flow.if.x_greater_10": 12,
+          "func.print.x_gt_10": 13,
+          "flow.if.y_greater_20": 14,
+          "func.print.both_true": 15,
+          "func.print.x_only": 17,
+          "func.print.x_not_gt_10": 20,
+          "func.print.done": 22
+        },
+        "javascript": {
+          "var.init.x": 7,
+          "var.init.y": 8,
+          "func.print.start": 9,
+          "flow.if.x_greater_10": 10,
+          "func.print.x_gt_10": 11,
+          "flow.if.y_greater_20": 12,
+          "func.print.both_true": 13,
+          "func.print.x_only": 15,
+          "func.print.x_not_gt_10": 18,
+          "func.print.done": 20
+        },
+        "python": {
+          "var.init.x": 10,
+          "var.init.y": 11,
+          "func.print.start": 12,
+          "flow.if.x_greater_10": 13,
+          "func.print.x_gt_10": 14,
+          "flow.if.y_greater_20": 15,
+          "func.print.both_true": 16,
+          "func.print.x_only": 18,
+          "func.print.x_not_gt_10": 20,
+          "func.print.done": 21
+        }
+      },
+      "files": {
+        "java": {
+          "path": "src/tests/_assets/test_programs/generated/nested_conditionals/TestProgram.java",
+          "marker_count": 10
+        },
+        "javascript": {
+          "path": "src/tests/_assets/test_programs/generated/nested_conditionals/test_program.js",
+          "marker_count": 10
+        },
+        "python": {
+          "path": "src/tests/_assets/test_programs/generated/nested_conditionals/test_program.py",
+          "marker_count": 10
+        }
+      }
+    },
+    "nested_loops": {
+      "id": "nested_loops",
+      "name": "Nested Loops",
+      "category": "control_flow",
+      "description": "Test nested for loops with multiple levels",
+      "expected_markers": {
+        "java": {
+          "var.init.total": 9,
+          "func.print.start": 10,
+          "flow.loop.outer": 11,
+          "flow.loop.inner": 12,
+          "var.add.total": 13,
+          "func.print.iteration": 14,
+          "func.print.final": 17
+        },
+        "javascript": {
+          "var.init.total": 7,
+          "func.print.start": 8,
+          "flow.loop.outer": 9,
+          "flow.loop.inner": 10,
+          "var.add.total": 11,
+          "func.print.iteration": 12,
+          "func.print.final": 15
+        },
+        "python": {
+          "var.init.total": 10,
+          "func.print.start": 11,
+          "flow.loop.outer": 12,
+          "flow.loop.inner": 13,
+          "var.add.total": 14,
+          "func.print.iteration": 15,
+          "func.print.final": 16
+        }
+      },
+      "files": {
+        "java": {
+          "path": "src/tests/_assets/test_programs/generated/nested_loops/TestProgram.java",
+          "marker_count": 7
+        },
+        "javascript": {
+          "path": "src/tests/_assets/test_programs/generated/nested_loops/test_program.js",
+          "marker_count": 7
+        },
+        "python": {
+          "path": "src/tests/_assets/test_programs/generated/nested_loops/test_program.py",
+          "marker_count": 7
+        }
+      }
+    },
+    "recursive_stack_overflow": {
+      "id": "recursive_stack_overflow",
+      "name": "Recursive Stack Overflow",
+      "category": "debugging",
+      "description": "Test deep recursion and stack trace handling",
+      "expected_markers": {
+        "java": {
+          "func.def.recursive": 8,
+          "func.print.depth": 9,
+          "func.call.recursive": 10,
+          "func.call.start": 14
+        },
+        "javascript": {
+          "func.def.recursive": 6,
+          "func.print.depth": 7,
+          "func.call.recursive": 8,
+          "func.call.start": 11
+        },
+        "python": {
+          "func.def.recursive": 9,
+          "func.print.depth": 10,
+          "func.call.recursive": 11,
+          "func.call.start": 13
+        }
+      },
+      "files": {
+        "java": {
+          "path": "src/tests/_assets/test_programs/generated/recursive_stack_overflow/TestProgram.java",
+          "marker_count": 4
+        },
+        "javascript": {
+          "path": "src/tests/_assets/test_programs/generated/recursive_stack_overflow/test_program.js",
+          "marker_count": 4
+        },
+        "python": {
+          "path": "src/tests/_assets/test_programs/generated/recursive_stack_overflow/test_program.py",
+          "marker_count": 4
+        }
+      }
+    },
+    "syntax_error_unclosed_bracket": {
+      "id": "syntax_error_unclosed_bracket",
+      "name": "Syntax Error (Unclosed Bracket)",
+      "category": "error_handling",
+      "description": "Test handling of syntax errors in code",
+      "expected_markers": {
+        "java": {
+          "error.syntax.unclosed": 8,
+          "var.init.counter": 13,
+          "func.print.start": 14,
+          "func.print.unreachable": 15
+        },
+        "javascript": {
+          "var.init.counter": 6,
+          "func.print.start": 8,
+          "error.syntax.unclosed": 10,
+          "func.print.unreachable": 14
+        },
+        "python": {
+          "var.init.counter": 9,
+          "func.print.start": 11,
+          "error.syntax.unclosed": 13,
+          "func.print.unreachable": 16
+        }
+      },
+      "files": {
+        "java": {
+          "path": "src/tests/_assets/test_programs/generated/syntax_error_unclosed_bracket/TestProgram.java",
+          "marker_count": 4
+        },
+        "javascript": {
+          "path": "src/tests/_assets/test_programs/generated/syntax_error_unclosed_bracket/test_program.js",
+          "marker_count": 4
+        },
+        "python": {
+          "path": "src/tests/_assets/test_programs/generated/syntax_error_unclosed_bracket/test_program.py",
+          "marker_count": 4
+        }
+      }
+    }
+  }
+}

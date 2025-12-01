@@ -1,0 +1,24 @@
+# Language-specific test image for Python
+# Optimized for Python framework testing with minimal size
+# NOTE: Inherits from aidb-test-base which provides Python 3.12 + common dependencies
+
+# Parametrize base image for CI flexibility (local: aidb-test-base:latest, CI: GHCR)
+# hadolint ignore=DL3006
+ARG AIDB_TEST_BASE_IMAGE=aidb-test-base:latest
+FROM ${AIDB_TEST_BASE_IMAGE}
+
+# AIDB Docker labels
+LABEL com.aidb.language="python"
+
+# Install Python framework dependencies
+RUN /scripts/install-framework-deps.sh python
+
+# Adapter environment (Python adapter mounted from .cache/adapters/)
+ENV DEBUGPY_PATH=/root/.aidb/adapters/python
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD python --version
+
+# Default command: run Python tests
+CMD ["pytest", "-m", "language_python", "-v"]

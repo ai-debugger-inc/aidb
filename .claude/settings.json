@@ -1,0 +1,105 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Bash(:*::*)",
+      "Bash(cat:*)",
+      "Bash(find:*)",
+      "Bash(./dev-cli:*)",
+      "Bash(:*:./dev-cli:*)",
+      "Bash(dev-cli:*)",
+      "Bash(:*:dev-cli:*)",
+      "Bash(:*:./venv/bin:*)",
+      "Bash(./venv/bin/mypy:*)",
+      "Bash(:*:./venv/bin/mpy:*)",
+      "Bash(./venv/bin/ruff:*)",
+      "Bash(:*:./venv/bin/ruff:*)",
+      "Bash(./venv/bin/pytest:*)",
+      "Bash(:*:./venv/bin/pytest:*)",
+      "Bash(./venv/bin/python:*)",
+      "Bash(:*:./venv/bin/python:*)",
+      "Bash(./venv/bin/:*)",
+      "WebSearch",
+      "Read(//private/tmp/**)",
+      "Bash(source:*)",
+      "Bash(python -m mypy:*)",
+      "Bash(tree:*)",
+      "Bash(awk:*)",
+      "mcp__aidb-debug",
+      "Bash(mypy:*)",
+      "Bash(ruff check:*)",
+      "Bash(python:*)",
+      "Bash(python -m ruff:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker ps:*)",
+      "Bash(python3:*)",
+      "Bash(test:*)",
+      "WebFetch(domain:marketplace.visualstudio.com)",
+      "WebFetch(domain:mvnrepository.com)",
+      "WebFetch(domain:github.com)",
+      "Read(//tmp/**)",
+      "Edit(.claude/skills/**)"
+    ],
+    "deny": [
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
+    ],
+    "ask": [
+      "Bash(gh:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git rm:*)",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(git reset:*)",
+      "Bash(git rebase:*)",
+      "Bash(git tag:*)",
+      "Bash(rm:*)"
+    ],
+    "defaultMode": "acceptEdits",
+    "additionalDirectories": [
+      "~/.aidb",
+      ".claude/skills"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/skill-activation-prompt.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/post-tool-use-tracker.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/test-runner-suggestion.sh"
+          },
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/lint-check.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "alwaysThinkingEnabled": false
+}

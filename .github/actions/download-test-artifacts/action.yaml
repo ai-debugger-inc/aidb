@@ -1,0 +1,108 @@
+name: Download Test Artifacts
+description: Download debug adapters and/or pull Docker test images from GHCR
+inputs:
+  include-adapters:
+    description: Download debug adapters
+    required: false
+    default: 'false'
+  include-docker:
+    description: Pull Docker test images from GHCR
+    required: false
+    default: 'false'
+  docker-languages:
+    description: |
+      Comma-separated list of language images to pull (e.g., "python" or "python,javascript").
+      If empty, uses all-adapter-languages to pull all images.
+      Base image is always pulled when include-docker is true.
+    required: false
+    default: ''
+  all-adapter-languages:
+    description: |
+      Comma-separated list of ALL adapter languages from versions.yaml (e.g., "python,javascript,java").
+      Used as fallback when docker-languages is empty. Pass from load-versions output.
+    required: false
+    default: ''
+  github-token:
+    description: GitHub token for GHCR authentication
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Download adapter artifacts
+      if: inputs.include-adapters == 'true'
+      uses: actions/download-artifact@v4
+      with:
+        name: debug-adapters
+        path: .cache/adapters/
+
+    - name: Log in to GitHub Container Registry
+      if: inputs.include-docker == 'true' && inputs.github-token != ''
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ inputs.github-token }}
+
+    - name: Pull Docker images from GHCR
+      if: inputs.include-docker == 'true'
+      shell: bash
+      run: |
+        REPO="${{ github.repository }}"
+        LANGUAGES="${{ inputs.docker-languages }}"
+        ALL_LANGUAGES="${{ inputs.all-adapter-languages }}"
+
+        # Determine which languages to pull (empty = all, for backwards compatibility)
+        if [ -z "$LANGUAGES" ]; then
+          if [ -n "$ALL_LANGUAGES" ]; then
+            LANGUAGES="$ALL_LANGUAGES"
+          else
+            # Fallback: parse versions.yaml with awk (no Python deps required)
+            # Extracts top-level keys under 'adapters:' section (2-space indent only)
+            LANGUAGES=$(awk '/^adapters:/{flag=1; next} /^[a-z_]+:/{flag=0} flag && /^  [a-z]+:/{gsub(/:/, ""); gsub(/^  /, ""); print}' versions.yaml | tr '\n' ',' | sed 's/,$//')
+            if [ -z "$LANGUAGES" ]; then
+              echo "::error::Could not determine languages from versions.yaml and all-adapter-languages not provided"
+              exit 1
+            fi
+          fi
+        fi
+
+        echo "Pulling Docker images in parallel (languages: $LANGUAGES)..."
+
+        # Always pull base image in background
+        docker pull ghcr.io/${REPO}/test-base:latest &
+        PID_BASE=$!
+
+        # Pull requested language images in parallel
+        declare -A PIDS
+        for lang in $(echo "$LANGUAGES" | tr ',' ' '); do
+          lang=$(echo "$lang" | xargs)  # Trim whitespace
+          if [ -n "$lang" ]; then
+            docker pull ghcr.io/${REPO}/test-${lang}:latest &
+            PIDS[$lang]=$!
+          fi
+        done
+
+        # Wait for all pulls and check for failures
+        FAILED=0
+        wait $PID_BASE || { echo "::error::Failed to pull test-base"; FAILED=1; }
+        for lang in "${!PIDS[@]}"; do
+          wait ${PIDS[$lang]} || { echo "::error::Failed to pull test-${lang}"; FAILED=1; }
+        done
+
+        if [ $FAILED -ne 0 ]; then
+          exit 1
+        fi
+
+        # Tag images with local names
+        echo "Tagging images with local names..."
+        docker tag ghcr.io/${REPO}/test-base:latest aidb-test-base:latest
+        for lang in $(echo "$LANGUAGES" | tr ',' ' '); do
+          lang=$(echo "$lang" | xargs)
+          if [ -n "$lang" ]; then
+            docker tag ghcr.io/${REPO}/test-${lang}:latest aidb-test-${lang}:latest
+          fi
+        done
+
+        echo "Available Docker images:"
+        docker images | grep -E "(aidb-test|ghcr.io)"

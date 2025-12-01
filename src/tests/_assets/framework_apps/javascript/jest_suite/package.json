@@ -1,0 +1,11 @@
+{
+  "name": "jest-test-suite",
+  "version": "1.0.0",
+  "description": "Jest test suite for debugging capabilities testing",
+  "scripts": {
+    "test": "jest"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}

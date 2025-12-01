@@ -1,0 +1,367 @@
+---
+exclude: |
+  (?x)^(
+    armored/|
+    \.cache/|
+    src/tests/_assets/test_programs/generated/|
+    src/tests/_assets/framework_apps/|
+    src/tests/_assets/|
+    src/aidb/dap/_util/|
+    src/aidb/dap/protocol/|
+    \.github/scripts/
+  )
+
+repos:
+  # --------------------------------------
+  # Code Formatting & Style
+  # --------------------------------------
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.7
+    hooks:
+      - id: ruff
+        args: [--fix, --unsafe-fixes, --select, ASYNC]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: docformatter
+        name: Format docstrings
+        description: Format docstrings to 80 characters
+        entry: docformatter
+        language: python
+        types: [python]
+        additional_dependencies: [docformatter]
+        args: [
+          "--wrap-summaries", "88",
+          "--wrap-descriptions", "88",
+          "--in-place"
+        ]
+        exclude: '^docs/conf.py|^scripts/pre-commit/|^venv/'
+
+  # --------------------------------------
+  # General File Checks
+  # --------------------------------------
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: trailing-whitespace
+        exclude: '^src/aidb/dap/_util/|^src/aidb/dap/protocol/'
+      - id: end-of-file-fixer
+        exclude: '^src/aidb/dap/_util/|^src/aidb/dap/protocol/'
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-ast
+      - id: debug-statements
+
+  # --------------------------------------
+  # Linting & Quality
+  # --------------------------------------
+
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.37.1
+    hooks:
+      - id: yamllint
+        args: [-c, .github/yamllint.yaml]
+
+  - repo: https://github.com/executablebooks/mdformat
+    rev: 0.7.22
+    hooks:
+      - id: mdformat
+        exclude: '^docs/'
+        additional_dependencies:
+          - mdformat-myst
+          - mdformat-gfm
+
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.39.0
+    hooks:
+      - id: typos
+        files: \.(md|rst|txt)$
+
+  # --------------------------------------
+  # Python Type Checking & Documentation
+  # --------------------------------------
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.19.0
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - mypy-extensions
+          - types-aiofiles
+          - types-docutils
+          - types-setuptools
+          - types-requests
+          - types-PyYAML
+        exclude: |
+          (?x)^(
+            docs/conf.py|
+            venv/|
+            src/aidb/dap/_util/|
+            src/aidb/dap/protocol/
+          )
+
+  - repo: https://github.com/pycqa/pydocstyle
+    rev: 6.3.0
+    hooks:
+      - id: pydocstyle
+        additional_dependencies: [tomli]
+        exclude: |
+          (?x)^(
+            docs/conf.py|
+            scripts/pre-commit/|
+            src/tests/|
+            src/aidb/dap/_util/|
+            src/aidb/dap/protocol/
+          )
+
+  # --------------------------------------
+  # Security & Code Quality Analysis
+  # --------------------------------------
+
+  - repo: local
+    hooks:
+      - id: trufflehog
+        name: trufflehog (secret detection)
+        entry: |
+          bash -c '
+            command -v trufflehog >/dev/null 2>&1 && \
+            trufflehog filesystem \
+              --no-update \
+              --fail \
+              --only-verified \
+              --exclude-paths=<(printf "%s\n" \
+                "\.env$" \
+                "^\.claude/hooks/" \
+                "^\.local/" \
+                "^\.cache/" \
+                "^venv/" \
+              ) . \
+            || echo "⚠️  trufflehog not installed (brew install trufflehog)"
+          '
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: bandit
+        name: bandit (medium+ severity)
+        entry: |
+          bash -c '
+            venv/bin/bandit -r src/ \
+              --skip B101,B104,B108,B603 \
+              --exclude src/tests/,src/aidb/dap/_util/,src/aidb/dap/protocol/ \
+              -ll -q
+          '
+        language: system
+        types: [python]
+        pass_filenames: false
+        verbose: true
+
+      - id: vulture
+        name: Log unused code (vulture)
+        entry: scripts/pre-commit/run-vulture.sh
+        language: script
+        types: [python]
+        pass_filenames: false
+        exclude: '^src/aidb/dap/_util/|^src/aidb/dap/protocol/'
+
+      - id: deptry
+        name: Check dependency usage (deptry)
+        entry: bash -c 'venv/bin/deptry . || true'
+        language: system
+        types: [python]
+        pass_filenames: false
+        verbose: true
+
+  # --------------------------------------
+  # Shell Scripts
+  # --------------------------------------
+
+  - repo: https://github.com/koalaman/shellcheck-precommit
+    rev: v0.11.0
+    hooks:
+      - id: shellcheck
+        name: shellcheck
+        entry: shellcheck
+        language: system
+        types: [shell]
+
+  # --------------------------------------
+  # Docker & Container Files
+  # --------------------------------------
+
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.14.0
+    hooks:
+      - id: hadolint-docker
+        args: [--ignore, DL3008, --ignore, DL3009]
+
+  # --------------------------------------
+  # JSON Formatting
+  # --------------------------------------
+
+  - repo: local
+    hooks:
+      - id: jq-format
+        name: Format JSON with jq
+        entry: |-
+          bash -c '
+          modified=()
+          for file in $(
+            find src/ .claude/ \
+              -type d \( -name ".*" -o -name "node_modules" -o -name "_assets" \) -prune \
+              -o -name "*.json" -print
+          ); do
+            tmpfile=$(mktemp)
+            if ! jq . "$file" > "$tmpfile"; then
+              echo "Failed to process $file"
+              exit 1
+            fi
+            if ! cmp -s "$file" "$tmpfile"; then
+              mv "$tmpfile" "$file"
+              echo "$file"
+              modified+=("$file")
+            else
+              rm "$tmpfile"
+            fi
+          done
+          echo "Total modified JSON files: ${#modified[@]}"
+          '
+        language: system
+        files: \.json$
+        always_run: true
+        pass_filenames: false
+
+  # --------------------------------------
+  # Project-Specific Maintenance
+  # --------------------------------------
+
+  - repo: local
+    hooks:
+      - id: sync-versions
+        name: Synchronize versions across codebase
+        entry: python scripts/pre-commit/sync_versions.py
+        language: python
+        additional_dependencies: [pyyaml]
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
+      - id: gen-docs-requirements
+        name: Generate docs/requirements.txt from pyproject.toml
+        entry: python scripts/pre-commit/gen_docs_requirements.py
+        language: python
+        files: ^pyproject\.toml$
+        additional_dependencies: [tomli]
+        pass_filenames: false
+
+      - id: update-switcher-json
+        name: Update Sphinx Switcher JSON
+        entry: python scripts/pre-commit/update_switcher_json.py
+        language: python
+        pass_filenames: false
+
+      - id: sync-release-notes-index
+        name: Sync release notes index
+        entry: python scripts/pre-commit/sync_release_notes_index.py
+        language: python
+        files: ^docs/release-notes/.*\.md$
+        pass_filenames: false
+
+  # --------------------------------------
+  # Validation & Testing
+  # --------------------------------------
+
+  - repo: local
+    hooks:
+      - id: validate-pytest-collection
+        name: Validate tests can be collected
+        entry: bash -lc 'scripts/pre-commit/pytest_collect.sh'
+        language: system
+        pass_filenames: false
+        files: ^src/tests/.*\.py$
+        description: Ensure pytest can collect all tests without errors
+
+      - id: validate-mcp
+        name: Validate MCP server
+        entry: |
+          bash -c '
+            venv/bin/python -c "from aidb_mcp.server.cli import main" \
+              && echo "MCP imports valid" \
+              || exit 1
+          '
+        language: system
+        files: '^src/aidb_mcp/.*\.py$'
+        pass_filenames: false
+        description: Ensure MCP server can be imported without errors
+
+      - id: validate-skill-references
+        name: Validate skill references and suggest updates
+        entry: python scripts/pre-commit/validate_skill_references.py
+        language: python
+        files: '^(\.claude/skills/.*\.md|docs/developer-guide/.*\.md|src/.*)$'
+        pass_filenames: false
+        description: Validate skill file links and suggest skill updates
+
+      - id: validate-skill-rules-schema
+        name: Validate skill-rules.json schema
+        entry: python scripts/pre-commit/validate_skill_rules_schema.py
+        language: python
+        files: '^\.claude/skills/skill-rules\.json$'
+        additional_dependencies: [jsonschema]
+        pass_filenames: false
+        description: Validate skill-rules.json against JSON schema
+
+  # --------------------------------------
+  # TypeScript/JavaScript Hooks
+  # --------------------------------------
+
+  - repo: local
+    hooks:
+      - id: typescript-check
+        name: TypeScript type checking
+        entry: bash -c 'cd .claude/hooks && npm run check'
+        language: system
+        files: '^\.claude/hooks/.*\.ts$'
+        pass_filenames: false
+        description: Type check TypeScript hook files
+
+      - id: eslint-hooks
+        name: ESLint TypeScript hooks
+        entry: bash -c 'cd .claude/hooks && npm run lint:fix'
+        language: system
+        files: '^\.claude/hooks/.*\.ts$'
+        pass_filenames: false
+        description: Lint and auto-fix TypeScript hook files
+
+      - id: prettier-hooks
+        name: Prettier format TypeScript hooks
+        entry: bash -c 'cd .claude/hooks && npm run format'
+        language: system
+        files: '^\.claude/hooks/.*\.ts$'
+        pass_filenames: false
+        description: Format TypeScript hook files with Prettier
+
+      - id: typescript-tests
+        name: Run TypeScript unit tests
+        entry: bash -c 'cd .claude/hooks && npm test'
+        language: system
+        files: '^\.claude/hooks/.*\.ts$'
+        pass_filenames: false
+        description: Run TypeScript unit tests (fast ~130ms)
+
+  # --------------------------------------
+  # CI/CD Workflows
+  # --------------------------------------
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.9
+    hooks:
+      - id: actionlint
+        args: [-shellcheck=, -pyflakes=]

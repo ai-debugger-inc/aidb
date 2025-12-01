@@ -1,0 +1,105 @@
+name: Load Versions
+
+on:
+  workflow_call:
+    outputs:
+      python-version:
+        description: 'Python version from versions.yaml'
+        value: ${{ jobs.load-versions.outputs.python-version }}
+      node-version:
+        description: 'Node.js version from versions.yaml'
+        value: ${{ jobs.load-versions.outputs.node-version }}
+      java-version:
+        description: 'Java version from versions.yaml'
+        value: ${{ jobs.load-versions.outputs.java-version }}
+      java-distribution:
+        description: 'Java distribution from versions.yaml'
+        value: ${{ jobs.load-versions.outputs.java-distribution }}
+      adapter-languages:
+        description: 'Comma-separated list of adapter languages (e.g., python,javascript,java)'
+        value: ${{ jobs.load-versions.outputs.adapter-languages }}
+      adapter-languages-json:
+        description: 'JSON array of adapter languages for matrix usage (e.g., ["python","javascript","java"])'
+        value: ${{ jobs.load-versions.outputs.adapter-languages-json }}
+
+jobs:
+  load-versions:
+    name: Load Infrastructure Versions
+    runs-on: ubuntu-latest
+    outputs:
+      python-version: ${{ steps.versions.outputs.python-version }}
+      node-version: ${{ steps.versions.outputs.node-version }}
+      java-version: ${{ steps.versions.outputs.java-version }}
+      java-distribution: ${{ steps.versions.outputs.java-distribution }}
+      adapter-languages: ${{ steps.versions.outputs.adapter-languages }}
+      adapter-languages-json: ${{ steps.versions.outputs.adapter-languages-json }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Python (bootstrap)
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Load and validate versions
+        id: versions
+        run: |
+          python3 << 'EOF'
+          import json
+          import yaml
+          import os
+          import sys
+
+          # Load versions.yaml
+          with open('versions.yaml', 'r') as f:
+              versions_data = yaml.safe_load(f)
+
+          infrastructure = versions_data['infrastructure']
+          adapters = versions_data['adapters']
+
+          # Extract infrastructure versions
+          infra_python = infrastructure['python']['version']
+          infra_node = str(infrastructure['node']['version'])
+          infra_java = str(infrastructure['java']['version'])
+          java_dist = adapters['java']['build_deps']['java_distribution']
+
+          # Validate: Python versions should match (both for testing and building Python code)
+          adapter_python = adapters['python']['build_deps'].get('python_version', infra_python)
+          if infra_python != adapter_python:
+              print(f"❌ Python version mismatch: infrastructure={infra_python}, adapter={adapter_python}")
+              sys.exit(1)
+
+          # Note: Node and Java infrastructure versions are for testing environments
+          # Adapter build_deps versions are for building adapters
+          # These serve different purposes and don't need to match
+
+          # Extract adapter languages (keys of adapters section)
+          adapter_languages = ','.join(adapters.keys())
+          adapter_languages_json = json.dumps(list(adapters.keys()))
+
+          # Write outputs
+          github_output = os.environ['GITHUB_OUTPUT']
+          with open(github_output, 'a') as f:
+              f.write(f"python-version={infra_python}\n")
+              f.write(f"node-version={infra_node}\n")
+              f.write(f"java-version={infra_java}\n")
+              f.write(f"java-distribution={java_dist}\n")
+              f.write(f"adapter-languages={adapter_languages}\n")
+              f.write(f"adapter-languages-json={adapter_languages_json}\n")
+
+          # Success message
+          print("✅ Infrastructure versions loaded:")
+          print(f"  - Python: {infra_python} (testing & building)")
+          print(f"  - Node.js: {infra_node} (testing environment)")
+          print(f"  - Java: {infra_java} (testing environment)")
+          print(f"  - Adapter languages: {adapter_languages}")
+          print()
+          print("📦 Adapter build versions:")
+          print(f"  - Python adapter: {adapter_python}")
+          print(f"  - JavaScript adapter: {adapters['javascript']['build_deps']['node_version']}")
+          print(f"  - Java adapter: {adapters['java']['build_deps']['java_version']}")
+          EOF

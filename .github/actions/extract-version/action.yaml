@@ -1,0 +1,87 @@
+name: Extract Version from Release Branch
+description: Extracts semantic version from release branch name (e.g., release/1.2.3 → 1.2.3). Production releases only (no pre-release suffixes).
+
+inputs:
+  branch_name:
+    description: 'Source branch name from PR (e.g., release/0.1.0)'
+    required: true
+  fail_on_invalid:
+    description: 'Fail action if branch name does not match release pattern'
+    required: false
+    default: 'true'
+
+outputs:
+  version:
+    description: 'Extracted version string (e.g., 1.0.0)'
+    value: ${{ steps.extract.outputs.version }}
+  is_valid:
+    description: 'Whether branch name matches release pattern'
+    value: ${{ steps.extract.outputs.is_valid }}
+  tag_name:
+    description: 'Tag name (bare version, e.g., 1.0.0)'
+    value: ${{ steps.extract.outputs.tag_name }}
+
+runs:
+  using: composite
+  steps:
+    - name: Extract and validate version
+      id: extract
+      shell: bash
+      run: |
+        BRANCH="${{ inputs.branch_name }}"
+        echo "Branch name: $BRANCH"
+
+        # Check if branch matches release/** pattern
+        if [[ ! "$BRANCH" =~ ^release/ ]]; then
+          echo "is_valid=false" >> $GITHUB_OUTPUT
+          if [[ "${{ inputs.fail_on_invalid }}" == "true" ]]; then
+            echo "::error::Branch name must start with 'release/' (got: $BRANCH)"
+            exit 1
+          else
+            echo "::warning::Branch name does not match release pattern: $BRANCH"
+            echo "version=" >> $GITHUB_OUTPUT
+            echo "tag_name=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+        fi
+
+        # Extract version from release/X.Y.Z pattern
+        # Production releases only: release/1.2.3, release/0.1.0
+        VERSION="${BRANCH#release/}"
+
+        # Validate semantic versioning pattern (production only, no suffixes)
+        if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "is_valid=false" >> $GITHUB_OUTPUT
+          if [[ "${{ inputs.fail_on_invalid }}" == "true" ]]; then
+            echo "::error::Invalid version format: $VERSION"
+            echo "::error::Expected X.Y.Z (production releases only, no suffixes)"
+            echo "::error::Valid examples: 1.0.0, 2.1.3, 0.1.0"
+            echo "::error::Invalid examples: 1.0.0-test, 1.0.0-rc, v1.0.0"
+            exit 1
+          else
+            echo "::warning::Invalid version format: $VERSION"
+            echo "version=" >> $GITHUB_OUTPUT
+            echo "tag_name=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+        fi
+
+        # Tag name is the bare version (no prefix, no suffix)
+        TAG_NAME="$VERSION"
+
+        echo "is_valid=true" >> $GITHUB_OUTPUT
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+        echo "✅ Extracted version: $VERSION"
+        echo "✅ Tag name: $TAG_NAME"
+
+    - name: Display extracted information
+      shell: bash
+      run: |
+        echo "### 📦 Version Information" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Branch**: \`${{ inputs.branch_name }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version**: \`${{ steps.extract.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Tag Name**: \`${{ steps.extract.outputs.tag_name }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Valid**: ${{ steps.extract.outputs.is_valid }}" >> $GITHUB_STEP_SUMMARY

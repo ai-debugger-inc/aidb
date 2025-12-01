@@ -1,0 +1,84 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug MCP Unit Tests",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "src/tests/aidb_mcp/",
+                "-v",
+                "-s",
+                "--tb=short"
+            ],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "redirectOutput": true,
+            "showReturnValue": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src",
+                "AIDB_LOG_LEVEL": "DEBUG"
+            }
+        },
+        {
+            "name": "Debug MCP Session Tests",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "src/tests/aidb_mcp/integration/test_session_tools_multilang.py",
+                "-v",
+                "-s",
+                "--tb=short",
+                "-k",
+                "python"
+            ],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "redirectOutput": true,
+            "showReturnValue": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src",
+                "AIDB_LOG_LEVEL": "DEBUG",
+                "AIDB_ADAPTER_TRACE": "1"
+            }
+        },
+        {
+            "name": "Debug Single Test",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "redirectOutput": true,
+            "showReturnValue": true,
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src"
+            }
+        },
+        {
+            "name": "Debug Test Script",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "test_example.py",
+            "args": [
+                "--verbose",
+                "--test-arg",
+                "value"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "redirectOutput": true,
+            "showReturnValue": true,
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src",
+                "TEST_MODE": "true"
+            }
+        }
+    ]
+}

@@ -1,0 +1,22 @@
+# act configuration for local GitHub Actions testing
+# https://github.com/nektos/act
+
+# Use larger runner images to support adapter builds
+-P ubuntu-latest=catthehacker/ubuntu:act-latest
+-P ubuntu-22.04=catthehacker/ubuntu:act-22.04
+-P ubuntu-20.04=catthehacker/ubuntu:act-20.04
+-P macos-latest=catthehacker/ubuntu:act-latest
+-P macos-15=catthehacker/ubuntu:act-latest
+-P windows-latest=catthehacker/ubuntu:act-latest
+
+# Use .secrets file for secrets (create this file, don't commit it)
+--secret-file .secrets
+
+# Keep containers after completion for artifact extraction
+--reuse
+
+# Use host network (helpful for local testing)
+--network host
+
+# Enable verbose output for debugging
+--verbose

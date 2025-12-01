@@ -1,0 +1,2 @@
+# Keep this directory structure in git for Docker volume mounts
+# Contents (log files, traces) are gitignored

@@ -1,0 +1,59 @@
+name: Setup Multi-Language Environment
+description: Setup Node.js and Java for multi-language testing with caching
+inputs:
+  node-version:
+    description: Node.js version to install
+    required: false
+    default: ''
+  java-version:
+    description: Java version to install
+    required: false
+    default: ''
+  java-distribution:
+    description: Java distribution to use
+    required: false
+    default: 'temurin'
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      if: ${{ inputs.node-version != '' }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Cache npm packages
+      if: ${{ inputs.node-version != '' }}
+      uses: actions/cache@v4
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-npm-${{ inputs.node-version }}-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-npm-${{ inputs.node-version }}-
+          ${{ runner.os }}-npm-
+
+    - name: Setup Java
+      if: ${{ inputs.java-version != '' }}
+      uses: actions/setup-java@v4
+      with:
+        distribution: ${{ inputs.java-distribution }}
+        java-version: ${{ inputs.java-version }}
+
+    - name: Cache Maven repository
+      if: ${{ inputs.java-version != '' }}
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ inputs.java-version }}-${{ hashFiles('**/pom.xml', 'versions.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-${{ inputs.java-version }}-
+          ${{ runner.os }}-maven-
+
+    - name: Cache Gradle wrapper
+      if: ${{ inputs.java-version != '' }}
+      uses: actions/cache@v4
+      with:
+        path: ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-wrapper-${{ hashFiles('**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-wrapper-

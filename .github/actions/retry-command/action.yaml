@@ -1,0 +1,53 @@
+name: Retry Command
+description: Execute a shell script with automatic retry on failure (for transient network errors)
+inputs:
+  command:
+    description: The shell script/command to execute (can be multi-line)
+    required: true
+  max_attempts:
+    description: Maximum number of attempts
+    required: false
+    default: "3"
+  retry_wait_seconds:
+    description: Seconds to wait between retries
+    required: false
+    default: "30"
+  working_directory:
+    description: Working directory for the command
+    required: false
+    default: "."
+runs:
+  using: composite
+  steps:
+    - name: Execute with retry
+      shell: bash
+      working-directory: ${{ inputs.working_directory }}
+      env:
+        RETRY_COMMAND: ${{ inputs.command }}
+      run: |
+        max_attempts=${{ inputs.max_attempts }}
+        retry_wait=${{ inputs.retry_wait_seconds }}
+        attempt=1
+
+        while [ $attempt -le $max_attempts ]; do
+          echo "::group::Attempt $attempt of $max_attempts"
+          set +e
+          bash -c "$RETRY_COMMAND"
+          exit_code=$?
+          set -e
+          echo "::endgroup::"
+
+          if [ $exit_code -eq 0 ]; then
+            echo "Command succeeded on attempt $attempt"
+            exit 0
+          fi
+
+          if [ $attempt -lt $max_attempts ]; then
+            echo "::warning::Attempt $attempt failed (exit code: $exit_code), retrying in ${retry_wait}s..."
+            sleep $retry_wait
+          fi
+          attempt=$((attempt + 1))
+        done
+
+        echo "::error::Command failed after $max_attempts attempts"
+        exit 1

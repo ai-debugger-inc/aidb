@@ -1,0 +1,68 @@
+# AIDB Test Configuration
+# This file defines test suite configurations for CI/CD
+
+# Test suite configurations
+test_suites:
+  cli:
+    name: CLI Tests
+    suite: cli
+    needs_adapters: false
+    needs_docker: false
+    description: Command-line interface tests
+
+  backend:
+    name: Backend Tests
+    suite: backend
+    needs_adapters: false
+    needs_docker: true
+    secrets_required: true
+    description: Backend service tests (requires external services)
+
+  shared:
+    name: Shared Tests
+    suite: shared
+    needs_adapters: true
+    needs_docker: true
+    description: Shared integration tests across all languages
+
+  mcp:
+    name: MCP Server Tests
+    suite: mcp
+    needs_adapters: false
+    needs_docker: false
+    description: Model Context Protocol server unit and integration tests
+
+  core:
+    name: Core Tests
+    suite: core
+    needs_adapters: true
+    needs_docker: false
+    description: Core AIDB tests (DAP, Session, API, Adapters)
+
+  common:
+    name: Common Utilities Tests
+    suite: common
+    needs_adapters: false
+    needs_docker: false
+    description: Common utilities package tests
+
+  logging:
+    name: Logging Tests
+    suite: logging
+    needs_adapters: false
+    needs_docker: false
+    description: Logging framework tests
+
+  ci_cd:
+    name: CI/CD Tests
+    suite: ci_cd
+    needs_adapters: false
+    needs_docker: false
+    description: CI/CD workflow validation, script tests, and act-based integration tests
+
+  launch:
+    name: Launch Config Tests
+    suite: launch
+    needs_adapters: true
+    needs_docker: true
+    description: Launch configuration parsing tests

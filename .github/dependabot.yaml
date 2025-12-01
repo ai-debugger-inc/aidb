@@ -1,0 +1,72 @@
+version: 2
+updates:
+  # Python dependencies (pyproject.toml)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    target-branch: "dependabot-updates"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      # Group development tools together
+      dev-dependencies:
+        patterns:
+          - "mypy"
+          - "ruff"
+          - "bandit"
+          - "pre-commit"
+          - "deptry"
+          - "vulture"
+      # Group test dependencies together
+      test-dependencies:
+        patterns:
+          - "pytest*"
+          - "coverage"
+          - "docker"
+          - "pytest-asyncio"
+          # debugpy gets its own PR (critical adapter dependency - needs manual review)
+          # All other dependencies get individual PRs for better control
+
+  # GitHub Actions versions and pre-commit hooks
+  # Note: Dependabot treats .pre-commit-config.yaml like github-actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "dependabot-updates"
+    labels:
+      - "dependencies"
+      - "github-actions"
+
+  # npm dependencies (Claude hooks TypeScript)
+  - package-ecosystem: "npm"
+    directory: "/.claude/hooks"
+    schedule:
+      interval: "weekly"
+    target-branch: "dependabot-updates"
+    labels:
+      - "dependencies"
+      - "npm"
+      - "typescript"
+    groups:
+      # Group TypeScript-related dependencies
+      typescript-tooling:
+        patterns:
+          - "@typescript-eslint/*"
+          - "typescript"
+          - "eslint"
+          - "prettier"
+
+  # npm dependencies (VS Code extension)
+  - package-ecosystem: "npm"
+    directory: "/src/extensions/aidb-vscode-bridge"
+    schedule:
+      interval: "weekly"
+    target-branch: "dependabot-updates"
+    labels:
+      - "dependencies"
+      - "npm"
+      - "vscode-extension"

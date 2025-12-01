@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+  <defs>
+    <style type="text/css">
+      <![CDATA[
+        text { font-family: Arial, Helvetica, sans-serif; fill: #222; }
+        .title { font-size: 18px; font-weight: bold; }
+        .label { font-size: 14px; }
+        .box { fill: #f5f7fb; stroke: #4062ff; stroke-width: 2; rx: 8; ry: 8; }
+        .arrow { stroke: #555; stroke-width: 2; marker-end: url(#arrowhead); fill: none; }
+      ]]>
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#555" />
+    </marker>
+  </defs>
+
+  <rect x="20" y="40" width="180" height="80" class="box" />
+  <text x="110" y="75" text-anchor="middle" class="title">Client</text>
+  <text x="110" y="95" text-anchor="middle" class="label">AIDB API / MCP</text>
+
+  <rect x="230" y="40" width="180" height="80" class="box" />
+  <text x="320" y="75" text-anchor="middle" class="title">Session</text>
+  <text x="320" y="95" text-anchor="middle" class="label">Lifecycle & Orchestration</text>
+
+  <rect x="440" y="40" width="180" height="80" class="box" />
+  <text x="530" y="75" text-anchor="middle" class="title">DAP Client</text>
+  <text x="530" y="95" text-anchor="middle" class="label">Protocol & Transport</text>
+
+  <line x1="200" y1="80" x2="230" y2="80" class="arrow" />
+  <line x1="410" y1="80" x2="440" y2="80" class="arrow" />
+
+  <rect x="230" y="170" width="180" height="80" class="box" />
+  <text x="320" y="205" text-anchor="middle" class="title">Adapters</text>
+  <text x="320" y="225" text-anchor="middle" class="label">Python / JS / Java</text>
+
+  <line x1="320" y1="120" x2="320" y2="170" class="arrow" />
+
+  <rect x="230" y="280" width="180" height="50" class="box" />
+  <text x="320" y="305" text-anchor="middle" class="label">Logging (optional)</text>
+
+  <line x1="320" y1="250" x2="320" y2="280" class="arrow" />
+
+  <text x="320" y="20" text-anchor="middle" class="title">AIDB – High-level Architecture (Simplified)</text>
+</svg>

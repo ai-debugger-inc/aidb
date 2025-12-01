@@ -1,0 +1,86 @@
+# Lean base image for AIDB test infrastructure
+# Contains Python + common dependencies needed by ALL test images
+# Size target: ~200-300MB
+# NOTE: Version from versions.yaml infrastructure.python.docker_tag
+ARG PYTHON_BASE_TAG=3.12-slim
+FROM python:${PYTHON_BASE_TAG}
+
+# AIDB Docker labels
+LABEL com.aidb.project="aidb"
+LABEL com.aidb.component="test"
+LABEL com.aidb.managed="true"
+LABEL com.aidb.type="image"
+
+# Prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Test-specific environment
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV AIDB_DOCKER_TEST_MODE=1
+ENV AIDB_LOG_LEVEL=DEBUG
+ENV AIDB_ADAPTER_TRACE=1
+
+# Pip reliability configuration
+ENV PIP_DEFAULT_TIMEOUT=100
+ENV PIP_RETRIES=3
+ENV PIP_NO_CACHE_DIR=1
+
+# Install common system dependencies (needed by all test images)
+# Use cache mounts for apt to speed up rebuilds
+RUN --mount=type=cache,target=/var/cache/apt \
+    --mount=type=cache,target=/var/lib/apt \
+    apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    build-essential \
+    pkg-config \
+    libffi-dev \
+    libssl-dev
+
+# Set up workspace
+WORKDIR /workspace
+
+# Copy only dependency manifests first (minimal cache invalidation)
+# This allows pip install layer to cache unless dependencies actually change
+COPY pyproject.toml README.md LICENSE /workspace/
+COPY src/aidb/__init__.py /workspace/src/aidb/__init__.py
+
+# Accept pip package versions as build args
+ARG PIP_VERSION=25.3
+ARG SETUPTOOLS_VERSION=80.9.0
+ARG WHEEL_VERSION=0.45.1
+
+# Upgrade pip to specific versions
+RUN pip install --upgrade \
+    pip==${PIP_VERSION} \
+    setuptools==${SETUPTOOLS_VERSION} \
+    wheel==${WHEEL_VERSION}
+
+# Install AIDB with all test dependencies using cache mount
+# Cache mount dramatically speeds up rebuilds by reusing pip's download cache
+# hadolint ignore=SC2102
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -e .[test,dev]
+
+# Copy rest of source code (only invalidates this layer on code changes)
+# This MUST come after pip install to prevent unnecessary dependency reinstalls
+COPY . /workspace
+
+# Copy framework dependency installation script (used by language images)
+COPY src/tests/_docker/scripts/install-framework-deps.sh /scripts/
+RUN chmod +x /scripts/install-framework-deps.sh
+
+# Copy entrypoint script for runtime dependency installation
+COPY src/tests/_docker/scripts/entrypoint.sh /scripts/
+RUN chmod +x /scripts/entrypoint.sh
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD python --version && test -d /workspace
+
+# Set entrypoint to handle runtime dependency installation
+ENTRYPOINT ["/scripts/entrypoint.sh"]
+
+# Default to bash
+CMD ["/bin/bash"]

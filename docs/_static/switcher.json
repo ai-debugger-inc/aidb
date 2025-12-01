@@ -1,0 +1,20 @@
+[
+  {
+    "version": "0.0.1",
+    "url": "https://ai-debugger.readthedocs.io/en/0.0.1/",
+    "preferred": true
+  },
+  {
+    "version": "0.0.0",
+    "url": "https://ai-debugger.readthedocs.io/en/0.0.0/",
+    "preferred": true
+  },
+  {
+    "version": "main",
+    "url": "https://ai-debugger.readthedocs.io/en/main/"
+  },
+  {
+    "version": "latest",
+    "url": "https://ai-debugger.readthedocs.io/en/latest/"
+  }
+]

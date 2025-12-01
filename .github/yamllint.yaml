@@ -1,0 +1,24 @@
+---
+extends: default
+
+rules:
+  line-length:
+    max: 160
+    level: warning
+  comments:
+    min-spaces-from-content: 1
+  indentation:
+    spaces: 2
+    indent-sequences: whatever
+  trailing-spaces: enable
+  truthy:
+    allowed-values: ['true', 'false', 'on', 'off']
+  document-start: disable
+
+ignore: |
+  src/tests/_assets/
+  armored/
+  .github/scripts/
+  venv/
+  node_modules/
+  .local/

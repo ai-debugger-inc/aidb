@@ -1,0 +1,73 @@
+name: Test Suite (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      suite:
+        description: Test suite to run
+        required: true
+        type: string
+      suite-name:
+        description: Display name for the test suite
+        required: false
+        type: string
+      python-version:
+        description: Python version to use
+        type: string
+        required: true
+      skip-coverage:
+        description: Skip coverage reporting
+        type: boolean
+        default: false
+      needs-adapters:
+        description: Whether this suite needs debug adapters
+        type: boolean
+        default: false
+      needs-docker:
+        description: Whether this suite needs Docker images
+        type: boolean
+        default: false
+      debug_logging:
+        description: Enable trace-level logging
+        type: boolean
+        default: true
+      all-adapter-languages:
+        description: Comma-separated list of all adapter languages from versions.yaml
+        type: string
+        required: false
+        default: ''
+
+env:
+  IS_GITHUB: ${{ vars.IS_GITHUB || 'false' }}  # Use repo variable, default to false for ACT
+  AIDB_LOG_LEVEL: ${{ (inputs.debug_logging == true) && 'TRACE' || 'INFO' }}
+  AIDB_ADAPTER_TRACE: ${{ (inputs.debug_logging == true) && '1' || '0' }}
+  AIDB_CONSOLE_LOGGING: '1'
+  PYTHON_VERSION: ${{ inputs.python-version }}
+
+jobs:
+  test:
+    name: ${{ inputs.suite-name || inputs.suite }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup AIDB environment
+        uses: ./.github/actions/setup-aidb-env
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Download test artifacts
+        uses: ./.github/actions/download-test-artifacts
+        with:
+          include-adapters: ${{ inputs.needs-adapters }}
+          include-docker: ${{ inputs.needs-docker }}
+          all-adapter-languages: ${{ inputs.all-adapter-languages }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run tests
+        uses: ./.github/actions/run-aidb-tests
+        with:
+          suite: ${{ inputs.suite }}
+          skip-coverage: ${{ inputs.skip-coverage }}

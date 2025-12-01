@@ -1,0 +1,30 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "JUnit: Debug Tests",
+      "request": "launch",
+      "mainClass": "org.junit.platform.console.ConsoleLauncher",
+      "args": [
+        "--select-package",
+        "com.example.test",
+        "--fail-if-no-tests"
+      ],
+      "projectName": "junit-tests",
+      "console": "integratedTerminal"
+    },
+    {
+      "type": "java",
+      "name": "JUnit: Debug Single Test",
+      "request": "launch",
+      "mainClass": "org.junit.platform.console.ConsoleLauncher",
+      "args": [
+        "--select-class",
+        "com.example.test.SampleTest"
+      ],
+      "projectName": "junit-tests",
+      "console": "integratedTerminal"
+    }
+  ]
+}

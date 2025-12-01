@@ -1,0 +1,142 @@
+"""Test marker registration and application.
+
+This module provides functions for registering custom pytest markers and applying them
+to test items based on location, parametrization, and patterns.
+"""
+
+import contextlib
+from pathlib import Path
+
+import pytest
+
+
+def register_custom_markers(config) -> None:
+    """Register custom pytest markers.
+
+    Parameters
+    ----------
+    config
+        Pytest configuration object
+    """
+    config.addinivalue_line(
+        "markers",
+        "language_python: mark test to run in Python container",
+    )
+    config.addinivalue_line(
+        "markers",
+        "language_javascript: mark test to run in JavaScript container",
+    )
+    config.addinivalue_line(
+        "markers",
+        "language_java: mark test to run in Java container",
+    )
+    config.addinivalue_line(
+        "markers",
+        "requires_docker: mark test as requiring Docker services",
+    )
+
+
+def add_location_based_markers(item) -> None:
+    """Add markers based on test file location.
+
+    Parameters
+    ----------
+    item
+        Pytest test item
+    """
+    test_path = Path(item.fspath)
+    test_path_str = str(test_path)
+
+    # Test type markers
+    if "smoke" in test_path.parts:
+        item.add_marker(pytest.mark.smoke)
+    elif "unit" in test_path.parts:
+        item.add_marker(pytest.mark.unit)
+    elif "integration" in test_path.parts:
+        item.add_marker(pytest.mark.integration)
+    elif "e2e" in test_path.parts:
+        item.add_marker(pytest.mark.e2e)
+
+    # Language markers - iterate over supported languages
+    from aidb_common.constants import SUPPORTED_LANGUAGES
+
+    for lang in SUPPORTED_LANGUAGES:
+        # Check for framework tests: /frameworks/{lang}/
+        # Check for launch tests: /launch/{lang}/
+        if (
+            f"/frameworks/{lang}/" in test_path_str
+            or f"/launch/{lang}/" in test_path_str
+        ):
+            marker = getattr(pytest.mark, f"language_{lang}")
+            item.add_marker(marker())
+            break  # Only one language marker per test
+    else:
+        # No language marker added yet - check for core tests
+        # Core tests use Python (match specific directories, not the repo name)
+        if (
+            "/tests/aidb/" in test_path_str
+            and "/tests/aidb_mcp/" not in test_path_str
+            and "/tests/aidb_shared/" not in test_path_str
+        ):
+            item.add_marker(pytest.mark.language_python())
+
+
+def add_parametrization_markers(item) -> None:
+    """Add language markers based on parametrized language parameter.
+
+    Parameters
+    ----------
+    item
+        Pytest test item
+    """
+    if hasattr(item, "callspec") and "language" in item.callspec.params:
+        lang = item.callspec.params["language"]
+        # Handle both enum values and strings
+        lang_str = lang.value if hasattr(lang, "value") else str(lang)
+        # Add language-specific marker (language_python, language_javascript, language_java)
+        marker_name = f"language_{lang_str}"
+        item.add_marker(getattr(pytest.mark, marker_name)())
+
+
+def add_default_language_marker(item) -> None:
+    """Add default Python language marker if no language marker exists.
+
+    Parameters
+    ----------
+    item
+        Pytest test item
+    """
+    # Check if any language marker exists
+    has_language_marker = any(
+        marker.name.startswith("language_") for marker in item.iter_markers()
+    )
+    if not has_language_marker:
+        item.add_marker(pytest.mark.language_python())
+
+
+def add_pattern_based_markers(item) -> None:
+    """Add markers based on test name patterns.
+
+    Parameters
+    ----------
+    item
+        Pytest test item
+    """
+    if "docker" in item.nodeid.lower():
+        item.add_marker(pytest.mark.requires_docker)
+
+
+def check_marker_requirements(item) -> None:
+    """Check and skip tests based on marker requirements.
+
+    Parameters
+    ----------
+    item
+        Pytest test item
+    """
+    marker_names = [marker.name for marker in item.iter_markers()]
+
+    # Ensure serial tests run on single xdist worker
+    with contextlib.suppress(Exception):
+        if "serial" in marker_names:
+            item.add_marker(pytest.mark.xdist_group("serial"))

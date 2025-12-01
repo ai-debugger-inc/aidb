@@ -1,0 +1,41 @@
+# Docker Compose configuration for AIDB CLI integration tests
+#
+# This file provides minimal test services for CLI integration testing,
+# specifically for docker orchestration and port detection tests.
+#
+# Profiles:
+#   - test-integration: Services for general docker orchestration tests
+#   - test-ports: Services for port conflict detection tests
+
+services:
+  # Echo server for testing docker orchestration
+  test-echo-server:
+    container_name: aidb-test-echo
+    image: hashicorp/http-echo:latest
+    command: ["-text=AIDB Test Service"]
+    ports:
+      - "5678:5678"
+    profiles:
+      - test-integration
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5678"]
+      interval: 2s
+      timeout: 2s
+      retries: 5
+      start_period: 5s
+
+  # Port allocator service for testing port conflict handling
+  test-port-allocator:
+    container_name: aidb-test-port-allocator
+    image: hashicorp/http-echo:latest
+    command: ["-listen=:8901", "-text=Port Conflict Test"]
+    ports:
+      - "8901:8901"
+    profiles:
+      - test-ports
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8901"]
+      interval: 2s
+      timeout: 2s
+      retries: 5
+      start_period: 5s

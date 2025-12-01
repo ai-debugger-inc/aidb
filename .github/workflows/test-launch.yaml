@@ -1,0 +1,67 @@
+name: Launch Tests (Language-Specific)
+
+on:
+  workflow_call:
+    inputs:
+      language:
+        description: Language to test (python, javascript, java, core)
+        required: true
+        type: string
+      python-version:
+        description: Python version to use
+        type: string
+        required: true
+      skip-coverage:
+        description: Skip coverage reporting
+        type: boolean
+        default: false
+      debug_logging:
+        description: Enable trace-level logging
+        type: boolean
+        default: true
+      all-adapter-languages:
+        description: Comma-separated list of all adapter languages from versions.yaml
+        type: string
+        required: false
+        default: ''
+
+env:
+  IS_GITHUB: ${{ vars.IS_GITHUB || 'false' }}  # Use repo variable, default to false for ACT
+  AIDB_LOG_LEVEL: ${{ (inputs.debug_logging == true) && 'TRACE' || 'INFO' }}
+  AIDB_ADAPTER_TRACE: ${{ (inputs.debug_logging == true) && '1' || '0' }}
+  AIDB_CONSOLE_LOGGING: '1'
+  AIDB_JAVA_STARTDEBUG_TIMEOUT: '20'  # CI needs longer timeout due to slower I/O and resource contention
+  AIDB_JAVA_LSP_TIMEOUT: '60'  # Global LSP timeout for all LSP requests (initialize, executeCommand, etc.)
+  PYTHON_VERSION: ${{ inputs.python-version }}
+
+jobs:
+  test-launch:
+    name: Launch Tests (${{ inputs.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup AIDB environment
+        uses: ./.github/actions/setup-aidb-env
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Download test artifacts
+        uses: ./.github/actions/download-test-artifacts
+        with:
+          include-adapters: 'true'
+          include-docker: 'true'
+          docker-languages: ${{ inputs.language }}
+          all-adapter-languages: ${{ inputs.all-adapter-languages }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run tests
+        uses: ./.github/actions/run-aidb-tests
+        with:
+          suite: launch
+          additional-args: -l ${{ inputs.language }}
+          coverage-flags: launch-${{ inputs.language }}
+          skip-coverage: ${{ inputs.skip-coverage }}
+          artifact-suffix: ${{ inputs.language }}

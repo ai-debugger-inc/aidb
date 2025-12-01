@@ -1,0 +1,127 @@
+name: Build Docker Test Images (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: Python version to use
+        type: string
+        required: true
+
+env:
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+  PYTHON_VERSION: ${{ inputs.python-version }}
+
+jobs:
+  # Job 1: Setup and build base image
+  build-base-image:
+    name: Build Base Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      base-hash: ${{ steps.checksums.outputs.base }}
+      python-hash: ${{ steps.checksums.outputs.python }}
+      javascript-hash: ${{ steps.checksums.outputs.javascript }}
+      java-hash: ${{ steps.checksums.outputs.java }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup AIDB environment
+        uses: ./.github/actions/setup-aidb-env
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute Docker checksums
+        id: checksums
+        run: |
+          source venv/bin/activate
+          python -c "
+          from aidb_cli.services.docker.docker_image_checksum_service import DockerImageChecksumService, DockerImageType
+          from pathlib import Path
+          import json
+          service = DockerImageChecksumService(Path.cwd())
+          checksums = {
+              'base': service._compute_hash(DockerImageType.BASE),
+              'python': service._compute_hash(DockerImageType.PYTHON),
+              'javascript': service._compute_hash(DockerImageType.JAVASCRIPT),
+              'java': service._compute_hash(DockerImageType.JAVA)
+          }
+          print(json.dumps(checksums))
+          " > checksums.json
+
+          BASE_HASH=$(jq -r '.base' checksums.json)
+          PYTHON_HASH=$(jq -r '.python' checksums.json)
+          JS_HASH=$(jq -r '.javascript' checksums.json)
+          JAVA_HASH=$(jq -r '.java' checksums.json)
+
+          echo "base=${BASE_HASH}" >> $GITHUB_OUTPUT
+          echo "python=${PYTHON_HASH}" >> $GITHUB_OUTPUT
+          echo "javascript=${JS_HASH}" >> $GITHUB_OUTPUT
+          echo "java=${JAVA_HASH}" >> $GITHUB_OUTPUT
+
+      - name: Load version build args
+        id: versions
+        run: |
+          source venv/bin/activate
+          # Get build args and strip 'export ' prefix for GitHub Actions env
+          ./dev-cli versions docker --format env | sed 's/^export //' >> $GITHUB_ENV
+
+      - name: Build and push base image
+        uses: ./.github/actions/retry-command
+        with:
+          command: |
+            docker buildx build \
+              --push \
+              --file src/tests/_docker/dockerfiles/Dockerfile.test.base \
+              --tag ghcr.io/${{ github.repository }}/test-base:buildcache \
+              --tag ghcr.io/${{ github.repository }}/test-base:latest \
+              --cache-from type=gha,scope=base \
+              --cache-to type=gha,scope=base,mode=max \
+              --build-arg BUILDKIT_INLINE_CACHE=1 \
+              --build-arg PYTHON_BASE_TAG=${{ env.PYTHON_BASE_TAG }} \
+              --build-arg PIP_VERSION=${{ env.PIP_VERSION }} \
+              --build-arg SETUPTOOLS_VERSION=${{ env.SETUPTOOLS_VERSION }} \
+              --build-arg WHEEL_VERSION=${{ env.WHEEL_VERSION }} \
+              .
+
+  # Job 2: Build Python image (parallel after base)
+  build-python-image:
+    needs: build-base-image
+    uses: ./.github/workflows/build-language-image.yaml
+    secrets: inherit
+    with:
+      language: python
+      dockerfile: src/tests/_docker/dockerfiles/Dockerfile.test.python
+      python-version: ${{ inputs.python-version }}
+
+  # Job 3: Build JavaScript image (parallel after base)
+  build-javascript-image:
+    needs: build-base-image
+    uses: ./.github/workflows/build-language-image.yaml
+    secrets: inherit
+    with:
+      language: javascript
+      dockerfile: src/tests/_docker/dockerfiles/Dockerfile.test.javascript
+      python-version: ${{ inputs.python-version }}
+
+  # Job 4: Build Java image (parallel after base)
+  build-java-image:
+    needs: build-base-image
+    uses: ./.github/workflows/build-language-image.yaml
+    secrets: inherit
+    with:
+      language: java
+      dockerfile: src/tests/_docker/dockerfiles/Dockerfile.test.java
+      python-version: ${{ inputs.python-version }}

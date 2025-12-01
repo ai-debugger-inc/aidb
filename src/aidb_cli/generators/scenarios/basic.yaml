@@ -1,0 +1,254 @@
+# Basic test scenarios for generator testing
+
+scenarios:
+  # Simple variable operations
+  - id: basic_variables
+    name: "Basic Variable Operations"
+    description: "Test variable declaration, assignment, and inspection"
+    category: "variables"
+    complexity: "basic"
+    constructs:
+      - type: "variable"
+        name: "counter"
+        data_type: "integer"
+        initial_value: 0
+        marker: "var.init.counter"
+      - type: "variable"
+        name: "counter"
+        operation: "assign"
+        value: 5
+        marker: "var.assign.counter"
+      - type: "variable"
+        name: "counter"
+        operation: "increment"
+        marker: "var.increment.counter"
+      - type: "print"
+        message: "Counter value: {counter}"
+        marker: "func.print.counter"
+    expected_markers:
+      var.init.counter: 1
+      var.assign.counter: 2
+      var.increment.counter: 3
+      func.print.counter: 4
+
+  # Basic for loop
+  - id: basic_for_loop
+    name: "Basic For Loop"
+    description: "Simple for loop with counter and breakpoints"
+    category: "control_flow"
+    complexity: "basic"
+    constructs:
+      - type: "variable"
+        name: "total"
+        data_type: "integer"
+        initial_value: 0
+        marker: "var.init.total"
+      - type: "loop"
+        loop_type: "for"
+        variable: "i"
+        start: 0
+        end: 5
+        step: 1
+        marker: "flow.loop.main"
+        body:
+          - type: "variable"
+            name: "total"
+            operation: "add"
+            value: "i"
+            marker: "var.add.total"
+          - type: "print"
+            message: "i={i}, total={total}"
+            marker: "func.print.iteration"
+      - type: "print"
+        message: "Final total: {total}"
+        marker: "func.print.final"
+    expected_markers:
+      var.init.total: 1
+      flow.loop.main: 2
+      var.add.total: 3
+      func.print.iteration: 4
+      func.print.final: 5
+
+  # Simple function
+  - id: simple_function
+    name: "Simple Function Definition and Call"
+    description: "Test function definition and calling"
+    category: "functions"
+    complexity: "basic"
+    constructs:
+      - type: "function"
+        name: "add_numbers"
+        parameters:
+          - name: "a"
+            type: "integer"
+          - name: "b"
+            type: "integer"
+        return_type: "integer"
+        marker: "func.def.add_numbers"
+        body:
+          - type: "variable"
+            name: "result"
+            data_type: "integer"
+            initial_value: "a + b"
+            marker: "var.calc.result"
+          - type: "return"
+            value: "result"
+            marker: "func.return.result"
+      - type: "function"
+        name: "main"
+        parameters: []
+        marker: "func.def.main"
+        body:
+          - type: "variable"
+            name: "x"
+            initial_value: 10
+            marker: "var.init.x"
+          - type: "variable"
+            name: "y"
+            initial_value: 20
+            marker: "var.init.y"
+          - type: "function"
+            operation: "call"
+            name: "add_numbers"
+            arguments: ["x", "y"]
+            result_variable: "sum"
+            marker: "func.call.add"
+          - type: "print"
+            message: "Sum: {sum}"
+            marker: "func.print.sum"
+    expected_markers:
+      func.def.add_numbers: 1
+      var.calc.result: 2
+      func.return.result: 3
+      func.def.main: 4
+      var.init.x: 5
+      var.init.y: 6
+      func.call.add: 7
+      func.print.sum: 8
+
+  # Basic while loop
+  - id: basic_while_loop
+    name: "Basic While Loop"
+    description: "Simple while loop with condition and break"
+    category: "control_flow"
+    complexity: "basic"
+    constructs:
+      - type: "variable"
+        name: "counter"
+        data_type: "integer"
+        initial_value: 0
+        marker: "var.init.counter"
+      - type: "loop"
+        loop_type: "while"
+        condition: "counter < 5"
+        marker: "flow.loop.while"
+        body:
+          - type: "print"
+            message: "Counter: {counter}"
+            marker: "func.print.counter"
+          - type: "variable"
+            name: "counter"
+            operation: "increment"
+            marker: "var.increment.counter"
+      - type: "print"
+        message: "Loop finished, counter: {counter}"
+        marker: "func.print.final"
+    expected_markers:
+      var.init.counter: 1
+      flow.loop.while: 2
+      func.print.counter: 3
+      var.increment.counter: 4
+      func.print.final: 5
+
+  # Conditional statements
+  - id: conditionals
+    name: "Conditional Statements"
+    description: "If/else chains with multiple conditions"
+    category: "control_flow"
+    complexity: "basic"
+    constructs:
+      - type: "variable"
+        name: "value"
+        data_type: "integer"
+        initial_value: 7
+        marker: "var.init.value"
+      - type: "conditional"
+        condition: "value < 5"
+        marker: "flow.if.less_than"
+        true_body:
+          - type: "print"
+            message: "Value is less than 5"
+            marker: "func.print.less"
+        false_body:
+          - type: "conditional"
+            condition: "value < 10"
+            marker: "flow.if.less_than_ten"
+            true_body:
+              - type: "print"
+                message: "Value is between 5 and 10"
+                marker: "func.print.between"
+            false_body:
+              - type: "print"
+                message: "Value is 10 or greater"
+                marker: "func.print.greater"
+      - type: "print"
+        message: "Conditional check complete"
+        marker: "func.print.complete"
+    expected_markers:
+      var.init.value: 1
+      flow.if.less_than: 2
+      func.print.less: 3
+      flow.if.less_than_ten: 4
+      func.print.between: 5
+      func.print.greater: 6
+      func.print.complete: 7
+
+  # Basic exception handling
+  - id: basic_exception
+    name: "Basic Exception Handling"
+    description: "Try/catch/finally block with error handling"
+    category: "error_handling"
+    complexity: "basic"
+    constructs:
+      - type: "variable"
+        name: "result"
+        data_type: "integer"
+        initial_value: 0
+        marker: "var.init.result"
+      - type: "exception"
+        marker: "flow.try.start"
+        body:
+          - type: "print"
+            message: "Attempting operation"
+            marker: "func.print.attempt"
+          - type: "variable"
+            name: "result"
+            operation: "assign"
+            value: 10
+            marker: "var.assign.result"
+        catch_blocks:
+          - exception_class: "Exception"
+            marker: "flow.catch.exception"
+            body:
+              - type: "print"
+                message: "Error occurred"
+                marker: "func.print.error"
+        finally_block:
+          marker: "flow.finally.cleanup"
+          body:
+            - type: "print"
+              message: "Cleanup complete"
+              marker: "func.print.cleanup"
+      - type: "print"
+        message: "Result: {result}"
+        marker: "func.print.result"
+    expected_markers:
+      var.init.result: 1
+      flow.try.start: 2
+      func.print.attempt: 3
+      var.assign.result: 4
+      flow.catch.exception: 5
+      func.print.error: 6
+      flow.finally.cleanup: 7
+      func.print.cleanup: 8
+      func.print.result: 9

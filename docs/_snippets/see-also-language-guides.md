@@ -1,0 +1,4 @@
+- {doc}`/user-guide/mcp/tools/session-management` - Session lifecycle and management
+- {doc}`/user-guide/mcp/tools/execution-control` - Running and stepping through code
+- {doc}`/user-guide/mcp/tools/inspection` - Variable and state inspection
+- {doc}`/user-guide/mcp/advanced-workflows` - Complex debugging scenarios
