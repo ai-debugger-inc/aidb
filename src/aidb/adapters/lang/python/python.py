@@ -8,6 +8,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, Any
 
+from aidb_common.config import config as env_config
 from aidb_common.path import get_aidb_adapters_dir
 
 from ...base import DebugAdapter
@@ -364,10 +365,29 @@ class PythonAdapter(DebugAdapter):
     # Environment & Process
     # ----------------------
 
+    def _get_adapter_dir(self) -> Path | None:
+        """Get the Python adapter directory, checking env var first.
+
+        Returns
+        -------
+        Path | None
+            Path to the adapter directory if it exists, None otherwise
+        """
+        # First check environment variable (used in CI)
+        env_path = env_config.get_binary_override("python")
+        if env_path and env_path.exists():
+            return env_path
+
+        # Fall back to default location
+        adapter_dir = get_aidb_adapters_dir() / "python"
+        if adapter_dir.exists():
+            return adapter_dir
+        return None
+
     def _import_debugpy_from_adapter(self) -> ModuleType | None:
         """Dynamically import debugpy from the adapter directory.
 
-        This loads debugpy directly from ~/.aidb/adapters/python/ rather than
+        This loads debugpy directly from the adapter directory rather than
         relying on Python's import system, which ensures we always use our
         bundled adapter version regardless of what's installed in the environment.
 
@@ -376,7 +396,11 @@ class PythonAdapter(DebugAdapter):
         ModuleType | None
             The debugpy module if found, None otherwise
         """
-        adapter_dir = get_aidb_adapters_dir() / "python"
+        adapter_dir = self._get_adapter_dir()
+        if not adapter_dir:
+            self.ctx.warning("Python adapter directory not found")
+            return None
+
         debugpy_init = adapter_dir / "debugpy" / "__init__.py"
 
         if not debugpy_init.exists():
@@ -407,10 +431,11 @@ class PythonAdapter(DebugAdapter):
         Returns
         -------
         str | None
-            Path to ~/.aidb/adapters/python/ if it exists, None otherwise
+            Path to adapter directory if it exists, None otherwise
         """
-        adapter_dir = get_aidb_adapters_dir() / "python"
-        if adapter_dir.exists():
+        adapter_dir = self._get_adapter_dir()
+        if adapter_dir:
+            self.ctx.debug(f"Using adapter path for PYTHONPATH: {adapter_dir}")
             return str(adapter_dir)
         return None
 
