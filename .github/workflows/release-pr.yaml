@@ -557,11 +557,11 @@ jobs:
         shell: bash
         run: |
           python3 << 'EOF'
-          import yaml
+          import json
           import os
 
           with open('versions.json', 'r') as f:
-              versions = yaml.safe_load(f)
+              versions = json.load(f)
 
           adapter = "${{ matrix.adapter }}"
           config = versions['adapters'][adapter]
@@ -715,13 +715,12 @@ jobs:
 
           # Generate manifest from versions.json
           python3 << 'EOF'
-          import yaml
           import json
           import os
           from datetime import datetime
 
           with open('versions.json', 'r') as f:
-              versions = yaml.safe_load(f)
+              versions = json.load(f)
 
           version = "${{ needs.validate-and-extract-version.outputs.version }}"
 

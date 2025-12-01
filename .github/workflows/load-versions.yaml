@@ -50,13 +50,12 @@ jobs:
         run: |
           python3 << 'EOF'
           import json
-          import yaml
           import os
           import sys
 
           # Load versions.json
           with open('versions.json', 'r') as f:
-              versions_data = yaml.safe_load(f)
+              versions_data = json.load(f)
 
           infrastructure = versions_data['infrastructure']
           adapters = versions_data['adapters']

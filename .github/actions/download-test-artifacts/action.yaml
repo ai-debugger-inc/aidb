@@ -57,9 +57,14 @@ runs:
           if [ -n "$ALL_LANGUAGES" ]; then
             LANGUAGES="$ALL_LANGUAGES"
           else
-            # Fallback: parse versions.json with awk (no Python deps required)
-            # Extracts top-level keys under 'adapters:' section (2-space indent only)
-            LANGUAGES=$(awk '/^adapters:/{flag=1; next} /^[a-z_]+:/{flag=0} flag && /^  [a-z]+:/{gsub(/:/, ""); gsub(/^  /, ""); print}' versions.json | tr '\n' ',' | sed 's/,$//')
+            # Fallback: parse versions.json with jq or grep (no Python deps required)
+            # Extracts top-level keys under "adapters" object
+            if command -v jq &> /dev/null; then
+              LANGUAGES=$(jq -r '.adapters | keys | join(",")' versions.json)
+            else
+              # Fallback to grep for simple extraction (matches "python":, "javascript":, etc.)
+              LANGUAGES=$(grep -oP '(?<="adapters":\s*\{)[^}]*' versions.json | grep -oP '"[a-z]+":' | tr -d '":' | tr '\n' ',' | sed 's/,$//')
+            fi
             if [ -z "$LANGUAGES" ]; then
               echo "::error::Could not determine languages from versions.json and all-adapter-languages not provided"
               exit 1

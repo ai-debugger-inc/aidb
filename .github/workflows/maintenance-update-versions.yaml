@@ -204,12 +204,12 @@ jobs:
         run: |
           # Custom EOL checking logic
           python -c "
-          import yaml
+          import json
           import os
           from datetime import datetime, timedelta
 
           with open('versions.json') as f:
-              config = yaml.safe_load(f)
+              config = json.load(f)
 
           eol_versions = []
           warning_versions = []

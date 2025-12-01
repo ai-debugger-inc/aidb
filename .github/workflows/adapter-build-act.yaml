@@ -97,14 +97,12 @@ jobs:
           set -o pipefail
 
           # Install dependencies in same step to ensure availability
-          pip3 install --break-system-packages pyyaml
-
           python3 << 'EOF'
-          import yaml
+          import json
           import os
 
           with open('versions.json', 'r') as f:
-              versions = yaml.safe_load(f)
+              versions = json.load(f)
 
           adapter = "${{ matrix.adapter }}"
           config = versions['adapters'][adapter]

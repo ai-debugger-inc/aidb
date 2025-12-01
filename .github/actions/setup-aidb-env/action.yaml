@@ -52,10 +52,10 @@ runs:
         source venv/bin/activate
         python3 << 'EOF'
         import os
-        import yaml
+        import json
 
         with open('versions.json', 'r') as f:
-            versions = yaml.safe_load(f)
+            versions = json.load(f)
 
         github_env = os.environ['GITHUB_ENV']
         workspace = os.environ['GITHUB_WORKSPACE']

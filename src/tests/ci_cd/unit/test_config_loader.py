@@ -122,17 +122,14 @@ class TestConfigLoader:
         # Read raw file content
         content = config_file.read_text()
 
-        # Verify not using flow style (should have newlines, not {})
-        assert "{" not in content or "version:" in content
+        # Verify using pretty-print format (should have newlines and indentation)
+        assert "\n" in content, "JSON should be pretty-printed with newlines"
+        assert "  " in content, "JSON should be indented"
 
         # Verify keys not sorted alphabetically (zebra should appear after version)
         lines = content.split("\n")
-        version_line = next(
-            i for i, line in enumerate(lines) if line.startswith("version:")
-        )
-        zebra_line = next(
-            i for i, line in enumerate(lines) if line.startswith("zebra:")
-        )
+        version_line = next(i for i, line in enumerate(lines) if '"version"' in line)
+        zebra_line = next(i for i, line in enumerate(lines) if '"zebra"' in line)
         assert version_line < zebra_line
 
     def test_save_overwrites_existing_file(self, tmp_path):
