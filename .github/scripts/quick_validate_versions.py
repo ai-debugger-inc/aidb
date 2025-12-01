@@ -6,11 +6,11 @@ validate version updates before they're merged.
 """
 
 import argparse
+import json
 import sys
 from pathlib import Path
 from typing import Any
 
-import yaml
 from packaging import version
 
 
@@ -384,7 +384,7 @@ def main():
         "--config",
         type=Path,
         required=True,
-        help="Path to versions.yaml",
+        help="Path to versions.json",
     )
     parser.add_argument(
         "--strict",
@@ -401,7 +401,7 @@ def main():
     # Load configuration
     try:
         with Path(args.config).open() as f:
-            config = yaml.safe_load(f)
+            config = json.load(f)
     except Exception as e:
         print(f"Error loading config file: {e}")
         sys.exit(1)

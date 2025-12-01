@@ -382,8 +382,8 @@ class TestTestSuiteService:
     ):
         """Test display_suites outputs correct format."""
         suites = {
-            "backend": {
-                "path": "/path/to/backend",
+            "core": {
+                "path": "/path/to/core",
                 "test_count": 10,
                 "test_files": [],
             },
@@ -410,8 +410,8 @@ class TestTestSuiteService:
     ):
         """Test display_suites with verbose shows test_files."""
         suites = {
-            "backend": {
-                "path": "/path/to/backend",
+            "core": {
+                "path": "/path/to/core",
                 "test_count": 10,
                 "test_files": ["test_api.py", "test_models.py"],
             },
@@ -432,8 +432,8 @@ class TestTestSuiteService:
     ):
         """Test display_suites verbose shows remaining count when more than 5 files."""
         suites = {
-            "backend": {
-                "path": "/path/to/backend",
+            "core": {
+                "path": "/path/to/core",
                 "test_count": 10,
                 "test_files": ["test_1.py", "test_2.py", "test_3.py"],
             },

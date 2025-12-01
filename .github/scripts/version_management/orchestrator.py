@@ -30,7 +30,7 @@ class VersionUpdateOrchestrator:
         Parameters
         ----------
         config_path : Path
-            Path to versions.yaml configuration file
+            Path to versions.json configuration file
         target_section : str
             Section to update (infrastructure, adapters, or all)
         """

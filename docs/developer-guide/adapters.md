@@ -10,7 +10,7 @@ Adding a new adapter involves updates across multiple packages:
 - **Constants** (`src/aidb_common/`, `src/aidb_mcp/`): Shared enums and types
 - **CLI** (`src/aidb_cli/`): Test program generator
 - **CI/CD** (`.github/`): Build scripts and workflows
-- **Configuration** (`versions.yaml`): Adapter metadata and build configuration
+- **Configuration** (`versions.json`): Adapter metadata and build configuration
 - **Testing** (`src/tests/`): Test infrastructure
 
 ## Prerequisites
@@ -378,7 +378,7 @@ class <Language>AdapterBuilder(AdapterBuilder):
         return "<language>"
 
     def get_adapter_config(self) -> dict:
-        """Get adapter config from versions.yaml."""
+        """Get adapter config from versions.json."""
         return self.versions["adapters"]["<language>"]
 
     def clone_repository(self) -> Path:
@@ -433,9 +433,9 @@ ADAPTER_BUILDERS: Dict[str, Type[AdapterBuilder]] = {
 }
 ```
 
-### 4.3 Update versions.yaml
+### 4.3 Update versions.json
 
-**File**: `versions.yaml`
+**File**: `versions.json`
 
 Add your adapter configuration:
 
@@ -469,17 +469,17 @@ adapters:
 **Platform Configuration**:
 
 - For **universal** adapters (like Java): Set `universal: true`, no platform list needed
-- For **platform-specific** adapters: The workflow uses the global `platforms` list from `versions.yaml:109`
+- For **platform-specific** adapters: The workflow uses the global `platforms` list from `versions.json:109`
 
 **Version Management:**
 
-- **Infrastructure versions** (`infrastructure` section in versions.yaml): Used by testing workflows for runtime environment
+- **Infrastructure versions** (`infrastructure` section in versions.json): Used by testing workflows for runtime environment
   - Python, Node, Java versions for testing
-  - Loaded dynamically via `load-versions.yaml` reusable workflow
+  - Loaded dynamically via `load-versions.json` reusable workflow
 - **Adapter build_deps**: Used for building the adapter itself
   - May differ from infrastructure versions (e.g., JavaScript adapter uses Node 18 per vscode-js-debug requirements, while infrastructure uses Node 22)
   - Python versions should match between infrastructure and build_deps (validated by load-versions workflow)
-- **Validation**: The `load-versions.yaml` workflow validates that Python versions match between infrastructure and adapter build_deps
+- **Validation**: The `load-versions.json` workflow validates that Python versions match between infrastructure and adapter build_deps
 
 **Example scenario**: If you're adding a JavaScript adapter:
 
@@ -619,7 +619,7 @@ If you plan to run tests in Docker containers, you may need to:
    - Install language-specific runtime and tools
    - Install framework dependencies using `/scripts/install-framework-deps.sh`
 
-**Note**: The Docker build arguments should align with `versions.yaml` infrastructure section. This is only necessary if you're running integration/E2E tests in containerized environments.
+**Note**: The Docker build arguments should align with `versions.json` infrastructure section. This is only necessary if you're running integration/E2E tests in containerized environments.
 
 ### 5.4 Framework Tests
 
@@ -662,7 +662,7 @@ CI/CD:
 
 - [ ] Implemented `<Language>AdapterBuilder` in `.github/scripts/adapters/builders/`
 - [ ] Registered builder in `.github/scripts/adapters/registry.py`
-- [ ] Added adapter configuration to `versions.yaml`
+- [ ] Added adapter configuration to `versions.json`
 - [ ] (If needed) Updated workflow in `.github/workflows/adapter-build.yaml`
 - [ ] Added build validation in `.github/scripts/validation/build_env.py`
 
@@ -815,7 +815,7 @@ After implementation:
 
 ### Build Fails
 
-- Verify `versions.yaml` configuration is correct
+- Verify `versions.json` configuration is correct
 - Check build dependencies are available
 - Review build command in builder script
 - Check platform-specific issues (path separators, executable permissions, etc.)
@@ -879,7 +879,7 @@ Use this as a quick checklist of all files that require updates:
 
 - `.github/scripts/adapters/builders/<language>.py` - New builder script
 - `.github/scripts/adapters/registry.py` - Register builder (line ~15)
-- `versions.yaml` - Add adapter configuration
+- `versions.json` - Add adapter configuration
 - `.github/scripts/validation/build_env.py` - Add validation (line ~116)
 
 **Testing:**
@@ -916,7 +916,7 @@ Use this as a quick checklist of all files that require updates:
 **No manual changes needed:**
 
 - `src/aidb/session/adapter_registry.py` - Auto-discovers adapters
-- `.github/scripts/utils/matrix_generator.py` - Reads from versions.yaml
+- `.github/scripts/utils/matrix_generator.py` - Reads from versions.json
 - Most MCP and CLI validation code - Uses Language enum
 
 ## Summary
@@ -926,7 +926,7 @@ Adding a new adapter requires updates in **6 main areas**:
 1. **Core** (4-5 files): Adapter class, config class, optional validators
 1. **Constants** (1-2 files): Language enum, adapter type enum
 1. **CLI** (2 files): Test program generator and registration
-1. **CI/CD** (4-5 files): Builder script, registry, versions.yaml, validation
+1. **CI/CD** (4-5 files): Builder script, registry, versions.json, validation
 1. **Testing** (3+ files): Test content provider, fixtures, optional Docker
 1. **Docs** (optional): User-facing documentation
 

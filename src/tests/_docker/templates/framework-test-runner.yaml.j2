@@ -1,5 +1,5 @@
 {# Template for language-specific framework test runners #}
-{# Variables available: lang, config (from languages.yaml), build_args (from versions.yaml) #}
+{# Variables available: lang, config (from languages.yaml), build_args (from versions.json) #}
   test-runner-{{ lang }}:
     profiles: ["{{ lang }}", "frameworks", "launch"]
     build:

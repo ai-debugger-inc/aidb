@@ -44,7 +44,7 @@ runs:
       uses: actions/cache@v4
       with:
         path: ~/.m2/repository
-        key: ${{ runner.os }}-maven-${{ inputs.java-version }}-${{ hashFiles('**/pom.xml', 'versions.yaml') }}
+        key: ${{ runner.os }}-maven-${{ inputs.java-version }}-${{ hashFiles('**/pom.xml', 'versions.json') }}
         restore-keys: |
           ${{ runner.os }}-maven-${{ inputs.java-version }}-
           ${{ runner.os }}-maven-

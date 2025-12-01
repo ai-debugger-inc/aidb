@@ -40,11 +40,11 @@ def workflows_dir(github_dir):
 
 
 @pytest.fixture
-def versions_yaml(repo_root):
-    """Load versions.yaml configuration."""
-    versions_path = repo_root / "versions.yaml"
+def versions_json(repo_root):
+    """Load versions.json configuration."""
+    versions_path = repo_root / "versions.json"
     with versions_path.open() as f:
-        return yaml.safe_load(f)
+        return json.load(f)
 
 
 @pytest.fixture
@@ -163,9 +163,9 @@ def mock_ci_environment(monkeypatch):
 
 
 @pytest.fixture
-def temp_versions_yaml(tmp_path):
-    """Create a temporary versions.yaml file for testing."""
-    versions_file = tmp_path / "versions.yaml"
+def temp_versions_json(tmp_path):
+    """Create a temporary versions.json file for testing."""
+    versions_file = tmp_path / "versions.json"
     config = {
         "version": "1.0.0",
         "infrastructure": {
@@ -181,7 +181,7 @@ def temp_versions_yaml(tmp_path):
     }
 
     with versions_file.open("w") as f:
-        yaml.dump(config, f)
+        json.dump(config, f, indent=2)
 
     return versions_file
 

@@ -228,10 +228,10 @@ class TestPlatformValidation:
 
 
 class TestConfigurationLoading:
-    """Test versions.yaml configuration loading."""
+    """Test versions.json configuration loading."""
 
     def test_successful_config_loading(self, build_adapter_module, mock_builder):
-        """Verify successful loading of versions.yaml."""
+        """Verify successful loading of versions.json."""
         config = create_mock_versions_config()
 
         with mock_script_environment(yaml_data=config):
@@ -263,8 +263,8 @@ class TestConfigurationLoading:
         tmp_path,
         capsys,
     ):
-        """Verify error when versions.yaml file doesn't exist."""
-        nonexistent_file = tmp_path / "nonexistent.yaml"
+        """Verify error when versions.json file doesn't exist."""
+        nonexistent_file = tmp_path / "nonexistent.json"
 
         with patch(
             "sys.argv",
@@ -290,8 +290,8 @@ class TestConfigurationLoading:
     ):
         """Verify custom versions file path via --versions-file."""
         config = create_mock_versions_config()
-        custom_file = tmp_path / "custom-versions.yaml"
-        custom_file.write_text("platforms: []")
+        custom_file = tmp_path / "custom-versions.json"
+        custom_file.write_text('{"platforms": []}')
 
         with mock_script_environment(yaml_data=config):
             with patch.object(

@@ -6,6 +6,7 @@ import shutil
 import subprocess
 from typing import TYPE_CHECKING, Any
 
+from aidb_common.path import get_aidb_adapters_dir
 from aidb_logging import get_mcp_logger as get_logger
 
 from .base import BaseStarter
@@ -319,20 +320,22 @@ class PythonStarter(BaseStarter):
                     extra={"error": str(e), "path": python_path},
                 )
 
-        # Check debugpy
-        try:
-            import debugpy  # noqa: F401
-
+        # Check debugpy in adapter directory
+        adapter_debugpy = get_aidb_adapters_dir() / "python" / "debugpy"
+        if adapter_debugpy.exists():
             result["debugpy_available"] = True
-            logger.debug("debugpy module available")
-        except ImportError:
-            logger.warning(
-                "debugpy not installed",
-                extra={"language": "python", "required_for": "debugging"},
+            logger.debug(
+                "debugpy adapter available",
+                extra={"path": str(adapter_debugpy)},
             )
-            result.setdefault("issues", []).append("debugpy not installed")
+        else:
+            logger.warning(
+                "debugpy adapter not installed",
+                extra={"language": "python", "expected_path": str(adapter_debugpy)},
+            )
+            result.setdefault("issues", []).append("debugpy adapter not installed")
             result.setdefault("warnings", []).append(
-                "Install debugpy with: pip install debugpy",
+                "Run 'aidb adapter download python' to install the debug adapter",
             )
 
     def _discover_language_context(

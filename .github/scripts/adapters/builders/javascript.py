@@ -21,7 +21,7 @@ class JavaScriptAdapterBuilder(AdapterBuilder):
         return "javascript"
 
     def get_adapter_config(self) -> dict:
-        """Get adapter configuration from versions.yaml."""
+        """Get adapter configuration from versions.json."""
         return self.versions["adapters"]["javascript"]
 
     def clone_repository(self) -> Path:

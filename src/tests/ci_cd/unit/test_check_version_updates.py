@@ -1,11 +1,11 @@
 """Unit tests for version_management package."""
 
+import json
 import sys
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-import yaml
 
 sys.path.insert(
     0,
@@ -123,9 +123,9 @@ class TestValidateDebugpySync:
         """Verify validation passes when versions are in sync."""
         config = create_mock_versions_config(adapters={"python": {"version": "1.8.0"}})
 
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         with config_path.open("w") as f:
-            yaml.dump(config, f)
+            json.dump(config, f, indent=2)
 
         validator = DebugpySyncValidator(config_path)
         result = validator.validate(config)
@@ -141,9 +141,9 @@ class TestValidateDebugpySync:
         import yaml
 
         config = {"adapters": {"python": {"version": "1.8.0"}}}
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         with config_path.open("w") as f:
-            yaml.dump(config, f)
+            json.dump(config, f, indent=2)
 
         toml_content = """[project]
 dependencies = ["debugpy>=1.6.0"]
@@ -167,9 +167,9 @@ dependencies = ["debugpy>=1.6.0"]
         import yaml
 
         config = {"adapters": {"python": {"version": "1.6.0"}}}
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         with config_path.open("w") as f:
-            yaml.dump(config, f)
+            json.dump(config, f, indent=2)
 
         toml_content = """[project]
 dependencies = ["debugpy>=1.8.0"]
@@ -186,15 +186,15 @@ dependencies = ["debugpy>=1.8.0"]
         assert any("newer than" in warn for warn in result["warnings"])
 
     def test_warning_when_no_adapter_version(self, tmp_path):
-        """Verify warning when no adapter version in versions.yaml."""
+        """Verify warning when no adapter version in versions.json."""
         from typing import Any
 
         import yaml
 
         config: dict[str, Any] = {"adapters": {"python": {}}}
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         with config_path.open("w") as f:
-            yaml.dump(config, f)
+            json.dump(config, f, indent=2)
 
         validator = DebugpySyncValidator(config_path)
         result = validator.validate(config)
@@ -211,9 +211,9 @@ dependencies = ["debugpy>=1.8.0"]
         import yaml
 
         config = {"adapters": {"python": {"version": "1.8.0"}}}
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         with config_path.open("w") as f:
-            yaml.dump(config, f)
+            json.dump(config, f, indent=2)
 
         toml_content = """[project]
 dependencies = ["other-package>=1.0.0"]

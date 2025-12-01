@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Generate workflow matrix from versions.yaml.
+"""Generate workflow matrix from versions.json.
 
 This script generates the build matrix for both ACT and GHA workflows
-from the central versions.yaml configuration file.
+from the central versions.json configuration file.
 """
 
 import argparse
@@ -10,16 +10,14 @@ import json
 import sys
 from pathlib import Path
 
-import yaml
 
-
-def load_versions(versions_file: str = "versions.yaml") -> dict:
+def load_versions(versions_file: str = "versions.json") -> dict:
     """Load versions configuration file.
 
     Parameters
     ----------
     versions_file : str
-        Path to versions.yaml file
+        Path to versions.json file
 
     Returns
     -------
@@ -32,18 +30,18 @@ def load_versions(versions_file: str = "versions.yaml") -> dict:
         sys.exit(1)
 
     with versions_path.open() as f:
-        return yaml.safe_load(f)
+        return json.load(f)
 
 
-def generate_matrix(workflow_type: str = "gha", versions_file: str = "versions.yaml") -> dict:
-    """Generate workflow matrix from versions.yaml.
+def generate_matrix(workflow_type: str = "gha", versions_file: str = "versions.json") -> dict:
+    """Generate workflow matrix from versions.json.
 
     Parameters
     ----------
     workflow_type : str
         Type of workflow ('act' or 'gha')
     versions_file : str
-        Path to versions.yaml file
+        Path to versions.json file
 
     Returns
     -------
@@ -133,7 +131,7 @@ def generate_matrix(workflow_type: str = "gha", versions_file: str = "versions.y
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Generate workflow matrix from versions.yaml",
+        description="Generate workflow matrix from versions.json",
     )
     parser.add_argument(
         "--workflow",
@@ -143,8 +141,8 @@ def main():
     )
     parser.add_argument(
         "--versions-file",
-        default="versions.yaml",
-        help="Path to versions.yaml file",
+        default="versions.json",
+        help="Path to versions.json file",
     )
     parser.add_argument(
         "--format",

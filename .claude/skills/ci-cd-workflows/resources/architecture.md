@@ -77,7 +77,7 @@ test:
 
 ### load-versions.yaml
 
-Loads infrastructure versions from `versions.yaml` - eliminates hardcoding.
+Loads infrastructure versions from `versions.json` - eliminates hardcoding.
 
 **Outputs:**
 
@@ -178,7 +178,7 @@ Both scripts use stdlib only (no dependencies), handle errors gracefully, and av
 - uses: actions/cache@v4
   with:
     path: ~/.cache/adapters
-    key: adapters-${{ hashFiles('versions.yaml') }}
+    key: adapters-${{ hashFiles('versions.json') }}
 ```
 
 ## Secrets Management
@@ -203,12 +203,12 @@ secrets:
 
 - **Python 3.11** - CI tooling (most workflows)
 - **Python 3.10** - Release workflow (max PyPI compatibility)
-- **Python 3.12** - Runtime tests (from `versions.yaml`)
+- **Python 3.12** - Runtime tests (from `versions.json`)
 
 ## References
 
 - `.github/workflows/` - Workflow definitions
 - `.github/actions/` - Composite actions
 - `.github/scripts/` - CI/CD scripts
-- `versions.yaml` - Infrastructure versions
+- `versions.json` - Infrastructure versions
 - `docs/developer-guide/ci-cd.md` - Complete documentation

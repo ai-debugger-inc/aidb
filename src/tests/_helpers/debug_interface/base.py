@@ -15,7 +15,7 @@ class DebugInterface(ABC):
     """Abstract interface for debug operations.
 
     This interface provides a unified API for debug operations that can be implemented
-    by both MCP and API backends, enabling the same test logic to run against both
+    by both MCP and API interfaces, enabling the same test logic to run against both
     entry points.
 
     Implementations must handle:

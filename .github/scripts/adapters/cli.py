@@ -2,21 +2,20 @@
 """CLI entry point for adapter build system."""
 
 import argparse
+import json
 import sys
 from pathlib import Path
-
-import yaml
 
 from .registry import get_builder, list_adapters
 
 
 def load_versions(versions_file: Path) -> dict:
-    """Load and validate versions.yaml configuration.
+    """Load and validate versions.json configuration.
 
     Parameters
     ----------
     versions_file : Path
-        Path to versions.yaml file
+        Path to versions.json file
 
     Returns
     -------
@@ -32,7 +31,7 @@ def load_versions(versions_file: Path) -> dict:
         raise FileNotFoundError(f"Versions file not found: {versions_file}")
 
     with open(versions_file) as f:
-        versions = yaml.safe_load(f)
+        versions = json.load(f)
 
     # Validate required sections
     required_sections = ["adapters", "platforms"]
@@ -71,7 +70,7 @@ def main():
     # Versions file
     parser.add_argument(
         "--versions-file",
-        default="versions.yaml",
+        default="versions.json",
         help="Path to versions configuration file"
     )
 

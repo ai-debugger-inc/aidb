@@ -29,7 +29,7 @@
 name: aidb-tests
 
 # Reusable build configuration
-# Note: Version defaults should match versions.yaml
+# Note: Version defaults should match versions.json
 x-build-args: &build-args
   RUNTIME_TAG: ${RUNTIME_TAG:-latest}
   AIDB_TEST_BASE_IMAGE: ${AIDB_TEST_BASE_IMAGE:-aidb-test-base:latest}

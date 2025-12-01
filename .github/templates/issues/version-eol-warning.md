@@ -49,7 +49,7 @@ assignees: []
 
 ### Tasks
 
-- [ ] Update `src/tests/_docker/config/versions.yaml`
+- [ ] Update `src/tests/_docker/config/versions.json`
 - [ ] Update CI workflows
 - [ ] Update documentation
 - [ ] Test adapter compatibility

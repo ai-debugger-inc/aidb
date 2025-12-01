@@ -1,7 +1,7 @@
 # Language-specific test image for Java
 # Optimized for Java framework testing with minimal size
 # NOTE: Inherits from aidb-test-base which provides Python 3.12 + common dependencies
-# NOTE: Version should match versions.yaml infrastructure.java.version (21)
+# NOTE: Version should match versions.json infrastructure.java.version (21)
 
 # Parametrize base image for CI flexibility (local: aidb-test-base:latest, CI: GHCR)
 # hadolint ignore=DL3006
@@ -20,7 +20,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
     wget
 
 # Install Eclipse JDT Language Server
-# NOTE: Version should match versions.yaml adapters.java.jdtls_version
+# NOTE: Version should match versions.json adapters.java.jdtls_version
 ARG JDTLS_VERSION=1.55.0-202511271007
 RUN mkdir -p /opt/jdtls && \
     curl -fsSL -o /tmp/jdtls.tar.gz \

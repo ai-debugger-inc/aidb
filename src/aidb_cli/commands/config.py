@@ -204,7 +204,7 @@ def validate(ctx: click.Context) -> None:
 
     for section, is_valid in version_results.items():
         icon = f"{Icons.SUCCESS}" if is_valid else f"{Icons.ERROR}"
-        output.plain(f"{icon} versions.yaml {section}")
+        output.plain(f"{icon} versions.json {section}")
 
     user_valid = True
     if config_manager.user_config.exists():

@@ -103,7 +103,7 @@ jobs:
           import yaml
           import os
 
-          with open('versions.yaml', 'r') as f:
+          with open('versions.json', 'r') as f:
               versions = yaml.safe_load(f)
 
           adapter = "${{ matrix.adapter }}"

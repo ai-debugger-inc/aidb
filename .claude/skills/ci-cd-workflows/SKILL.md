@@ -2,7 +2,7 @@
 name: ci-cd-workflows
 description: Guide for GitHub Actions workflows, test orchestration, parallel testing,
   adapter builds, releases, and CI/CD configuration. Use when working with .github/workflows/,
-  versions.yaml, testing-config.yaml, or troubleshooting CI issues.
+  versions.json, testing-config.yaml, or troubleshooting CI issues.
 version: 1.0.0
 tags:
   - ci-cd
@@ -65,7 +65,7 @@ This skill provides practical guidance for working with workflows and configurat
 
 ### Single Source of Truth
 
-**versions.yaml** (repo root):
+**versions.json** (repo root):
 
 - Infrastructure versions (Python, Node, Java) with docker_tag fields
 - Adapter versions and repositories (debugpy, vscode-js-debug, java-debug)
@@ -78,7 +78,7 @@ All workflows dynamically load versions via `load-versions.yaml` - zero hardcode
 **Validation:**
 
 ```bash
-python .github/scripts/quick_validate_versions.py --config versions.yaml
+python .github/scripts/quick_validate_versions.py --config versions.json
 ```
 
 See `docs/developer-guide/ci-cd.md` for configuration overview.
@@ -87,7 +87,7 @@ See `docs/developer-guide/ci-cd.md` for configuration overview.
 
 AIDB uses a **dual automation system**:
 
-1. **versions.yaml** - Infrastructure & adapters (monitored every 12 hours, creates GitHub issues)
+1. **versions.json** - Infrastructure & adapters (monitored every 12 hours, creates GitHub issues)
 1. **pyproject.toml** - Application dependencies (Dependabot, creates PRs automatically)
 
 For complete details on what each system monitors and validation procedures, see [quick-reference.md](resources/quick-reference.md).
@@ -252,19 +252,28 @@ Framework dependencies auto-managed via checksum services.
 
 **Update infrastructure version:**
 
-```yaml
-# versions.yaml
-infrastructure:
-  python:
-    version: "3.12"  # All workflows pick up automatically
+```json
+// versions.json
+{
+  "infrastructure": {
+    "python": {
+      "version": "3.12"  // All workflows pick up automatically
+    }
+  }
+}
 ```
 
 **Add platform:**
 
-```yaml
-platforms:
-  - os: linux
-    arch: arm64
+```json
+{
+  "platforms": [
+    {
+      "os": "linux",
+      "arch": "arm64"
+    }
+  ]
+}
 ```
 
 **Always validate:**
@@ -283,7 +292,7 @@ python .github/scripts/quick_validate_versions.py
 
 **Flow:**
 
-1. Load versions from `versions.yaml`
+1. Load versions from `versions.json`
 1. Build adapters and Docker in parallel
 1. Run test suites in parallel: cli, shared, mcp, core, frameworks, launch, common/logging, ci_cd
 
@@ -328,11 +337,11 @@ Frameworks use dynamic matrix from `testing-config.yaml`:
 
 - Verify platform compatibility
 - Check upstream availability
-- Review versions.yaml adapter configuration
+- Review versions.json adapter configuration
 
 **Version loading:**
 
-- Validate versions.yaml syntax
+- Validate versions.json syntax
 - Check Python version consistency
 - Run quick_validate_versions.py
 
@@ -352,7 +361,7 @@ See [architecture.md](resources/architecture.md) for job dependencies, condition
 
 ## Configuration Files
 
-- **versions.yaml** - Infrastructure, adapters, platforms (see `docs/developer-guide/ci-cd.md`)
+- **versions.json** - Infrastructure, adapters, platforms (see `docs/developer-guide/ci-cd.md`)
 - **testing-config.yaml** - Framework test configuration
 
 **Secrets:** See `docs/developer-guide/ci-cd.md` for complete list.
@@ -406,7 +415,7 @@ Complete guides: `docs/developer-guide/ci-cd.md`
 - `.github/workflows/` - Workflow definitions
 - `.github/actions/` - Composite actions
 - `.github/scripts/` - CI/CD scripts
-- `versions.yaml` - Infrastructure & adapter versions
+- `versions.json` - Infrastructure & adapter versions
 - `.github/testing-config.yaml` - Framework config
 
 ## Quick Reference
@@ -438,7 +447,7 @@ act push -j build         # With event
 
 ### Key Files
 
-- `versions.yaml` - Single source of truth
+- `versions.json` - Single source of truth
 - `.github/testing-config.yaml` - Framework config
 - `.github/workflows/test-parallel.yaml` - Main orchestrator
 - `.github/workflows/load-versions.yaml` - Version loading
@@ -448,7 +457,7 @@ ______________________________________________________________________
 
 **Remember:**
 
-- versions.yaml is single source of truth
+- versions.json is single source of truth
 - Use reusable workflows for DRY
 - Test locally before pushing
 - Validate configuration changes

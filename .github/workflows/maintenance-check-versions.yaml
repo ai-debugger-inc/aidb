@@ -29,7 +29,7 @@ jobs:
         id: check
         run: |
           python .github/scripts/version_management/cli.py \
-            --config versions.yaml \
+            --config versions.json \
             --section all
         continue-on-error: true
 
@@ -42,7 +42,7 @@ jobs:
             const body = `
             ## Version Updates Detected
 
-            New versions are available for infrastructure components managed in \`versions.yaml\`.
+            New versions are available for infrastructure components managed in \`versions.json\`.
 
             **Workflow run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
@@ -50,10 +50,10 @@ jobs:
 
             1. Run locally to see details:
                \`\`\`bash
-               python .github/scripts/version_management/cli.py --config versions.yaml --section all
+               python .github/scripts/version_management/cli.py --config versions.json --section all
                \`\`\`
 
-            2. Review updates and update \`versions.yaml\` as appropriate
+            2. Review updates and update \`versions.json\` as appropriate
 
             3. Test changes:
                \`\`\`bash
@@ -67,7 +67,7 @@ jobs:
             - Debug adapters (debugpy, vscode-js-debug, java-debug)
             - Docker images (redis)
             - Global packages (pip, setuptools, wheel, typescript, ts-node)
-            - debugpy synchronization between versions.yaml and pyproject.toml
+            - debugpy synchronization between versions.json and pyproject.toml
 
             ---
             *This issue is automatically created by the version check workflow.*

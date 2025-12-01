@@ -2,11 +2,10 @@
 """CLI for version update checking."""
 
 import argparse
+import json
 import logging
 import sys
 from pathlib import Path
-
-import yaml
 
 from .automation.merge_decision import should_auto_merge
 from .config.updater import ConfigUpdater
@@ -32,7 +31,7 @@ def parse_arguments():
         "--config",
         type=Path,
         required=True,
-        help="Path to versions.yaml configuration file",
+        help="Path to versions.json configuration file",
     )
     parser.add_argument(
         "--section",
@@ -70,8 +69,8 @@ def main():
 
         try:
             orchestrator = VersionUpdateOrchestrator(args.config, args.section)
-        except yaml.YAMLError as e:
-            print(f"Error: Invalid YAML in config file: {e}")
+        except json.JSONDecodeError as e:
+            print(f"Error: Invalid JSON in config file: {e}")
             return 1
 
         all_updates = orchestrator.check_all_updates()

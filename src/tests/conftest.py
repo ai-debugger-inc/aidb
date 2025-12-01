@@ -22,7 +22,7 @@ from tests._conftest.environment import (  # noqa: E402
     resolve_env_template_early,
 )
 
-# CRITICAL: Resolve environment template BEFORE any backend imports
+# CRITICAL: Resolve environment template BEFORE any AIDB imports
 resolve_env_template_early()
 
 # Configure logging on import

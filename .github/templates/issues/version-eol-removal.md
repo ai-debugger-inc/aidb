@@ -33,7 +33,7 @@ assignees: []
 
 ### Configuration Updates
 
-- [ ] Remove from `src/tests/_docker/config/versions.yaml`
+- [ ] Remove from `src/tests/_docker/config/versions.json`
 - [ ] Update Docker configurations
 - [ ] Remove from CI test matrix
 - [ ] Clean up related workflows

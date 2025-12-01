@@ -41,7 +41,7 @@ class BuildManager(BaseOrchestrator):
         super().__init__(repo_root, command_executor)
 
         # Initialize version manager
-        self.versions_file = self.repo_root / "versions.yaml"
+        self.versions_file = self.repo_root / "versions.json"
         self.version_manager = VersionManager(self.versions_file)
 
         # Cache directories

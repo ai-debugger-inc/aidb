@@ -24,26 +24,26 @@ ______________________________________________________________________
 ```python
 IMAGE_DEPENDENCIES = {
     "base": [
-        versions.yaml,
+        versions.json,
         pyproject.toml,
         Dockerfile.test.base,
         entrypoint.sh,
         install-framework-deps.sh,
     ],
     "python": [
-        versions.yaml,
+        versions.json,
         pyproject.toml,
         Dockerfile.test.base,
         Dockerfile.test.python,
     ],
     "javascript": [
-        versions.yaml,
+        versions.json,
         pyproject.toml,
         Dockerfile.test.base,
         Dockerfile.test.javascript,
     ],
     "java": [
-        versions.yaml,
+        versions.json,
         pyproject.toml,
         Dockerfile.test.base,
         Dockerfile.test.java,

@@ -1,4 +1,4 @@
-"""Debugpy version synchronization validation between versions.yaml and pyproject.toml."""
+"""Debugpy version synchronization validation between versions.json and pyproject.toml."""
 
 import re
 from pathlib import Path
@@ -16,17 +16,17 @@ class DebugpySyncValidator:
         Parameters
         ----------
         config_path : Path
-            Path to versions.yaml
+            Path to versions.json
         """
         self.config_path = config_path
 
     def validate(self, config: dict[str, Any]) -> dict[str, Any]:
-        """Validate debugpy version sync between versions.yaml and pyproject.toml.
+        """Validate debugpy version sync between versions.json and pyproject.toml.
 
         Parameters
         ----------
         config : dict[str, Any]
-            Loaded versions.yaml configuration
+            Loaded versions.json configuration
 
         Returns
         -------
@@ -40,7 +40,7 @@ class DebugpySyncValidator:
         adapter_version = python_adapter.get("version", "")
 
         if not adapter_version:
-            result["warnings"].append("No Python adapter version found in versions.yaml")
+            result["warnings"].append("No Python adapter version found in versions.json")
             return result
 
         try:
@@ -96,7 +96,7 @@ class DebugpySyncValidator:
                 result["warnings"].append(
                     f"pyproject.toml debugpy minimum ({toml_version}) is newer than "
                     f"adapter version ({adapter_version}). "
-                    f"Consider updating versions.yaml adapter version.",
+                    f"Consider updating versions.json adapter version.",
                 )
             else:
                 result["message"] = (

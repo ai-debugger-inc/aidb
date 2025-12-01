@@ -251,7 +251,7 @@ def env(ctx: click.Context, output: Path) -> None:
     """Generate .env file with Docker build arguments.
 
     \b Creates a .env file with all the build arguments needed for Docker builds,
-    derived from versions.yaml.
+    derived from versions.json.
     """  # noqa: W605
     cli_output = ctx.obj.output
     cli_output.section("Docker Build Environment", Icons.DOCKER)

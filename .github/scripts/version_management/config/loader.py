@@ -1,24 +1,23 @@
-"""Configuration loader for versions.yaml."""
+"""Configuration loader for versions.json."""
 
+import json
 import os
 import tempfile
 from pathlib import Path
 from typing import Any
 
-import yaml
-
 
 class ConfigLoader:
-    """Loads and parses versions.yaml configuration."""
+    """Loads and parses versions.json configuration."""
 
     @staticmethod
     def load(config_path: Path) -> dict[str, Any]:
-        """Load versions.yaml configuration.
+        """Load versions.json configuration.
 
         Parameters
         ----------
         config_path : Path
-            Path to versions.yaml
+            Path to versions.json
 
         Returns
         -------
@@ -26,25 +25,25 @@ class ConfigLoader:
             Loaded configuration
         """
         with config_path.open() as f:
-            return yaml.safe_load(f)
+            return json.load(f)
 
     @staticmethod
     def save(config_path: Path, config: dict[str, Any]) -> None:
-        """Save configuration to versions.yaml atomically.
+        """Save configuration to versions.json atomically.
 
         Uses temp file + atomic rename to prevent corruption.
 
         Parameters
         ----------
         config_path : Path
-            Path to versions.yaml
+            Path to versions.json
         config : dict[str, Any]
             Configuration to save
 
         Raises
         ------
-        yaml.YAMLError
-            If YAML serialization fails
+        json.JSONDecodeError
+            If JSON serialization fails
         OSError
             If file write or rename fails
         """
@@ -62,7 +61,7 @@ class ConfigLoader:
 
             with os.fdopen(temp_fd, "w") as f:
                 temp_fd = None
-                yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+                json.dump(config, f, indent=2)
 
             Path(temp_path).replace(config_path)
             temp_path = None

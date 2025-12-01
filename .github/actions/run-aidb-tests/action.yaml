@@ -2,7 +2,7 @@ name: Run AIDB Tests
 description: Execute AIDB test suite with optional coverage reporting
 inputs:
   suite:
-    description: Test suite to run (cli, backend, shared, common, logging, mcp, core, frameworks, launch)
+    description: Test suite to run (cli, shared, common, logging, mcp, core, frameworks, launch)
     required: true
   skip-coverage:
     description: Skip coverage reporting

@@ -102,10 +102,10 @@ class TestTestDiscoveryService:
         common_dir.mkdir()
         (common_dir / "test_config.py").write_text("def test_config(): pass")
 
-        # Create versions.yaml
-        versions_yaml = tmp_path / "versions.yaml"
+        # Create versions.json
+        versions_yaml = tmp_path / "versions.json"
         versions_yaml.write_text(
-            "adapters:\n  python: 1.0.0\n  javascript: 1.0.0\n  java: 1.0.0\n",
+            '{"adapters": {"python": "1.0.0", "javascript": "1.0.0", "java": "1.0.0"}}'
         )
 
         return tmp_path
@@ -379,10 +379,10 @@ class TestTestDiscoveryService:
         mock_command_executor,
     ):
         """Test extracting test languages from version manager."""
-        # Create versions.yaml with adapters
-        versions_yaml = tmp_path / "versions.yaml"
+        # Create versions.json with adapters
+        versions_yaml = tmp_path / "versions.json"
         versions_yaml.write_text(
-            "adapters:\n  python: 1.0.0\n  javascript: 1.0.0\n",
+            '{"adapters": {"python": "1.0.0", "javascript": "1.0.0"}}'
         )
 
         # Create minimal test structure

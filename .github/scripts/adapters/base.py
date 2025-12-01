@@ -22,7 +22,7 @@ class AdapterBuilder(ABC):
         Parameters
         ----------
         versions : dict
-            Versions configuration from versions.yaml
+            Versions configuration from versions.json
         platform_name : str
             Target platform (linux, darwin, windows)
         arch : str
@@ -48,7 +48,7 @@ class AdapterBuilder(ABC):
 
     @abstractmethod
     def get_adapter_config(self) -> dict:
-        """Get adapter configuration from versions.yaml.
+        """Get adapter configuration from versions.json.
 
         Returns
         -------

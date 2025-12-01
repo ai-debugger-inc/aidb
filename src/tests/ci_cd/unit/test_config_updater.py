@@ -1,13 +1,13 @@
 """Unit tests for ConfigUpdater class."""
 
 import contextlib
+import json
 import sys
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-import yaml
 
 sys.path.insert(
     0,
@@ -23,13 +23,13 @@ class TestConfigUpdater:
 
     def test_apply_infrastructure_updates(self, tmp_path):
         """Verify infrastructure updates are applied correctly."""
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         config = create_mock_versions_config(
             infrastructure={"python": {"version": "3.11.0", "docker_tag": "3.11-slim"}},
         )
 
         with config_path.open("w") as f:
-            yaml.dump(config, f)
+            json.dump(config, f, indent=2)
 
         updater = ConfigUpdater(config_path)
         updates = {
@@ -48,7 +48,7 @@ class TestConfigUpdater:
             updater.save()
 
         with config_path.open() as f:
-            updated_config = yaml.safe_load(f)
+            updated_config = json.load(f)
 
         assert updated_config["infrastructure"]["python"]["version"] == "3.12.1"
         assert updated_config["infrastructure"]["python"]["docker_tag"] == "3.11-slim"
@@ -59,7 +59,7 @@ class TestConfigUpdater:
 
     def test_apply_adapter_updates_with_v_prefix(self, tmp_path):
         """Verify JavaScript adapter 'v' prefix is preserved."""
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         config = create_mock_versions_config(
             adapters={
                 "javascript": {
@@ -70,7 +70,7 @@ class TestConfigUpdater:
         )
 
         with config_path.open("w") as f:
-            yaml.dump(config, f)
+            json.dump(config, f, indent=2)
 
         updater = ConfigUpdater(config_path)
         updates = {
@@ -86,13 +86,13 @@ class TestConfigUpdater:
         updater.save()
 
         with config_path.open() as f:
-            updated_config = yaml.safe_load(f)
+            updated_config = json.load(f)
 
         assert updated_config["adapters"]["javascript"]["version"] == "v1.86.0"
 
     def test_apply_adapter_updates_without_v_prefix(self, tmp_path):
         """Verify Python/Java adapters don't add 'v' prefix."""
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         config = create_mock_versions_config(
             adapters={
                 "python": {"version": "1.8.0", "source": "microsoft/debugpy"},
@@ -101,7 +101,7 @@ class TestConfigUpdater:
         )
 
         with config_path.open("w") as f:
-            yaml.dump(config, f)
+            json.dump(config, f, indent=2)
 
         updater = ConfigUpdater(config_path)
         updates = {
@@ -115,7 +115,7 @@ class TestConfigUpdater:
         updater.save()
 
         with config_path.open() as f:
-            updated_config = yaml.safe_load(f)
+            updated_config = json.load(f)
 
         assert updated_config["adapters"]["python"]["version"] == "1.8.1"
         assert updated_config["adapters"]["java"]["version"] == "0.55.0"
@@ -124,14 +124,14 @@ class TestConfigUpdater:
 
     def test_apply_pip_package_updates(self, tmp_path):
         """Verify pip package updates."""
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         config = {
             "version": "1.0.0",
             "global_packages": {"pip": {"pip": {"version": "23.3.0"}}},
         }
 
         with config_path.open("w") as f:
-            yaml.dump(config, f)
+            json.dump(config, f, indent=2)
 
         updater = ConfigUpdater(config_path)
         updates = {
@@ -142,20 +142,20 @@ class TestConfigUpdater:
         updater.save()
 
         with config_path.open() as f:
-            updated_config = yaml.safe_load(f)
+            updated_config = json.load(f)
 
         assert updated_config["global_packages"]["pip"]["pip"]["version"] == "24.0.0"
 
     def test_apply_npm_package_updates(self, tmp_path):
         """Verify npm package updates."""
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         config = {
             "version": "1.0.0",
             "global_packages": {"npm": {"typescript": {"version": "5.3.0"}}},
         }
 
         with config_path.open("w") as f:
-            yaml.dump(config, f)
+            json.dump(config, f, indent=2)
 
         updater = ConfigUpdater(config_path)
         updates = {
@@ -168,7 +168,7 @@ class TestConfigUpdater:
         updater.save()
 
         with config_path.open() as f:
-            updated_config = yaml.safe_load(f)
+            updated_config = json.load(f)
 
         assert (
             updated_config["global_packages"]["npm"]["typescript"]["version"] == "5.4.0"
@@ -176,7 +176,7 @@ class TestConfigUpdater:
 
     def test_multiple_updates_applied_correctly(self, tmp_path):
         """Verify multiple simultaneous updates across different sections."""
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         config = {
             "version": "1.0.0",
             "infrastructure": {"python": {"version": "3.11.0"}},
@@ -188,7 +188,7 @@ class TestConfigUpdater:
         }
 
         with config_path.open("w") as f:
-            yaml.dump(config, f)
+            json.dump(config, f, indent=2)
 
         updater = ConfigUpdater(config_path)
         updates = {
@@ -208,7 +208,7 @@ class TestConfigUpdater:
             updater.save()
 
         with config_path.open() as f:
-            updated_config = yaml.safe_load(f)
+            updated_config = json.load(f)
 
         assert updated_config["infrastructure"]["python"]["version"] == "3.12.1"
         assert updated_config["adapters"]["javascript"]["version"] == "v1.86.0"
@@ -219,13 +219,13 @@ class TestConfigUpdater:
 
     def test_metadata_timestamp_added(self, tmp_path):
         """Verify last_updated metadata is added with correct format."""
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         config = create_mock_versions_config(
             infrastructure={"python": {"version": "3.11.0"}},
         )
 
         with config_path.open("w") as f:
-            yaml.dump(config, f)
+            json.dump(config, f, indent=2)
 
         updater = ConfigUpdater(config_path)
         updates = {
@@ -240,7 +240,7 @@ class TestConfigUpdater:
             updater.save()
 
         with config_path.open() as f:
-            updated_config = yaml.safe_load(f)
+            updated_config = json.load(f)
 
         assert "_metadata" in updated_config["infrastructure"]
         assert "last_updated" in updated_config["infrastructure"]["_metadata"]
@@ -255,12 +255,12 @@ class TestConfigSafety:
 
     def test_save_handles_write_permission_errors(self, tmp_path):
         """Verify permission errors are raised when directory is read-only."""
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         config = create_mock_versions_config()
 
         # Write initial config
         with config_path.open("w") as f:
-            yaml.dump(config, f)
+            json.dump(config, f, indent=2)
 
         # Make DIRECTORY read-only to prevent temp file creation
         tmp_path.chmod(0o555)
@@ -282,11 +282,11 @@ class TestConfigSafety:
 
     def test_save_preserves_original_on_failure(self, tmp_path):
         """Verify original config remains intact if save fails."""
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         original_config = create_mock_versions_config()
 
         with config_path.open("w") as f:
-            yaml.dump(original_config, f)
+            json.dump(original_config, f)
 
         original_content = config_path.read_text()
 
@@ -305,11 +305,11 @@ class TestConfigSafety:
 
     def test_atomic_write_prevents_partial_corruption(self, tmp_path):
         """Verify temp file + rename pattern used for atomic writes."""
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         config = create_mock_versions_config()
 
         with config_path.open("w") as f:
-            yaml.dump(config, f)
+            json.dump(config, f, indent=2)
 
         updater = ConfigUpdater(config_path)
         updates = {
@@ -331,17 +331,17 @@ class TestConfigSafety:
 
         # Verify update was applied
         with config_path.open() as f:
-            updated = yaml.safe_load(f)
+            updated = json.load(f)
         assert updated["infrastructure"]["python"]["version"] == "3.12.1"
 
     def test_prevents_downgrade_when_current_newer(self, tmp_path):
         """Verify doesn't downgrade version accidentally."""
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         config = create_mock_versions_config()
         config["infrastructure"]["python"] = {"version": "3.12.1"}
 
         with config_path.open("w") as f:
-            yaml.dump(config, f)
+            json.dump(config, f, indent=2)
 
         updater = ConfigUpdater(config_path)
 
@@ -357,5 +357,5 @@ class TestConfigSafety:
         # Downgrade should be applied (no validation currently)
         # This test documents current behavior
         with config_path.open() as f:
-            updated = yaml.safe_load(f)
+            updated = json.load(f)
         assert updated["infrastructure"]["python"]["version"] == "3.11.9"

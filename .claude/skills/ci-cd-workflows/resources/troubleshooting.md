@@ -16,7 +16,7 @@ Systematic diagnosis and resolution of CI/CD workflow issues.
 
 ```bash
 git log --oneline --follow .github/workflows/
-git log --oneline versions.yaml .github/testing-config.yaml
+git log --oneline versions.json .github/testing-config.yaml
 gh run view <run-id>
 ```
 
@@ -79,10 +79,10 @@ curl -I https://github.com/microsoft/debugpy/releases/tag/v1.8.0
 
 ### Version Loading Failures
 
-**Causes:** versions.yaml syntax error, missing fields, invalid structure
+**Causes:** versions.json syntax error, missing fields, invalid structure
 
 ```bash
-python -c "import yaml; yaml.safe_load(open('versions.yaml'))"
+python -c "import json; json.load(open('versions.json'))"
 python .github/scripts/quick_validate_versions.py
 ```
 

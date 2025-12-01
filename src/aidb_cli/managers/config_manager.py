@@ -8,8 +8,6 @@ import json
 from pathlib import Path
 from typing import Any, Optional
 
-import yaml
-
 from aidb_cli.core.constants import Icons, LogLevel
 from aidb_cli.core.utils import CliOutput
 from aidb_common.config import VersionManager, load_merged_config
@@ -115,7 +113,7 @@ class ConfigManager:
         return self.version_manager.get_adapter_version(language)
 
     def get_docker_build_args(self) -> dict[str, str]:
-        """Generate Docker build arguments from versions.yaml.
+        """Generate Docker build arguments from versions.json.
 
         Returns
         -------
@@ -305,7 +303,7 @@ class ConfigManager:
             output = self._format_output(config, format_type, config_type)
             CliOutput.plain(output)
 
-        except (OSError, FileOperationError, yaml.YAMLError) as e:
+        except (OSError, FileOperationError) as e:
             logger.error("Failed to show config: %s", e)
             CliOutput.plain(f"{Icons.ERROR} Failed to show config: {e}", err=True)
 
@@ -399,6 +397,8 @@ class ConfigManager:
             return json.dumps(config, indent=2)
 
         if format_type == "yaml":
+            import yaml
+
             return yaml.dump(config, default_flow_style=False)
 
         return self._format_config_text(config or {})

@@ -68,7 +68,7 @@ class TestDiscoveryService(BaseService):
             logger.warning("Test root directory not found: %s", self.test_root)
             return
 
-        # Get supported languages from versions.yaml
+        # Get supported languages from versions.json
         from aidb_cli.core.paths import ProjectPaths
 
         version_manager = VersionManager(self.repo_root / ProjectPaths.VERSIONS_YAML)
@@ -130,7 +130,7 @@ class TestDiscoveryService(BaseService):
 
     def _register_special_suites(self) -> None:
         """Register special test suites that don't follow the aidb_ convention."""
-        # Get supported languages from versions.yaml
+        # Get supported languages from versions.json
         from aidb_cli.core.paths import ProjectPaths
         from aidb_cli.services.test import TestSuites
 

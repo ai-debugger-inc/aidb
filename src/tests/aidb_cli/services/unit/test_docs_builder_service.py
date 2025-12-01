@@ -13,20 +13,21 @@ class TestDocsBuilderService:
 
     @pytest.fixture
     def versions_yaml_content(self):
-        """Sample versions.yaml content."""
-        return """infrastructure:
-  python:
-    docker_tag: "3.12-slim"
-
-global_packages:
-  pip:
-    pip:
-      version: "25.3"
-    setuptools:
-      version: "80.9.0"
-    wheel:
-      version: "0.45.1"
-"""
+        """Sample versions.json content."""
+        return """{
+  "infrastructure": {
+    "python": {
+      "docker_tag": "3.12-slim"
+    }
+  },
+  "global_packages": {
+    "pip": {
+      "pip": {"version": "25.3"},
+      "setuptools": {"version": "80.9.0"},
+      "wheel": {"version": "0.45.1"}
+    }
+  }
+}"""
 
     @pytest.fixture
     def mock_command_executor(self):
@@ -38,8 +39,8 @@ global_packages:
     @pytest.fixture
     def service(self, tmp_path, mock_command_executor, versions_yaml_content):
         """Create a DocsBuilderService instance."""
-        # Create versions.yaml
-        versions_file = tmp_path / "versions.yaml"
+        # Create versions.json
+        versions_file = tmp_path / "versions.json"
         versions_file.write_text(versions_yaml_content)
 
         # Create the compose file at the expected location
@@ -63,8 +64,8 @@ global_packages:
         versions_yaml_content,
     ):
         """Test service initialization."""
-        # Create versions.yaml
-        versions_file = tmp_path / "versions.yaml"
+        # Create versions.json
+        versions_file = tmp_path / "versions.json"
         versions_file.write_text(versions_yaml_content)
 
         compose_file = tmp_path / "docs" / "docker-compose.yaml"
@@ -112,8 +113,8 @@ global_packages:
         versions_yaml_content,
     ):
         """Test ensure_compose_file when file doesn't exist."""
-        # Create versions.yaml
-        versions_file = tmp_path / "versions.yaml"
+        # Create versions.json
+        versions_file = tmp_path / "versions.json"
         versions_file.write_text(versions_yaml_content)
 
         with patch(
@@ -358,8 +359,8 @@ global_packages:
         versions_yaml_content,
     ):
         """Test initialization without explicit command executor."""
-        # Create versions.yaml
-        versions_file = tmp_path / "versions.yaml"
+        # Create versions.json
+        versions_file = tmp_path / "versions.json"
         versions_file.write_text(versions_yaml_content)
 
         compose_file = tmp_path / "docs" / "docker-compose.yaml"

@@ -89,7 +89,7 @@ jobs:
           import yaml
           import os
 
-          with open('versions.yaml', 'r') as f:
+          with open('versions.json', 'r') as f:
               versions = yaml.safe_load(f)
 
           adapter = "${{ matrix.adapter }}"
@@ -136,7 +136,7 @@ jobs:
             ~/.npm
             ~/.cache/pip
             ~/.m2/repository
-          key: ${{ runner.os }}-build-deps-${{ env.AIDB_VERSION }}-${{ hashFiles('versions.yaml', 'pyproject.toml') }}
+          key: ${{ runner.os }}-build-deps-${{ env.AIDB_VERSION }}-${{ hashFiles('versions.json', 'pyproject.toml') }}
           restore-keys: |
             ${{ runner.os }}-build-deps-${{ env.AIDB_VERSION }}-
             ${{ runner.os }}-build-deps-
@@ -146,7 +146,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/vscode-js-debug/node_modules
-          key: ${{ runner.os }}-${{ matrix.arch }}-js-adapter-${{ hashFiles('versions.yaml') }}
+          key: ${{ runner.os }}-${{ matrix.arch }}-js-adapter-${{ hashFiles('versions.json') }}
           restore-keys: |
             ${{ runner.os }}-${{ matrix.arch }}-js-adapter-
 
@@ -247,14 +247,14 @@ jobs:
           find artifacts/ -name "*.tar.gz" -exec cp {} consolidated-adapters/ \;
           find artifacts/ -name "*.sha256" -exec cp {} consolidated-adapters/ \;
 
-          # Generate manifest from versions.yaml
+          # Generate manifest from versions.json
           python3 << 'EOF'
           import yaml
           import json
           import os
           from datetime import datetime
 
-          with open('versions.yaml', 'r') as f:
+          with open('versions.json', 'r') as f:
               versions = yaml.safe_load(f)
 
           version = "${{ steps.version.outputs.version }}"
@@ -265,7 +265,7 @@ jobs:
               "adapters": {}
           }
 
-          # Build adapter manifest from versions.yaml
+          # Build adapter manifest from versions.json
           for adapter_name, adapter_config in versions['adapters'].items():
               if not adapter_config.get('enabled', True):
                   continue

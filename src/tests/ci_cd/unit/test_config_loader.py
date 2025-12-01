@@ -1,10 +1,10 @@
 """Unit tests for ConfigLoader class."""
 
+import json
 import sys
 from pathlib import Path
 
 import pytest
-import yaml
 
 sys.path.insert(
     0,
@@ -17,9 +17,9 @@ from version_management.config.loader import ConfigLoader
 class TestConfigLoader:
     """Test ConfigLoader functionality."""
 
-    def test_load_valid_yaml(self, tmp_path):
-        """Verify loading a well-formed YAML file."""
-        config_file = tmp_path / "versions.yaml"
+    def test_load_valid_json(self, tmp_path):
+        """Verify loading a well-formed JSON file."""
+        config_file = tmp_path / "versions.json"
         config_data = {
             "version": "1.0.0",
             "infrastructure": {
@@ -29,7 +29,7 @@ class TestConfigLoader:
 
         # Write test config
         with config_file.open("w") as f:
-            yaml.dump(config_data, f)
+            json.dump(config_data, f, indent=2)
 
         # Load and verify
         loaded_config = ConfigLoader.load(config_file)
@@ -40,7 +40,7 @@ class TestConfigLoader:
 
     def test_load_preserves_nested_structure(self, tmp_path):
         """Verify nested dictionary structure is preserved when loading."""
-        config_file = tmp_path / "versions.yaml"
+        config_file = tmp_path / "versions.json"
         config_data = {
             "version": "1.0.0",
             "adapters": {
@@ -56,7 +56,7 @@ class TestConfigLoader:
         }
 
         with config_file.open("w") as f:
-            yaml.dump(config_data, f)
+            json.dump(config_data, f, indent=2)
 
         loaded_config = ConfigLoader.load(config_file)
 
@@ -74,20 +74,20 @@ class TestConfigLoader:
         with pytest.raises(FileNotFoundError):
             ConfigLoader.load(missing_file)
 
-    def test_load_invalid_yaml_raises_error(self, tmp_path):
-        """Verify yaml.YAMLError raised for malformed YAML."""
-        invalid_file = tmp_path / "invalid.yaml"
+    def test_load_invalid_json_raises_error(self, tmp_path):
+        """Verify json.JSONDecodeError raised for malformed JSON."""
+        invalid_file = tmp_path / "invalid.json"
 
-        # Write malformed YAML
+        # Write malformed JSON
         with invalid_file.open("w") as f:
-            f.write("version: 1.0.0\ninvalid:\n  - unmatched\n  - bracket: [\n")
+            f.write('{"version": "1.0.0", "invalid": [unmatched}')
 
-        with pytest.raises(yaml.YAMLError):
+        with pytest.raises(json.JSONDecodeError):
             ConfigLoader.load(invalid_file)
 
     def test_save_writes_to_file(self, tmp_path):
-        """Verify saving configuration creates valid YAML file."""
-        config_file = tmp_path / "versions.yaml"
+        """Verify saving configuration creates valid JSON file."""
+        config_file = tmp_path / "versions.json"
         config_data = {
             "version": "1.0.0",
             "infrastructure": {
@@ -102,13 +102,13 @@ class TestConfigLoader:
 
         # Verify content is valid YAML
         with config_file.open() as f:
-            loaded_data = yaml.safe_load(f)
+            loaded_data = json.load(f)
 
         assert loaded_data == config_data
 
     def test_save_preserves_structure(self, tmp_path):
-        """Verify YAML format options are preserved when saving."""
-        config_file = tmp_path / "versions.yaml"
+        """Verify JSON format options are preserved when saving."""
+        config_file = tmp_path / "versions.json"
         config_data = {
             "version": "1.0.0",
             "zebra": "should not be first",
@@ -137,7 +137,7 @@ class TestConfigLoader:
 
     def test_save_overwrites_existing_file(self, tmp_path):
         """Verify saving overwrites existing file content."""
-        config_file = tmp_path / "versions.yaml"
+        config_file = tmp_path / "versions.json"
 
         # Write initial content
         initial_data = {"version": "1.0.0"}
@@ -149,7 +149,7 @@ class TestConfigLoader:
 
         # Verify new content
         with config_file.open() as f:
-            loaded_data = yaml.safe_load(f)
+            loaded_data = json.load(f)
 
         assert loaded_data == new_data
         assert loaded_data["version"] == "2.0.0"
@@ -157,7 +157,7 @@ class TestConfigLoader:
 
     def test_round_trip_preserves_data(self, tmp_path):
         """Verify save then load preserves data integrity."""
-        config_file = tmp_path / "versions.yaml"
+        config_file = tmp_path / "versions.json"
         original_data = {
             "version": "1.0.0",
             "infrastructure": {

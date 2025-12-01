@@ -19,7 +19,7 @@ class TestVersionUpdateOrchestrator:
 
     def test_init_creates_all_checkers(self, mock_checker_stack, tmp_path):
         """Verify orchestrator initializes all checker components."""
-        config_file = tmp_path / "versions.yaml"
+        config_file = tmp_path / "versions.json"
         config_file.touch()
 
         mock_checker_stack["loader"].load.return_value = {"version": "1.0.0"}
@@ -40,7 +40,7 @@ class TestVersionUpdateOrchestrator:
         tmp_path,
     ):
         """Verify orchestrator aggregates infrastructure updates."""
-        config_file = tmp_path / "versions.yaml"
+        config_file = tmp_path / "versions.json"
         config_file.touch()
 
         mock_checker_stack["loader"].load.return_value = {"version": "1.0.0"}
@@ -67,7 +67,7 @@ class TestVersionUpdateOrchestrator:
         tmp_path,
     ):
         """Verify orchestrator aggregates updates from all sections."""
-        config_file = tmp_path / "versions.yaml"
+        config_file = tmp_path / "versions.json"
         config_file.touch()
 
         mock_checker_stack["loader"].load.return_value = {"version": "1.0.0"}
@@ -101,7 +101,7 @@ class TestVersionUpdateOrchestrator:
         tmp_path,
     ):
         """Verify empty dict returned when no updates found."""
-        config_file = tmp_path / "versions.yaml"
+        config_file = tmp_path / "versions.json"
         config_file.touch()
 
         mock_checker_stack["loader"].load.return_value = {"version": "1.0.0"}
@@ -123,7 +123,7 @@ class TestVersionUpdateOrchestrator:
         tmp_path,
     ):
         """Verify infrastructure-only filtering."""
-        config_file = tmp_path / "versions.yaml"
+        config_file = tmp_path / "versions.json"
         config_file.touch()
 
         mock_checker_stack["loader"].load.return_value = {"version": "1.0.0"}
@@ -153,7 +153,7 @@ class TestVersionUpdateOrchestrator:
         tmp_path,
     ):
         """Verify adapters-only filtering."""
-        config_file = tmp_path / "versions.yaml"
+        config_file = tmp_path / "versions.json"
         config_file.touch()
 
         mock_checker_stack["loader"].load.return_value = {"version": "1.0.0"}
@@ -183,7 +183,7 @@ class TestVersionUpdateOrchestrator:
         tmp_path,
     ):
         """Verify package checks run regardless of section filter."""
-        config_file = tmp_path / "versions.yaml"
+        config_file = tmp_path / "versions.json"
         config_file.touch()
 
         mock_checker_stack["loader"].load.return_value = {"version": "1.0.0"}
@@ -212,7 +212,7 @@ class TestVersionUpdateOrchestrator:
     ):
         """Verify debugpy validation results included when invalid or warnings
         present."""
-        config_file = tmp_path / "versions.yaml"
+        config_file = tmp_path / "versions.json"
         config_file.touch()
 
         mock_checker_stack["loader"].load.return_value = {"version": "1.0.0"}
@@ -238,7 +238,7 @@ class TestVersionUpdateOrchestrator:
         tmp_path,
     ):
         """Verify debugpy validation warnings included even when valid."""
-        config_file = tmp_path / "versions.yaml"
+        config_file = tmp_path / "versions.json"
         config_file.touch()
 
         mock_checker_stack["loader"].load.return_value = {"version": "1.0.0"}
@@ -264,7 +264,7 @@ class TestVersionUpdateOrchestrator:
         tmp_path,
     ):
         """Verify all checker methods are invoked."""
-        config_file = tmp_path / "versions.yaml"
+        config_file = tmp_path / "versions.json"
         config_file.touch()
 
         mock_checker_stack["loader"].load.return_value = {"version": "1.0.0"}
@@ -290,7 +290,7 @@ class TestVersionUpdateOrchestrator:
         tmp_path,
     ):
         """Verify orchestrator continues despite individual checker failures."""
-        config_file = tmp_path / "versions.yaml"
+        config_file = tmp_path / "versions.json"
         config_file.touch()
 
         mock_checker_stack["loader"].load.return_value = {"version": "1.0.0"}
@@ -326,7 +326,7 @@ class TestVersionUpdateOrchestrator:
         tmp_path,
     ):
         """Verify loaded config is passed to all checker instances."""
-        config_file = tmp_path / "versions.yaml"
+        config_file = tmp_path / "versions.json"
         config_file.touch()
 
         test_config = {"version": "1.0.0", "test_key": "test_value"}
@@ -351,7 +351,7 @@ class TestVersionUpdateOrchestrator:
         tmp_path,
     ):
         """Verify SectionType constants work correctly."""
-        config_file = tmp_path / "versions.yaml"
+        config_file = tmp_path / "versions.json"
         config_file.touch()
 
         mock_checker_stack["loader"].load.return_value = {"version": "1.0.0"}

@@ -319,7 +319,7 @@ class TestConfigCommands:
 
                 mock_versions_path = Mock()
                 mock_versions_path.exists.return_value = True
-                mock_versions_path.__str__ = Mock(return_value="/repo/versions.yaml")  # type: ignore[method-assign]
+                mock_versions_path.__str__ = Mock(return_value="/repo/versions.json")  # type: ignore[method-assign]
                 mock_cm.versions_file = mock_versions_path
 
                 result = cli_runner.invoke(cli, ["config", "paths"])
@@ -351,7 +351,7 @@ class TestConfigCommands:
 
                 mock_versions_path = Mock()
                 mock_versions_path.exists.return_value = True
-                mock_versions_path.__str__ = Mock(return_value="/repo/versions.yaml")  # type: ignore[method-assign]
+                mock_versions_path.__str__ = Mock(return_value="/repo/versions.json")  # type: ignore[method-assign]
                 mock_cm.versions_file = mock_versions_path
 
                 result = cli_runner.invoke(cli, ["config", "paths"])
@@ -378,7 +378,7 @@ class TestConfigCommands:
 
                 mock_versions_path = Mock()
                 mock_versions_path.exists.return_value = False
-                mock_versions_path.__str__ = Mock(return_value="/repo/versions.yaml")  # type: ignore[method-assign]
+                mock_versions_path.__str__ = Mock(return_value="/repo/versions.json")  # type: ignore[method-assign]
                 mock_cm.versions_file = mock_versions_path
 
                 result = cli_runner.invoke(cli, ["config", "paths"])
@@ -436,7 +436,7 @@ class TestConfigCommands:
                 result = cli_runner.invoke(cli, ["config", "validate"])
                 assert result.exit_code == 1
                 assert "Some configuration issues found" in result.output
-                assert "versions.yaml adapters" in result.output
+                assert "versions.json adapters" in result.output
 
     def test_validate_user_config_syntax_error(self, cli_runner, mock_repo_root):
         """Test validate when user config has syntax errors."""

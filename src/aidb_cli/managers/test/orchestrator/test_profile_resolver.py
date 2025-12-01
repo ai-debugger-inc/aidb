@@ -32,7 +32,7 @@ class TestProfileResolver:
         Priority order (highest to lowest):
         1. Explicit --profile flag
         2. Language detection from target path (frameworks/python/ → python)
-        3. Suite mapping (mcp → mcp, backend → backend, etc.)
+        3. Suite mapping (mcp → mcp, core → core, etc.)
         4. Default to base profile (minimal profile)
 
         Parameters

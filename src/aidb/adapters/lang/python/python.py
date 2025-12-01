@@ -1,12 +1,14 @@
 """Python debug adapter - refactored to use component architecture."""
 
 import asyncio
+import importlib.util
 import sys
 import tempfile
 from pathlib import Path
+from types import ModuleType
 from typing import TYPE_CHECKING, Any
 
-import debugpy
+from aidb_common.path import get_aidb_adapters_dir
 
 from ...base import DebugAdapter
 from ...base.config_mapper import ConfigurationMapper
@@ -157,26 +159,17 @@ class PythonAdapter(DebugAdapter):
         )
 
         # If debugpy connection is needed (not handled by DAP client)
-        if self.port and hasattr(debugpy, "connect"):
+        if self.port:
             try:
-                # debugpy.connect() is a blocking network operation, run in thread
-                await asyncio.to_thread(debugpy.connect, ("localhost", self.port))
-                self.ctx.debug(
-                    f"Connected to debugpy on port {self.port} for PID {pid}",
-                )
+                debugpy = self._import_debugpy_from_adapter()
+                if debugpy and hasattr(debugpy, "connect"):
+                    # debugpy.connect() is a blocking network operation, run in thread
+                    await asyncio.to_thread(debugpy.connect, ("localhost", self.port))
+                    self.ctx.debug(
+                        f"Connected to debugpy on port {self.port} for PID {pid}",
+                    )
             except Exception as e:
                 self.ctx.warning(f"Could not connect debugpy to port {self.port}: {e}")
-
-    def wait_for_client(self) -> None:
-        """Wait for a debugpy client to connect.
-
-        This is a debugpy-specific method for server-mode debugging.
-        """
-        if hasattr(debugpy, "wait_for_client"):
-            debugpy.wait_for_client()
-            self.ctx.debug("Debugpy client connected")
-        else:
-            self.ctx.warning("debugpy.wait_for_client not available")
 
     # ----------------------
     # Hook Registration
@@ -371,6 +364,56 @@ class PythonAdapter(DebugAdapter):
     # Environment & Process
     # ----------------------
 
+    def _import_debugpy_from_adapter(self) -> ModuleType | None:
+        """Dynamically import debugpy from the adapter directory.
+
+        This loads debugpy directly from ~/.aidb/adapters/python/ rather than
+        relying on Python's import system, which ensures we always use our
+        bundled adapter version regardless of what's installed in the environment.
+
+        Returns
+        -------
+        ModuleType | None
+            The debugpy module if found, None otherwise
+        """
+        adapter_dir = get_aidb_adapters_dir() / "python"
+        debugpy_init = adapter_dir / "debugpy" / "__init__.py"
+
+        if not debugpy_init.exists():
+            self.ctx.warning(f"debugpy not found in adapter directory: {adapter_dir}")
+            return None
+
+        try:
+            spec = importlib.util.spec_from_file_location(
+                "debugpy",
+                debugpy_init,
+                submodule_search_locations=[str(adapter_dir / "debugpy")],
+            )
+            if spec is None or spec.loader is None:
+                self.ctx.warning("Failed to create module spec for debugpy")
+                return None
+
+            debugpy = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(debugpy)
+            self.ctx.debug(f"Loaded debugpy from adapter directory: {adapter_dir}")
+            return debugpy
+        except Exception as e:
+            self.ctx.warning(f"Failed to load debugpy from adapter directory: {e}")
+            return None
+
+    def _get_adapter_pythonpath(self) -> str | None:
+        """Get the adapter directory path for PYTHONPATH injection.
+
+        Returns
+        -------
+        str | None
+            Path to ~/.aidb/adapters/python/ if it exists, None otherwise
+        """
+        adapter_dir = get_aidb_adapters_dir() / "python"
+        if adapter_dir.exists():
+            return str(adapter_dir)
+        return None
+
     def _load_env_file(self, env_file_path: str) -> dict[str, str]:
         """Load environment variables from a .env file.
 
@@ -453,6 +496,16 @@ class PythonAdapter(DebugAdapter):
         Dict[str, str]
             Updated environment with Python-specific variables
         """
+        # Prepend adapter path to PYTHONPATH so subprocess finds our debugpy first
+        adapter_path = self._get_adapter_pythonpath()
+        if adapter_path:
+            existing_pythonpath = env.get("PYTHONPATH", "")
+            if existing_pythonpath:
+                env["PYTHONPATH"] = f"{adapter_path}:{existing_pythonpath}"
+            else:
+                env["PYTHONPATH"] = adapter_path
+            self.ctx.debug(f"Prepended adapter path to PYTHONPATH: {adapter_path}")
+
         # Use trace manager's directory if available, otherwise fallback
         if hasattr(self, "_debugpy_log_dir"):
             env["DEBUGPY_LOG_DIR"] = self._debugpy_log_dir

@@ -17,7 +17,7 @@ class TestTestProfileResolver:
     def test_determine_profile_explicit_profile_priority(self):
         """Test explicit --profile flag overrides everything."""
         result = TestProfileResolver.determine_profile(
-            suite="backend",
+            suite="core",
             profile="mcp",
             target=["frameworks/python/"],
         )

@@ -10,7 +10,7 @@ on:
       - reopened
 
 jobs:
-  # Job 0: Load versions from versions.yaml
+  # Job 0: Load versions from versions.json
   load-versions:
     uses: ./.github/workflows/load-versions.yaml
 
@@ -494,7 +494,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "[View Draft Release](https://github.com/${{ github.repository }}/releases/tag/$TAG_NAME)" >> $GITHUB_STEP_SUMMARY
 
-  # Job 9: Generate adapter build matrix dynamically from versions.yaml
+  # Job 9: Generate adapter build matrix dynamically from versions.json
   # Note: Does not depend on create-draft-release - matrix generation can happen early
   generate-adapter-matrix:
     runs-on: ubuntu-latest
@@ -560,7 +560,7 @@ jobs:
           import yaml
           import os
 
-          with open('versions.yaml', 'r') as f:
+          with open('versions.json', 'r') as f:
               versions = yaml.safe_load(f)
 
           adapter = "${{ matrix.adapter }}"
@@ -713,14 +713,14 @@ jobs:
             exit 1
           fi
 
-          # Generate manifest from versions.yaml
+          # Generate manifest from versions.json
           python3 << 'EOF'
           import yaml
           import json
           import os
           from datetime import datetime
 
-          with open('versions.yaml', 'r') as f:
+          with open('versions.json', 'r') as f:
               versions = yaml.safe_load(f)
 
           version = "${{ needs.validate-and-extract-version.outputs.version }}"
@@ -731,7 +731,7 @@ jobs:
               "adapters": {}
           }
 
-          # Build adapter manifest from versions.yaml
+          # Build adapter manifest from versions.json
           for adapter_name, adapter_config in versions['adapters'].items():
               if not adapter_config.get('enabled', True):
                   continue

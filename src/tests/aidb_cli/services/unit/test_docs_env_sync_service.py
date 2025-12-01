@@ -13,26 +13,27 @@ class TestDocsEnvSyncService:
 
     @pytest.fixture
     def versions_yaml_content(self):
-        """Sample versions.yaml content."""
-        return """infrastructure:
-  python:
-    docker_tag: "3.12-slim"
-
-global_packages:
-  pip:
-    pip:
-      version: "25.3"
-    setuptools:
-      version: "80.9.0"
-    wheel:
-      version: "0.45.1"
-"""
+        """Sample versions.json content."""
+        return """{
+  "infrastructure": {
+    "python": {
+      "docker_tag": "3.12-slim"
+    }
+  },
+  "global_packages": {
+    "pip": {
+      "pip": {"version": "25.3"},
+      "setuptools": {"version": "80.9.0"},
+      "wheel": {"version": "0.45.1"}
+    }
+  }
+}"""
 
     @pytest.fixture
     def service_with_files(self, tmp_path, versions_yaml_content):
-        """Create service with versions.yaml and env file paths."""
-        # Create versions.yaml
-        versions_file = tmp_path / "versions.yaml"
+        """Create service with versions.json and env file paths."""
+        # Create versions.json
+        versions_file = tmp_path / "versions.json"
         versions_file.write_text(versions_yaml_content)
 
         # Create docs directory structure
@@ -42,7 +43,7 @@ global_packages:
         with (
             patch(
                 "aidb_cli.core.paths.ProjectPaths.VERSIONS_YAML",
-                Path("versions.yaml"),
+                Path("versions.json"),
             ),
             patch(
                 "aidb_cli.core.paths.ProjectPaths.DOCS_ENV_FILE",
@@ -54,8 +55,8 @@ global_packages:
     @pytest.fixture
     def service_without_env(self, tmp_path, versions_yaml_content):
         """Create service without existing .env file."""
-        # Create versions.yaml only
-        versions_file = tmp_path / "versions.yaml"
+        # Create versions.json only
+        versions_file = tmp_path / "versions.json"
         versions_file.write_text(versions_yaml_content)
 
         # Create docs directory but no .env file
@@ -65,7 +66,7 @@ global_packages:
         with (
             patch(
                 "aidb_cli.core.paths.ProjectPaths.VERSIONS_YAML",
-                Path("versions.yaml"),
+                Path("versions.json"),
             ),
             patch(
                 "aidb_cli.core.paths.ProjectPaths.DOCS_ENV_FILE",
@@ -76,13 +77,13 @@ global_packages:
 
     def test_service_initialization(self, tmp_path, versions_yaml_content):
         """Test service initialization sets up paths correctly."""
-        versions_file = tmp_path / "versions.yaml"
+        versions_file = tmp_path / "versions.json"
         versions_file.write_text(versions_yaml_content)
 
         with (
             patch(
                 "aidb_cli.core.paths.ProjectPaths.VERSIONS_YAML",
-                Path("versions.yaml"),
+                Path("versions.json"),
             ),
             patch(
                 "aidb_cli.core.paths.ProjectPaths.DOCS_ENV_FILE",
@@ -92,14 +93,14 @@ global_packages:
             service = DocsEnvSyncService(tmp_path)
 
             assert service.repo_root == tmp_path
-            assert service.versions_file == tmp_path / "versions.yaml"
+            assert service.versions_file == tmp_path / "versions.json"
             assert (
                 service.env_file == tmp_path / "scripts" / "install" / "docs" / ".env"
             )
             assert service.hash_cache_file == tmp_path / ".cache" / "docs-env-hash"
 
     def test_compute_source_hash(self, service_with_files):
-        """Test computing hash of versions.yaml."""
+        """Test computing hash of versions.json."""
         hash_value = service_with_files._compute_source_hash()
 
         # Should return a valid hash string
@@ -119,10 +120,10 @@ global_packages:
         service_with_files,
         versions_yaml_content,
     ):
-        """Test that hash changes when versions.yaml is modified."""
+        """Test that hash changes when versions.json is modified."""
         initial_hash = service_with_files._compute_source_hash()
 
-        # Modify versions.yaml
+        # Modify versions.json
         modified_content = versions_yaml_content.replace("3.12-slim", "3.13-slim")
         service_with_files.versions_file.write_text(modified_content)
 
@@ -176,11 +177,11 @@ global_packages:
         assert service_with_files.needs_sync() is False
 
     def test_generate_env_content(self, service_with_files):
-        """Test generating .env file content from versions.yaml."""
+        """Test generating .env file content from versions.json."""
         content = service_with_files._generate_env_content()
 
         # Verify header
-        assert "Auto-generated from versions.yaml" in content
+        assert "Auto-generated from versions.json" in content
         assert "DO NOT EDIT MANUALLY" in content
 
         # Verify Python tag
@@ -280,11 +281,11 @@ global_packages:
         # Should not need sync
         assert service_with_files.needs_sync() is False
 
-        # Modify versions.yaml
+        # Modify versions.json
         modified_content = versions_yaml_content.replace("3.12-slim", "3.13-slim")
         service_with_files.versions_file.write_text(modified_content)
 
-        # Create a new service instance to force reload of versions.yaml
+        # Create a new service instance to force reload of versions.json
         from aidb_cli.services.docs.docs_env_sync_service import DocsEnvSyncService
 
         new_service = DocsEnvSyncService(service_with_files.repo_root)
@@ -329,13 +330,13 @@ global_packages:
 
     def test_hash_cache_directory_creation(self, tmp_path, versions_yaml_content):
         """Test that hash cache directory is created if needed."""
-        versions_file = tmp_path / "versions.yaml"
+        versions_file = tmp_path / "versions.json"
         versions_file.write_text(versions_yaml_content)
 
         with (
             patch(
                 "aidb_cli.core.paths.ProjectPaths.VERSIONS_YAML",
-                Path("versions.yaml"),
+                Path("versions.json"),
             ),
             patch(
                 "aidb_cli.core.paths.ProjectPaths.DOCS_ENV_FILE",

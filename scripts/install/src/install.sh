@@ -153,8 +153,8 @@ pip_install() {
         echo "Error: Failed to upgrade pip, setuptools, or wheel"
         exit 1
     }
-    "${PYTHON}" -m pip install -e "${REPO_ROOT}/.[dev,backend,docs,test]" --use-pep517 || {
-        echo "Error: Failed to install AI Debugger main module with [dev,backend,docs,test] extras"
+    "${PYTHON}" -m pip install -e "${REPO_ROOT}/.[dev,docs,test]" --use-pep517 || {
+        echo "Error: Failed to install AI Debugger main module with [dev,docs,test] extras"
         exit 1
     }
 }

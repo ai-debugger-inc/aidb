@@ -1,4 +1,4 @@
-"""Service for syncing versions.yaml to docs .env file."""
+"""Service for syncing versions.json to docs .env file."""
 
 from datetime import datetime, timezone
 from pathlib import Path
@@ -12,10 +12,10 @@ logger = get_cli_logger(__name__)
 
 
 class DocsEnvSyncService:
-    """Service for syncing versions from versions.yaml to docs .env file.
+    """Service for syncing versions from versions.json to docs .env file.
 
     This service ensures the docs Docker compose .env file stays in sync with
-    versions.yaml by auto-generating it with hash-based change detection.
+    versions.json by auto-generating it with hash-based change detection.
     """
 
     def __init__(self, repo_root: Path) -> None:
@@ -38,7 +38,7 @@ class DocsEnvSyncService:
         Returns
         -------
         str
-            Hash of versions.yaml
+            Hash of versions.json
         """
         return compute_files_hash([self.versions_file])
 
@@ -78,14 +78,14 @@ class DocsEnvSyncService:
         cached_hash = self._get_cached_hash()
 
         if cached_hash != current_hash:
-            logger.debug("versions.yaml changed (hash mismatch), sync needed")
+            logger.debug("versions.json changed (hash mismatch), sync needed")
             return True
 
         logger.debug("No changes detected, using existing docs .env file")
         return False
 
     def _generate_env_content(self) -> str:
-        """Generate .env file content from versions.yaml.
+        """Generate .env file content from versions.json.
 
         Returns
         -------
@@ -94,7 +94,7 @@ class DocsEnvSyncService:
         """
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
-        # Get all docker build args from versions.yaml
+        # Get all docker build args from versions.json
         build_args = self.version_manager.get_docker_build_args()
 
         # Extract needed values
@@ -103,13 +103,13 @@ class DocsEnvSyncService:
         setuptools_version = build_args["SETUPTOOLS_VERSION"]
         wheel_version = build_args["WHEEL_VERSION"]
 
-        return f"""# Auto-generated from versions.yaml - DO NOT EDIT MANUALLY
+        return f"""# Auto-generated from versions.json - DO NOT EDIT MANUALLY
 # Generated: {now}
 # This file is automatically synced before docs docker operations
 
 PYTHON_TAG=python:{python_base_tag}
 
-# Global package versions (from versions.yaml::global_packages)
+# Global package versions (from versions.json::global_packages)
 PIP_VERSION={pip_version}
 SETUPTOOLS_VERSION={setuptools_version}
 WHEEL_VERSION={wheel_version}
@@ -121,7 +121,7 @@ WHEEL_VERSION={wheel_version}
 """
 
     def sync(self, force: bool = False) -> bool:
-        """Sync versions.yaml to docs .env file.
+        """Sync versions.json to docs .env file.
 
         Parameters
         ----------
@@ -136,7 +136,7 @@ WHEEL_VERSION={wheel_version}
         if not force and not self.needs_sync():
             return False
 
-        logger.info("Syncing versions.yaml to docs .env file...")
+        logger.info("Syncing versions.json to docs .env file...")
 
         content = self._generate_env_content()
         self.env_file.parent.mkdir(parents=True, exist_ok=True)
@@ -147,7 +147,7 @@ WHEEL_VERSION={wheel_version}
         return True
 
     def sync_if_needed(self) -> bool:
-        """Sync .env file only if versions.yaml changed.
+        """Sync .env file only if versions.json changed.
 
         Convenience method that always checks need before syncing.
 

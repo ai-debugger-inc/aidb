@@ -19,7 +19,7 @@ class TestBuildManager:
         manager = BuildManager(repo_root=tmp_path)
 
         assert manager.repo_root == tmp_path
-        assert manager.versions_file == tmp_path / "versions.yaml"
+        assert manager.versions_file == tmp_path / "versions.json"
         assert manager.user_cache_dir.exists()
         assert manager.repo_cache_dir.exists()
 

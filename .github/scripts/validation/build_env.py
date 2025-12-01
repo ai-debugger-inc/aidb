@@ -3,18 +3,17 @@
 Build Environment Validation Script
 
 Validates that the current environment has all necessary dependencies
-to build the specified adapters based on versions.yaml configuration.
+to build the specified adapters based on versions.json configuration.
 """
 
 import argparse
+import json
 import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
-
-import yaml
 
 
 class ValidationError(Exception):
@@ -24,18 +23,18 @@ class ValidationError(Exception):
 class BuildEnvironmentValidator:
     """Validates build environment dependencies."""
 
-    def __init__(self, versions_file: str = "versions.yaml"):
+    def __init__(self, versions_file: str = "versions.json"):
         """Initialize validator with versions configuration."""
         self.versions_file = Path(versions_file)
         self.versions = self._load_versions()
 
     def _load_versions(self) -> dict:
-        """Load and validate versions.yaml configuration."""
+        """Load and validate versions.json configuration."""
         if not self.versions_file.exists():
             raise ValidationError(f"Versions file not found: {self.versions_file}")
 
         with open(self.versions_file) as f:
-            versions = yaml.safe_load(f)
+            versions = json.load(f)
 
         return versions
 
@@ -157,13 +156,6 @@ class BuildEnvironmentValidator:
             python_version = self._check_command_version(python_cmd, "--version")
             print(f"[OK] Python found: {python_version}")
 
-            # Check PyYAML
-            try:
-                import yaml
-                print(f"[OK] PyYAML found: {yaml.__version__}")
-            except ImportError:
-                issues.append("PyYAML not found (required for configuration parsing)")
-
         return issues
 
     def validate_environment(self, adapters: list[str] = None) -> dict[str, Any]:
@@ -232,7 +224,7 @@ def main():
     parser = argparse.ArgumentParser(description="Validate build environment dependencies")
     parser.add_argument("--adapters", nargs="*",
                        help="Adapters to validate (default: all)")
-    parser.add_argument("--versions-file", default="versions.yaml",
+    parser.add_argument("--versions-file", default="versions.json",
                        help="Path to versions configuration file")
     parser.add_argument("--quiet", action="store_true",
                        help="Suppress detailed output, only show final result")

@@ -90,7 +90,7 @@ Trigger via: `gh workflow run test-parallel.yaml -f debug_logging=true`
 
 - **pip/npm/maven:** Cached via setup actions
 - **Docker:** Layer caching via buildx + GitHub Actions cache
-- **Adapters:** Keyed by `versions.yaml` hash
+- **Adapters:** Keyed by `versions.json` hash
 
 ## Auto-Detecting Summary
 

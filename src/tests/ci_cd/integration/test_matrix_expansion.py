@@ -20,17 +20,17 @@ class TestMatrixExpansion:
         repo_root : Path
             Repository root path.
         """
-        versions_file = repo_root / "versions.yaml"
+        versions_file = repo_root / "versions.json"
 
         if not versions_file.exists():
-            pytest.skip("versions.yaml not found")
+            pytest.skip("versions.json not found")
 
         with versions_file.open("r") as f:
             versions = yaml.safe_load(f)
 
         # Check adapters configuration
         adapters = versions.get("adapters", {})
-        assert len(adapters) > 0, "No adapters defined in versions.yaml"
+        assert len(adapters) > 0, "No adapters defined in versions.json"
 
         # Verify each adapter has required fields
         for lang, adapter_config in adapters.items():
@@ -44,7 +44,7 @@ class TestMatrixExpansion:
 
         # Check platforms configuration
         platforms = versions.get("platforms", [])
-        assert len(platforms) > 0, "No platforms defined in versions.yaml"
+        assert len(platforms) > 0, "No platforms defined in versions.json"
 
         for platform in platforms:
             assert "os" in platform, "Platform missing 'os' field"

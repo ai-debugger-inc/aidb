@@ -1,17 +1,15 @@
 """Centralized version management for AIDB shared components.
 
 This replicates and generalizes the CLI VersionManager so it can be used by CLI, tests,
-MCP, or backend without duplication.
+and MCP without duplication.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import TYPE_CHECKING, Any
 
-import yaml
-
-from aidb_common.io import safe_read_yaml
 from aidb_common.io.files import FileOperationError
 from aidb_common.repo import detect_repo_root
 
@@ -22,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class VersionManager:
-    """Manages version information from versions.yaml."""
+    """Manages version information from versions.json."""
 
     def __init__(self, versions_file: Path | None = None):
         """Initialize the version manager.
@@ -30,12 +28,12 @@ class VersionManager:
         Parameters
         ----------
         versions_file : Path, optional
-            Path to versions.yaml file. Defaults to repo root versions.yaml.
+            Path to versions.json file. Defaults to repo root versions.json.
         """
         if versions_file is None:
-            # Use shared repo detection to locate versions.yaml
+            # Use shared repo detection to locate versions.json
             repo_root = detect_repo_root()
-            versions_file = repo_root / "versions.yaml"
+            versions_file = repo_root / "versions.json"
 
         self.versions_file = versions_file
         self._versions_data: dict[str, Any] | None = None
@@ -49,19 +47,23 @@ class VersionManager:
         return self._versions_data
 
     def _load_versions(self) -> None:
-        """Load versions from versions.yaml."""
+        """Load versions from versions.json."""
         if not self.versions_file.exists():
             msg = f"Versions file not found: {self.versions_file}"
             logger.error(msg)
             raise FileNotFoundError(msg)
 
         try:
-            data = safe_read_yaml(self.versions_file) or {}
-        except FileOperationError as e:
-            # Normalize to previous contract by raising ValueError for parse issues
-            msg = f"Invalid YAML in {self.versions_file}: {e}"
+            with self.versions_file.open(encoding="utf-8") as f:
+                data = json.load(f)
+        except json.JSONDecodeError as e:
+            msg = f"Invalid JSON in {self.versions_file}: {e}"
             logger.error(msg)
             raise ValueError(msg) from e
+        except OSError as e:
+            msg = f"Cannot read versions file {self.versions_file}: {e}"
+            logger.error(msg)
+            raise FileOperationError(msg) from e
 
         if not isinstance(data, dict):
             msg = (
@@ -169,7 +171,7 @@ class VersionManager:
         return None
 
     def get_docker_build_args(self) -> dict[str, str]:
-        """Generate Docker build arguments from versions.yaml.
+        """Generate Docker build arguments from versions.json.
 
         Returns all versions as ARG-ready key-value pairs for docker-compose
         and Dockerfile consumption.
@@ -332,12 +334,16 @@ class VersionManager:
 
     def format_versions_output(self, format_type: str = "text") -> str:
         """Format version information for display."""
-        import json as _json
-
         if format_type == "json":
-            return _json.dumps(self.get_all_versions(), indent=2)
+            return json.dumps(self.get_all_versions(), indent=2)
         if format_type == "yaml":
-            return yaml.dump(self.get_all_versions(), default_flow_style=False)
+            # YAML output requires pyyaml (dev dependency only)
+            try:
+                import yaml
+
+                return yaml.dump(self.get_all_versions(), default_flow_style=False)
+            except ImportError:
+                return json.dumps(self.get_all_versions(), indent=2)
         if format_type == "env":
             build_args = self.get_docker_build_args()
             lines = [f"export {key}={value}" for key, value in build_args.items()]

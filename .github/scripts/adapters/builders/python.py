@@ -23,7 +23,7 @@ class PythonAdapterBuilder(AdapterBuilder):
         return "python"
 
     def get_adapter_config(self) -> Dict:
-        """Get Python adapter configuration from versions.yaml."""
+        """Get Python adapter configuration from versions.json."""
         return self.versions["adapters"]["python"]
 
     def clone_repository(self) -> Path:

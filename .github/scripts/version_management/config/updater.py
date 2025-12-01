@@ -1,4 +1,4 @@
-"""Configuration updater for applying version updates to versions.yaml."""
+"""Configuration updater for applying version updates to versions.json."""
 
 from datetime import datetime
 from pathlib import Path
@@ -8,7 +8,7 @@ from .loader import ConfigLoader
 
 
 class ConfigUpdater:
-    """Applies version updates to versions.yaml configuration."""
+    """Applies version updates to versions.json configuration."""
 
     def __init__(self, config_path: Path):
         """Initialize updater.
@@ -16,7 +16,7 @@ class ConfigUpdater:
         Parameters
         ----------
         config_path : Path
-            Path to versions.yaml
+            Path to versions.json
         """
         self.config_path = config_path
         self.config = ConfigLoader.load(config_path)

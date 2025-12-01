@@ -56,7 +56,9 @@ class TestDockerImageChecksumService:
         """Create service with sample dependency files."""
         # Create minimal dependency files
         (tmp_path / "pyproject.toml").write_text("[project]\nname = 'test'")
-        (tmp_path / "versions.yaml").write_text("python: '3.12'")
+        (tmp_path / "versions.json").write_text(
+            '{"infrastructure": {"python": "3.12"}}'
+        )
 
         # Create docker directory structure
         docker_dir = tmp_path / "src/tests/_docker"

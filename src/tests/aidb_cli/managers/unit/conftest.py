@@ -1,7 +1,7 @@
 """CLI-specific test configuration and fixtures.
 
 This module provides fixtures and configuration specific to CLI testing, ensuring
-complete isolation from backend dependencies.
+complete isolation from core AIDB dependencies.
 
 Note: Fixtures from _fixtures/base, _fixtures/docker_simple, and _fixtures/mcp are
 available through the root conftest.py which already imports them.

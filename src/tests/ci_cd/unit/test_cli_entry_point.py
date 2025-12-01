@@ -29,17 +29,17 @@ class TestCLIArgumentParsing:
     def test_section_argument_validation(self):
         """Verify section argument accepts valid choices."""
         test_cases = [
-            (["cli.py", "--config", "versions.yaml"], SectionType.ALL),
+            (["cli.py", "--config", "versions.json"], SectionType.ALL),
             (
-                ["cli.py", "--config", "versions.yaml", "--section", "infrastructure"],
+                ["cli.py", "--config", "versions.json", "--section", "infrastructure"],
                 SectionType.INFRASTRUCTURE,
             ),
             (
-                ["cli.py", "--config", "versions.yaml", "--section", "adapters"],
+                ["cli.py", "--config", "versions.json", "--section", "adapters"],
                 SectionType.ADAPTERS,
             ),
             (
-                ["cli.py", "--config", "versions.yaml", "--section", "all"],
+                ["cli.py", "--config", "versions.json", "--section", "all"],
                 SectionType.ALL,
             ),
         ]
@@ -51,18 +51,18 @@ class TestCLIArgumentParsing:
 
     def test_default_section_is_all(self):
         """Verify default section value when not specified."""
-        with patch("sys.argv", ["cli.py", "--config", "versions.yaml"]):
+        with patch("sys.argv", ["cli.py", "--config", "versions.json"]):
             args = parse_arguments()
             assert args.section == SectionType.ALL
 
     def test_boolean_flags(self):
         """Verify --update and --output-github boolean flags work."""
         test_cases = [
-            (["cli.py", "--config", "versions.yaml"], False, False),
-            (["cli.py", "--config", "versions.yaml", "--update"], True, False),
-            (["cli.py", "--config", "versions.yaml", "--output-github"], False, True),
+            (["cli.py", "--config", "versions.json"], False, False),
+            (["cli.py", "--config", "versions.json", "--update"], True, False),
+            (["cli.py", "--config", "versions.json", "--output-github"], False, True),
             (
-                ["cli.py", "--config", "versions.yaml", "--update", "--output-github"],
+                ["cli.py", "--config", "versions.json", "--update", "--output-github"],
                 True,
                 True,
             ),
@@ -121,7 +121,7 @@ class TestCLIOrchestration:
         tmp_path,
     ):
         """Verify CLI calls orchestrator with correct configuration and section."""
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         config_path.write_text("version: 1.0.0\ninfrastructure: {}")
 
         mock_orchestrator = mock_orchestrator_class.return_value
@@ -152,7 +152,7 @@ class TestCLIOrchestration:
         tmp_path,
     ):
         """Verify exit code 0 when no updates are found."""
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         config_path.write_text("version: 1.0.0\ninfrastructure: {}")
 
         mock_orchestrator = mock_orchestrator_class.return_value
@@ -175,7 +175,7 @@ class TestCLIOrchestration:
         tmp_path,
     ):
         """Verify exit code 1 when updates are found."""
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         config_path.write_text("version: 1.0.0\ninfrastructure: {}")
 
         mock_orchestrator = mock_orchestrator_class.return_value
@@ -210,7 +210,7 @@ class TestCLIReporting:
         tmp_path,
     ):
         """Verify ConsoleReporter is used when --output-github is not set."""
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         config_path.write_text("version: 1.0.0\ninfrastructure: {}")
 
         mock_orchestrator = mock_orchestrator_class.return_value
@@ -235,7 +235,7 @@ class TestCLIReporting:
         tmp_path,
     ):
         """Verify GitHubActionsReporter is used with --output-github flag."""
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         config_path.write_text("version: 1.0.0\ninfrastructure: {}")
 
         mock_orchestrator = mock_orchestrator_class.return_value
@@ -270,7 +270,7 @@ class TestCLIConfigUpdates:
         capsys,
     ):
         """Verify updates are applied and saved when --update flag is set."""
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         config_path.write_text("version: 1.0.0\ninfrastructure: {}")
 
         mock_orchestrator = mock_orchestrator_class.return_value
@@ -313,7 +313,7 @@ class TestCLIErrorHandling:
         capsys,
     ):
         """Verify Ctrl+C exits cleanly with appropriate message."""
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         config_path.write_text("infrastructure:\n  python: {version: '3.11'}")
 
         # Simulate KeyboardInterrupt during orchestration
@@ -339,7 +339,7 @@ class TestCLIErrorHandling:
         capsys,
     ):
         """Verify unexpected errors are reported cleanly."""
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         config_path.write_text("infrastructure:\n  python: {version: '3.11'}")
 
         # Simulate unexpected exception
@@ -369,7 +369,7 @@ class TestCLIErrorHandling:
         tmp_path,
     ):
         """Verify auto-merge flag is calculated and passed to reporter."""
-        config_path = tmp_path / "versions.yaml"
+        config_path = tmp_path / "versions.json"
         config_path.write_text("infrastructure:\n  python: {version: '3.11'}")
 
         updates = {

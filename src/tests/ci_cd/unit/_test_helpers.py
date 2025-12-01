@@ -95,7 +95,7 @@ def mock_script_environment(platform="Linux", machine="x86_64", yaml_data=None):
 
 
 def create_mock_versions_config(**overrides) -> dict[str, Any]:
-    """Create a mock versions.yaml configuration with sensible defaults.
+    """Create a mock versions.json configuration with sensible defaults.
 
     Parameters
     ----------

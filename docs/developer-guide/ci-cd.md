@@ -13,7 +13,7 @@ CI/CD infrastructure for AIDB: testing, releases, and adapter builds.
 
 ## Workflows Overview
 
-All workflows in `.github/workflows/`. Configuration in `versions.yaml` (single source of truth).
+All workflows in `.github/workflows/`. Configuration in `versions.json` (single source of truth).
 
 ### Testing (`test-parallel.yaml`)
 
@@ -74,7 +74,7 @@ git push origin release/X.Y.Z
 
 | File | Purpose |
 |------|---------|
-| `versions.yaml` | Adapter versions, platforms, infrastructure versions |
+| `versions.json` | Adapter versions, platforms, infrastructure versions |
 | `.github/testing-config.yaml` | Framework testing, suite configuration |
 | `.github/config/adapter-sources.yaml` | Upstream adapter repos for watchdog |
 

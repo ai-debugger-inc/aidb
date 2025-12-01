@@ -61,7 +61,7 @@ jobs:
         id: check
         run: |
           python .github/scripts/version_management/cli.py \
-            --config versions.yaml \
+            --config versions.json \
             --section "${{ github.event.inputs.section || 'all' }}" \
             --output-github
 
@@ -69,7 +69,7 @@ jobs:
         if: steps.check.outputs.has_updates == 'true'
         run: |
           python .github/scripts/version_management/cli.py \
-            --config versions.yaml \
+            --config versions.json \
             --section "${{ github.event.inputs.section || 'all' }}" \
             --update
 
@@ -79,7 +79,7 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git checkout -B maintenance
-          git add versions.yaml
+          git add versions.json
 
           # Create commit message based on update types
           if [[ "${{ steps.check.outputs.auto_merge }}" == "true" ]]; then
@@ -208,7 +208,7 @@ jobs:
           import os
           from datetime import datetime, timedelta
 
-          with open('versions.yaml') as f:
+          with open('versions.json') as f:
               config = yaml.safe_load(f)
 
           eol_versions = []
@@ -268,7 +268,7 @@ jobs:
             ${{ steps.eol.outputs.eol_versions }}
 
             ### Action Required
-            - [ ] Remove EOL versions from \`versions.yaml\`
+            - [ ] Remove EOL versions from \`versions.json\`
             - [ ] Update CI workflows if needed
             - [ ] Verify no production dependencies on EOL versions
             - [ ] Consider migration guide for users

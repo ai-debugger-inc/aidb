@@ -12,7 +12,7 @@ class TestDetectRepoRoot:
 
     def test_detect_from_repo_root(self, tmp_path: Path) -> None:
         """Test detection from repository root directory."""
-        (tmp_path / "versions.yaml").touch()
+        (tmp_path / "versions.json").touch()
         (tmp_path / "pyproject.toml").touch()
 
         result = detect_repo_root(tmp_path)
@@ -20,7 +20,7 @@ class TestDetectRepoRoot:
 
     def test_detect_from_subdirectory(self, tmp_path: Path) -> None:
         """Test detection from subdirectory."""
-        (tmp_path / "versions.yaml").touch()
+        (tmp_path / "versions.json").touch()
         (tmp_path / "pyproject.toml").touch()
 
         subdir = tmp_path / "src" / "package"
@@ -31,7 +31,7 @@ class TestDetectRepoRoot:
 
     def test_detect_from_nested_subdirectory(self, tmp_path: Path) -> None:
         """Test detection from deeply nested subdirectory."""
-        (tmp_path / "versions.yaml").touch()
+        (tmp_path / "versions.json").touch()
         (tmp_path / "pyproject.toml").touch()
 
         deep_dir = tmp_path / "a" / "b" / "c" / "d"
@@ -41,8 +41,8 @@ class TestDetectRepoRoot:
         assert result == tmp_path
 
     def test_only_versions_yaml_not_sufficient(self, tmp_path: Path) -> None:
-        """Test that only versions.yaml is not sufficient."""
-        (tmp_path / "versions.yaml").touch()
+        """Test that only versions.json is not sufficient."""
+        (tmp_path / "versions.json").touch()
 
         subdir = tmp_path / "src"
         subdir.mkdir()
@@ -64,7 +64,7 @@ class TestDetectRepoRoot:
         """Test that both markers are required."""
         only_versions = tmp_path / "only_versions"
         only_versions.mkdir()
-        (only_versions / "versions.yaml").touch()
+        (only_versions / "versions.json").touch()
 
         only_pyproject = tmp_path / "only_pyproject"
         only_pyproject.mkdir()
@@ -72,7 +72,7 @@ class TestDetectRepoRoot:
 
         both_markers = tmp_path / "both"
         both_markers.mkdir()
-        (both_markers / "versions.yaml").touch()
+        (both_markers / "versions.json").touch()
         (both_markers / "pyproject.toml").touch()
 
         result = detect_repo_root(both_markers)
@@ -93,12 +93,12 @@ class TestDetectRepoRoot:
         """Test that closest repo root is found when repositories are nested."""
         outer_root = tmp_path / "outer"
         outer_root.mkdir()
-        (outer_root / "versions.yaml").touch()
+        (outer_root / "versions.json").touch()
         (outer_root / "pyproject.toml").touch()
 
         inner_root = outer_root / "inner"
         inner_root.mkdir()
-        (inner_root / "versions.yaml").touch()
+        (inner_root / "versions.json").touch()
         (inner_root / "pyproject.toml").touch()
 
         deep_dir = inner_root / "src" / "package"
@@ -123,7 +123,7 @@ class TestDetectRepoRootEdgeCases:
         """Test detection with symlinked directory."""
         real_root = tmp_path / "real"
         real_root.mkdir()
-        (real_root / "versions.yaml").touch()
+        (real_root / "versions.json").touch()
         (real_root / "pyproject.toml").touch()
 
         link_dir = tmp_path / "link"
@@ -138,7 +138,7 @@ class TestDetectRepoRootEdgeCases:
         """Test detection with read-only directory."""
         repo_root = tmp_path / "repo"
         repo_root.mkdir()
-        (repo_root / "versions.yaml").touch()
+        (repo_root / "versions.json").touch()
         (repo_root / "pyproject.toml").touch()
 
         subdir = repo_root / "src"
@@ -153,7 +153,7 @@ class TestDetectRepoRootEdgeCases:
         unicode_dir.mkdir(parents=True)
 
         root = tmp_path / "测试"
-        (root / "versions.yaml").touch()
+        (root / "versions.json").touch()
         (root / "pyproject.toml").touch()
 
         result = detect_repo_root(unicode_dir)
@@ -161,7 +161,7 @@ class TestDetectRepoRootEdgeCases:
 
     def test_returns_path_object(self, tmp_path: Path) -> None:
         """Test that result is always a Path object."""
-        (tmp_path / "versions.yaml").touch()
+        (tmp_path / "versions.json").touch()
         (tmp_path / "pyproject.toml").touch()
 
         result = detect_repo_root(tmp_path)
@@ -182,7 +182,7 @@ class TestDetectRepoRootRealWorld:
         """Test detection with absolute path."""
         repo_root = tmp_path / "repo"
         repo_root.mkdir()
-        (repo_root / "versions.yaml").touch()
+        (repo_root / "versions.json").touch()
         (repo_root / "pyproject.toml").touch()
 
         subdir = repo_root / "src"
@@ -199,7 +199,7 @@ class TestDetectRepoRootRealWorld:
         """Test detection with relative path."""
         repo_root = tmp_path / "repo"
         repo_root.mkdir()
-        (repo_root / "versions.yaml").touch()
+        (repo_root / "versions.json").touch()
         (repo_root / "pyproject.toml").touch()
 
         subdir = repo_root / "src"

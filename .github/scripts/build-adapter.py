@@ -5,13 +5,13 @@ This is the entry point that uses the modular adapter build system.
 """
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
 # Add the scripts directory to path so we can import the adapters package
 sys.path.insert(0, str(Path(__file__).parent))
 
-import yaml
 from adapters import get_builder, ADAPTER_BUILDERS
 
 
@@ -20,7 +20,7 @@ def main():
     parser.add_argument("adapter", nargs="?", help="Adapter to build (javascript, java)")
     parser.add_argument("--platform", help="Target platform (linux, darwin, windows)")
     parser.add_argument("--arch", help="Target architecture (x64, arm64)")
-    parser.add_argument("--versions-file", default="versions.yaml",
+    parser.add_argument("--versions-file", default="versions.json",
                        help="Path to versions configuration file")
     parser.add_argument("--list", action="store_true", help="List available adapters")
     parser.add_argument("--validate-only", action="store_true",
@@ -36,7 +36,7 @@ def main():
             sys.exit(1)
 
         with open(versions_file) as f:
-            versions = yaml.safe_load(f)
+            versions = json.load(f)
 
         # Handle list command
         if args.list:

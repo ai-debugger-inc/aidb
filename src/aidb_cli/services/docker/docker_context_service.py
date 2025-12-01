@@ -62,7 +62,7 @@ class DockerContextService(BaseService):
     def get_build_args(self) -> dict[str, str]:
         """Get Docker build arguments.
 
-        Pulls versions from versions.yaml when available and falls back to sensible
+        Pulls versions from versions.json when available and falls back to sensible
         defaults. Avoids relying on non-existent attributes of VersionManager.
         """
         # Base image/version defaults

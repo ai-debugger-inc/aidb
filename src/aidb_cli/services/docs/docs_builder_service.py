@@ -62,7 +62,7 @@ class DocsBuilderService(BaseService):
     def ensure_compose_file(self) -> Path:
         """Ensure the Docker compose file exists.
 
-        Auto-syncs versions.yaml to .env file before checking.
+        Auto-syncs versions.json to .env file before checking.
 
         Returns
         -------

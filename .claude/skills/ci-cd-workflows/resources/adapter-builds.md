@@ -26,7 +26,7 @@ Debug adapter build workflows, artifact management, and platform matrix.
 ```
 Release published (0.1.0)
     ↓
-Generate matrix from versions.yaml
+Generate matrix from versions.json
     ↓
 Build adapters in parallel (per adapter × platform × arch)
     ↓
@@ -39,7 +39,7 @@ Upload to existing release
 
 ## Matrix Generation
 
-Script `.github/scripts/utils/matrix_generator.py` reads `versions.yaml` and generates adapter × platform × arch combinations. Java uses universal build (platform-independent).
+Script `.github/scripts/utils/matrix_generator.py` reads `versions.json` and generates adapter × platform × arch combinations. Java uses universal build (platform-independent).
 
 ## Build Scripts
 
@@ -71,36 +71,45 @@ Each builder: fetches sources → runs build → packages tarball → generates 
 
 Host platform override sets: `AIDB_USE_HOST_PLATFORM=1`, `AIDB_BUILD_PLATFORM`, `AIDB_BUILD_ARCH`
 
-## Configuration (versions.yaml)
+## Configuration (versions.json)
 
-```yaml
-adapters:
-  javascript:
-    version: v1.104.0
-    repo: microsoft/vscode-js-debug
-    build_deps:
-      node_version: "18"  # Upstream requirement
-  java:
-    version: 0.53.1
-    repo: microsoft/java-debug
-    build_deps:
-      java_version: "21"
-  python:
-    version: "1.8.0"
-    repo: "microsoft/debugpy"
-
-platforms:
-  - os: ubuntu-latest
-    platform: linux
-    arch: x64
-  # ... more platforms
+```json
+{
+  "adapters": {
+    "javascript": {
+      "version": "v1.104.0",
+      "repo": "microsoft/vscode-js-debug",
+      "build_deps": {
+        "node_version": "18"
+      }
+    },
+    "java": {
+      "version": "0.53.1",
+      "repo": "microsoft/java-debug",
+      "build_deps": {
+        "java_version": "21"
+      }
+    },
+    "python": {
+      "version": "1.8.0",
+      "repo": "microsoft/debugpy"
+    }
+  },
+  "platforms": [
+    {
+      "os": "ubuntu-latest",
+      "platform": "linux",
+      "arch": "x64"
+    }
+  ]
+}
 ```
 
 ## Troubleshooting
 
 **Build failures:**
 
-- Verify `versions.yaml` adapter versions
+- Verify `versions.json` adapter versions
 - Check upstream repository accessibility
 - Match build dependencies (Node 18 for JS, JDK 21 for Java)
 
@@ -126,5 +135,5 @@ platforms:
 - `.github/workflows/adapter-build.yaml` - Production builds
 - `.github/workflows/adapter-build-act.yaml` - Local builds
 - `.github/scripts/build-adapter.py` - Build orchestrator
-- `versions.yaml` - Adapter versions and platforms
+- `versions.json` - Adapter versions and platforms
 - `docs/developer-guide/ci-cd.md` - Complete CI/CD reference

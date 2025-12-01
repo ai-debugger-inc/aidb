@@ -12,6 +12,6 @@ class BaseChecker:
         Parameters
         ----------
         config : dict[str, Any]
-            Loaded versions.yaml configuration
+            Loaded versions.json configuration
         """
         self.config = config

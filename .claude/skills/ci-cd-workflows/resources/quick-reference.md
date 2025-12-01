@@ -53,7 +53,7 @@ act -W .github/workflows/test-parallel.yaml
 
 | File                          | Purpose                                                        |
 | ----------------------------- | -------------------------------------------------------------- |
-| `versions.yaml`               | Infrastructure versions (Python, Node, Java), adapter versions |
+| `versions.json`               | Infrastructure versions (Python, Node, Java), adapter versions |
 | `.github/testing-config.yaml` | Framework test configuration                                   |
 | `.github/dependabot.yaml`     | Dependabot configuration                                       |
 | `.actrc`                      | Local CI configuration                                         |
@@ -89,7 +89,7 @@ Located in `.github/scripts/`:
 
 | Script                       | Purpose                          |
 | ---------------------------- | -------------------------------- |
-| `quick_validate_versions.py` | Validate versions.yaml           |
+| `quick_validate_versions.py` | Validate versions.json           |
 | `format_job_summary.py`      | Auto-detect test results         |
 | `build-adapter.py`           | Adapter build orchestrator       |
 | `wait_for_check.py`          | Cross-workflow dependency        |
@@ -99,7 +99,7 @@ Located in `.github/scripts/`:
 
 **Dual automation:**
 
-- `versions.yaml` - Infrastructure & adapters (monitored every 12 hours)
+- `versions.json` - Infrastructure & adapters (monitored every 12 hours)
 - `pyproject.toml` - App dependencies (Dependabot PRs)
 
 **Dependabot branch flow:**

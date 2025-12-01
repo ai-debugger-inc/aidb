@@ -1,4 +1,4 @@
-"""Configuration management for versions.yaml."""
+"""Configuration management for versions.json."""
 
 from .loader import ConfigLoader
 from .updater import ConfigUpdater

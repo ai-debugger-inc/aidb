@@ -20,7 +20,7 @@ class NpmRegistrySource(VersionSource):
         Parameters
         ----------
         package : str
-            Package name (from versions.yaml, may use underscores)
+            Package name (from versions.json, may use underscores)
 
         Returns
         -------

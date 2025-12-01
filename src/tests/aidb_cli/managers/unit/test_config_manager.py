@@ -27,8 +27,8 @@ class TestConfigManager:
         repo_root = tmp_path / "repo"
         repo_root.mkdir()
 
-        # Create versions.yaml
-        versions_file = repo_root / "versions.yaml"
+        # Create versions.json
+        versions_file = repo_root / "versions.json"
         versions_file.write_text(
             "infrastructure:\n  python: '3.12'\nadapters:\n  python: '1.0.0'\n",
         )
@@ -71,7 +71,7 @@ class TestConfigManager:
         manager = ConfigManager(tmp_config_files)
 
         assert manager.repo_root == tmp_config_files
-        assert manager.versions_file == tmp_config_files / "versions.yaml"
+        assert manager.versions_file == tmp_config_files / "versions.json"
 
     @patch("aidb_cli.managers.config_manager.detect_repo_root")
     @patch("aidb_cli.managers.config_manager.VersionManager")

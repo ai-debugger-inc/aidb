@@ -113,7 +113,7 @@ PR opened (release/X.Y.Z → main)
     ↓
 [7] Create draft GitHub release
     ↓
-[8] Generate dynamic adapter matrix from versions.yaml
+[8] Generate dynamic adapter matrix from versions.json
     ↓
 [9] Build adapters (parallel: Python/JS/Java × platforms)
     ↓

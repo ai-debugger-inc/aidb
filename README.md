@@ -145,12 +145,12 @@ ______________________________________________________________________
 
 ## Supported Languages
 
-| Language            | Python       | JavaScript/TypeScript | Java         |
-| ------------------- | ------------ | --------------------- | ------------ |
-| **Status**          | ✅ Available | ✅ Available          | ✅ Available |
-| **Versions**        | 3.10+.       | Node 18+              | JDK 17+      |
-| **Platforms**       | All          | All                   | All          |
-| **Backend Adapter** | debugpy      | vscode-js-debug       | java-debug   |
+| Language          | Python       | JavaScript/TypeScript | Java         |
+| ----------------- | ------------ | --------------------- | ------------ |
+| **Status**        | ✅ Available | ✅ Available          | ✅ Available |
+| **Versions**      | 3.10+.       | Node 18+              | JDK 17+      |
+| **Platforms**     | All          | All                   | All          |
+| **Debug Adapter** | debugpy      | vscode-js-debug       | java-debug   |
 
 **Platforms**: macOS, Linux, Windows (x64, arm64)
 

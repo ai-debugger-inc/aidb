@@ -13,7 +13,7 @@ from aidb_common.path import (
 class ProjectPaths:
     """Standard project paths relative to repo root."""
 
-    VERSIONS_YAML = Path("versions.yaml")
+    VERSIONS_YAML = Path("versions.json")
     AIDB_CONFIG = Path(".aidb.yaml")
     TESTS_DIR = Path("src/tests")
 
