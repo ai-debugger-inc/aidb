@@ -5,8 +5,8 @@
  * always-active sections, recommended skills, and manual load reminders.
  */
 
-import { existsSync, readFileSync } from 'fs';
-import { join } from 'path';
+import { existsSync, readFileSync } from "fs";
+import { join } from "path";
 
 /**
  * Inject skill content into system context
@@ -18,20 +18,29 @@ import { join } from 'path';
  * @param projectDir - Project root directory
  * @returns Formatted skill injection output
  */
-export function injectSkillContent(skillNames: string[], projectDir: string): string {
-  if (skillNames.length === 0) return '';
+export function injectSkillContent(
+  skillNames: string[],
+  projectDir: string
+): string {
+  if (skillNames.length === 0) return "";
 
-  let output = '\n';
-  output += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
-  output += '📚 AUTO-LOADED SKILLS\n';
-  output += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
+  let output = "\n";
+  output += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+  output += "📚 AUTO-LOADED SKILLS\n";
+  output += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
 
   for (const skillName of skillNames) {
-    const skillPath = join(projectDir, '.claude', 'skills', skillName, 'SKILL.md');
+    const skillPath = join(
+      projectDir,
+      ".claude",
+      "skills",
+      skillName,
+      "SKILL.md"
+    );
 
     if (existsSync(skillPath)) {
       try {
-        const skillContent = readFileSync(skillPath, 'utf-8');
+        const skillContent = readFileSync(skillPath, "utf-8");
 
         output += `<skill name="${skillName}">\n`;
         output += skillContent;
@@ -44,9 +53,9 @@ export function injectSkillContent(skillNames: string[], projectDir: string): st
     }
   }
 
-  output += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
-  output += `Loaded ${skillNames.length} skill(s): ${skillNames.join(', ')}\n`;
-  output += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+  output += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+  output += `Loaded ${skillNames.length} skill(s): ${skillNames.join(", ")}\n`;
+  output += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
 
   return output;
 }
@@ -59,10 +68,10 @@ export function injectSkillContent(skillNames: string[], projectDir: string): st
  * @returns Formatted banner string
  */
 export function formatActivationBanner(): string {
-  let output = '';
-  output += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
-  output += '🎯 SKILL ACTIVATION CHECK\n';
-  output += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
+  let output = "";
+  output += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+  output += "🎯 SKILL ACTIVATION CHECK\n";
+  output += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
   return output;
 }
 
@@ -83,18 +92,18 @@ export function formatJustInjectedSection(
   affinitySkills: string[],
   promotedSkills: string[]
 ): string {
-  if (injectedSkills.length === 0) return '';
+  if (injectedSkills.length === 0) return "";
 
-  let output = '\n📚 JUST LOADED:\n';
+  let output = "\n📚 JUST LOADED:\n";
 
   injectedSkills.forEach((skill) => {
-    let label = '';
+    let label = "";
     if (affinitySkills.includes(skill)) {
-      label = ' (affinity)';
+      label = " (affinity)";
     } else if (promotedSkills.includes(skill)) {
-      label = ' (promoted)';
+      label = " (promoted)";
     } else if (criticalSkills.includes(skill)) {
-      label = ' (critical)';
+      label = " (critical)";
     }
     output += `  → ${skill}${label}\n`;
   });
@@ -112,9 +121,9 @@ export function formatJustInjectedSection(
  * @returns Formatted section string
  */
 export function formatAlreadyLoadedSection(alreadyLoaded: string[]): string {
-  if (alreadyLoaded.length === 0) return '';
+  if (alreadyLoaded.length === 0) return "";
 
-  let output = '\n✓ ALREADY LOADED:\n';
+  let output = "\n✓ ALREADY LOADED:\n";
   alreadyLoaded.forEach((name) => {
     output += `  → ${name}\n`;
   });
@@ -134,17 +143,17 @@ export function formatRecommendedSection(
   recommendedSkills: string[],
   scores?: Record<string, number>
 ): string {
-  if (recommendedSkills.length === 0) return '';
+  if (recommendedSkills.length === 0) return "";
 
-  let output = '\n📚 RECOMMENDED SKILLS (not auto-loaded):\n';
+  let output = "\n📚 RECOMMENDED SKILLS (not auto-loaded):\n";
   recommendedSkills.forEach((name) => {
     output += `  → ${name}`;
     if (scores && scores[name]) {
       output += ` (${scores[name].toFixed(2)})`;
     }
-    output += '\n';
+    output += "\n";
   });
-  output += '\nOptional: Use Skill tool to load if needed\n';
+  output += "\nOptional: Use Skill tool to load if needed\n";
   return output;
 }
 
@@ -157,11 +166,11 @@ export function formatRecommendedSection(
  * @returns Formatted section string
  */
 export function formatManualLoadSection(manualSkills: string[]): string {
-  if (manualSkills.length === 0) return '';
+  if (manualSkills.length === 0) return "";
 
-  let output = '\n📚 MANUAL LOAD REQUIRED (autoInject: false):\n';
+  let output = "\n📚 MANUAL LOAD REQUIRED (autoInject: false):\n";
   manualSkills.forEach((name) => (output += `  → ${name}\n`));
-  output += '\nACTION: Use Skill tool for these skills\n';
+  output += "\nACTION: Use Skill tool for these skills\n";
   return output;
 }
 
@@ -171,5 +180,5 @@ export function formatManualLoadSection(manualSkills: string[]): string {
  * @returns Formatted closing banner
  */
 export function formatClosingBanner(): string {
-  return '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+  return "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
 }

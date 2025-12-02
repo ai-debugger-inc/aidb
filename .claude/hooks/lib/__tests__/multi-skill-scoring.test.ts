@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from "vitest";
 
 /**
  * Tests for multi-skill scoring and injection logic
@@ -37,7 +37,11 @@ function categorizeSkills(
     .map((s) => s.name);
 
   const suggested = scores
-    .filter((s) => s.confidence >= suggestedThreshold && s.confidence <= confidenceThreshold)
+    .filter(
+      (s) =>
+        s.confidence >= suggestedThreshold &&
+        s.confidence <= confidenceThreshold
+    )
     .sort((a, b) => b.confidence - a.confidence)
     .slice(0, maxSuggested)
     .map((s) => s.name);
@@ -79,19 +83,19 @@ function applyPromotion(
   return { toInject, promoted, remainingSuggested };
 }
 
-describe('Multi-Skill Scoring', () => {
+describe("Multi-Skill Scoring", () => {
   const CONFIDENCE_THRESHOLD = 0.65;
   const SUGGESTED_THRESHOLD = 0.5;
   const MAX_REQUIRED_SKILLS = 2;
   const MAX_SUGGESTED_SKILLS = 2;
 
-  describe('Multiple High-Confidence Skills', () => {
-    it('should inject only top 2 when 3+ skills exceed confidence threshold', () => {
+  describe("Multiple High-Confidence Skills", () => {
+    it("should inject only top 2 when 3+ skills exceed confidence threshold", () => {
       const scores: SkillScore[] = [
-        { name: 'skill-a', confidence: 0.9 },
-        { name: 'skill-b', confidence: 0.85 },
-        { name: 'skill-c', confidence: 0.75 },
-        { name: 'skill-d', confidence: 0.7 },
+        { name: "skill-a", confidence: 0.9 },
+        { name: "skill-b", confidence: 0.85 },
+        { name: "skill-c", confidence: 0.75 },
+        { name: "skill-d", confidence: 0.7 }
       ];
 
       const result = categorizeSkills(
@@ -103,14 +107,14 @@ describe('Multi-Skill Scoring', () => {
       );
 
       expect(result.required).toHaveLength(2);
-      expect(result.required).toEqual(['skill-a', 'skill-b']);
+      expect(result.required).toEqual(["skill-a", "skill-b"]);
     });
 
-    it('should preserve order by confidence score (highest first)', () => {
+    it("should preserve order by confidence score (highest first)", () => {
       const scores: SkillScore[] = [
-        { name: 'skill-c', confidence: 0.75 }, // Out of order
-        { name: 'skill-a', confidence: 0.9 },
-        { name: 'skill-b', confidence: 0.85 },
+        { name: "skill-c", confidence: 0.75 }, // Out of order
+        { name: "skill-a", confidence: 0.9 },
+        { name: "skill-b", confidence: 0.85 }
       ];
 
       const result = categorizeSkills(
@@ -122,17 +126,17 @@ describe('Multi-Skill Scoring', () => {
       );
 
       // Should be sorted by confidence descending
-      expect(result.required).toEqual(['skill-a', 'skill-b']);
+      expect(result.required).toEqual(["skill-a", "skill-b"]);
     });
 
-    it('should handle 5+ high-confidence skills correctly', () => {
+    it("should handle 5+ high-confidence skills correctly", () => {
       const scores: SkillScore[] = [
-        { name: 'skill-a', confidence: 0.95 },
-        { name: 'skill-b', confidence: 0.9 },
-        { name: 'skill-c', confidence: 0.85 },
-        { name: 'skill-d', confidence: 0.8 },
-        { name: 'skill-e', confidence: 0.75 },
-        { name: 'skill-f', confidence: 0.7 },
+        { name: "skill-a", confidence: 0.95 },
+        { name: "skill-b", confidence: 0.9 },
+        { name: "skill-c", confidence: 0.85 },
+        { name: "skill-d", confidence: 0.8 },
+        { name: "skill-e", confidence: 0.75 },
+        { name: "skill-f", confidence: 0.7 }
       ];
 
       const result = categorizeSkills(
@@ -145,18 +149,18 @@ describe('Multi-Skill Scoring', () => {
 
       // Only top 2 injected
       expect(result.required).toHaveLength(2);
-      expect(result.required).toEqual(['skill-a', 'skill-b']);
+      expect(result.required).toEqual(["skill-a", "skill-b"]);
 
       // Others not in suggested (they're above threshold but truncated)
       expect(result.suggested).toHaveLength(0);
     });
   });
 
-  describe('Confidence Threshold Edge Cases', () => {
-    it('should include skill with confidence exactly at threshold', () => {
+  describe("Confidence Threshold Edge Cases", () => {
+    it("should include skill with confidence exactly at threshold", () => {
       const scores: SkillScore[] = [
-        { name: 'skill-a', confidence: 0.9 },
-        { name: 'skill-b', confidence: 0.65 }, // Exactly at threshold
+        { name: "skill-a", confidence: 0.9 },
+        { name: "skill-b", confidence: 0.65 } // Exactly at threshold
       ];
 
       const result = categorizeSkills(
@@ -168,14 +172,14 @@ describe('Multi-Skill Scoring', () => {
       );
 
       // Threshold is > 0.65, so 0.65 should NOT be included
-      expect(result.required).toEqual(['skill-a']);
-      expect(result.suggested).toEqual(['skill-b']); // Should be suggested instead
+      expect(result.required).toEqual(["skill-a"]);
+      expect(result.suggested).toEqual(["skill-b"]); // Should be suggested instead
     });
 
-    it('should exclude skill with confidence just below threshold', () => {
+    it("should exclude skill with confidence just below threshold", () => {
       const scores: SkillScore[] = [
-        { name: 'skill-a', confidence: 0.9 },
-        { name: 'skill-b', confidence: 0.6499 }, // Just below
+        { name: "skill-a", confidence: 0.9 },
+        { name: "skill-b", confidence: 0.6499 } // Just below
       ];
 
       const result = categorizeSkills(
@@ -186,14 +190,14 @@ describe('Multi-Skill Scoring', () => {
         MAX_SUGGESTED_SKILLS
       );
 
-      expect(result.required).toEqual(['skill-a']);
-      expect(result.suggested).toEqual(['skill-b']);
+      expect(result.required).toEqual(["skill-a"]);
+      expect(result.suggested).toEqual(["skill-b"]);
     });
 
-    it('should include skill with confidence just above threshold', () => {
+    it("should include skill with confidence just above threshold", () => {
       const scores: SkillScore[] = [
-        { name: 'skill-a', confidence: 0.9 },
-        { name: 'skill-b', confidence: 0.66 }, // Just above
+        { name: "skill-a", confidence: 0.9 },
+        { name: "skill-b", confidence: 0.66 } // Just above
       ];
 
       const result = categorizeSkills(
@@ -204,17 +208,17 @@ describe('Multi-Skill Scoring', () => {
         MAX_SUGGESTED_SKILLS
       );
 
-      expect(result.required).toEqual(['skill-a', 'skill-b']);
+      expect(result.required).toEqual(["skill-a", "skill-b"]);
     });
   });
 
-  describe('Suggested Skills Handling', () => {
-    it('should categorize skills in 0.50-0.65 range as suggested', () => {
+  describe("Suggested Skills Handling", () => {
+    it("should categorize skills in 0.50-0.65 range as suggested", () => {
       const scores: SkillScore[] = [
-        { name: 'skill-a', confidence: 0.9 },
-        { name: 'skill-b', confidence: 0.6 }, // Suggested range
-        { name: 'skill-c', confidence: 0.55 }, // Suggested range
-        { name: 'skill-d', confidence: 0.52 }, // Suggested range
+        { name: "skill-a", confidence: 0.9 },
+        { name: "skill-b", confidence: 0.6 }, // Suggested range
+        { name: "skill-c", confidence: 0.55 }, // Suggested range
+        { name: "skill-d", confidence: 0.52 } // Suggested range
       ];
 
       const result = categorizeSkills(
@@ -225,16 +229,16 @@ describe('Multi-Skill Scoring', () => {
         MAX_SUGGESTED_SKILLS
       );
 
-      expect(result.required).toEqual(['skill-a']);
+      expect(result.required).toEqual(["skill-a"]);
       expect(result.suggested).toHaveLength(2); // Max 2 suggested
-      expect(result.suggested).toEqual(['skill-b', 'skill-c']); // Top 2 by confidence
+      expect(result.suggested).toEqual(["skill-b", "skill-c"]); // Top 2 by confidence
     });
 
-    it('should exclude skills below suggested threshold (< 0.5)', () => {
+    it("should exclude skills below suggested threshold (< 0.5)", () => {
       const scores: SkillScore[] = [
-        { name: 'skill-a', confidence: 0.9 },
-        { name: 'skill-b', confidence: 0.45 }, // Below suggested threshold
-        { name: 'skill-c', confidence: 0.3 }, // Below suggested threshold
+        { name: "skill-a", confidence: 0.9 },
+        { name: "skill-b", confidence: 0.45 }, // Below suggested threshold
+        { name: "skill-c", confidence: 0.3 } // Below suggested threshold
       ];
 
       const result = categorizeSkills(
@@ -245,17 +249,17 @@ describe('Multi-Skill Scoring', () => {
         MAX_SUGGESTED_SKILLS
       );
 
-      expect(result.required).toEqual(['skill-a']);
+      expect(result.required).toEqual(["skill-a"]);
       expect(result.suggested).toEqual([]); // None qualify
     });
 
-    it('should limit suggested skills to MAX_SUGGESTED_SKILLS', () => {
+    it("should limit suggested skills to MAX_SUGGESTED_SKILLS", () => {
       const scores: SkillScore[] = [
-        { name: 'skill-a', confidence: 0.9 },
-        { name: 'skill-b', confidence: 0.64 },
-        { name: 'skill-c', confidence: 0.62 },
-        { name: 'skill-d', confidence: 0.6 },
-        { name: 'skill-e', confidence: 0.58 },
+        { name: "skill-a", confidence: 0.9 },
+        { name: "skill-b", confidence: 0.64 },
+        { name: "skill-c", confidence: 0.62 },
+        { name: "skill-d", confidence: 0.6 },
+        { name: "skill-e", confidence: 0.58 }
       ];
 
       const result = categorizeSkills(
@@ -266,19 +270,19 @@ describe('Multi-Skill Scoring', () => {
         MAX_SUGGESTED_SKILLS
       );
 
-      expect(result.required).toEqual(['skill-a']);
+      expect(result.required).toEqual(["skill-a"]);
       expect(result.suggested).toHaveLength(2); // Limited to MAX_SUGGESTED_SKILLS
-      expect(result.suggested).toEqual(['skill-b', 'skill-c']); // Top 2
+      expect(result.suggested).toEqual(["skill-b", "skill-c"]); // Top 2
     });
   });
 
-  describe('Real-World Multi-Domain Scenarios', () => {
-    it('should handle adapter + dap-protocol work (both high confidence)', () => {
+  describe("Real-World Multi-Domain Scenarios", () => {
+    it("should handle adapter + dap-protocol work (both high confidence)", () => {
       // Simulates: "Fix the Python adapter's DAP protocol handling"
       const scores: SkillScore[] = [
-        { name: 'adapter-development', confidence: 0.9 },
-        { name: 'dap-protocol-guide', confidence: 0.85 },
-        { name: 'troubleshooting', confidence: 0.55 },
+        { name: "adapter-development", confidence: 0.9 },
+        { name: "dap-protocol-guide", confidence: 0.85 },
+        { name: "troubleshooting", confidence: 0.55 }
       ];
 
       const result = categorizeSkills(
@@ -289,16 +293,19 @@ describe('Multi-Skill Scoring', () => {
         MAX_SUGGESTED_SKILLS
       );
 
-      expect(result.required).toEqual(['adapter-development', 'dap-protocol-guide']);
-      expect(result.suggested).toEqual(['troubleshooting']);
+      expect(result.required).toEqual([
+        "adapter-development",
+        "dap-protocol-guide"
+      ]);
+      expect(result.suggested).toEqual(["troubleshooting"]);
     });
 
-    it('should handle testing + mcp work (both high confidence)', () => {
+    it("should handle testing + mcp work (both high confidence)", () => {
       // Simulates: "Write tests for the MCP tools"
       const scores: SkillScore[] = [
-        { name: 'testing-strategy', confidence: 0.9 },
-        { name: 'mcp-tools-development', confidence: 0.85 },
-        { name: 'code-reuse-enforcement', confidence: 0.6 },
+        { name: "testing-strategy", confidence: 0.9 },
+        { name: "mcp-tools-development", confidence: 0.85 },
+        { name: "code-reuse-enforcement", confidence: 0.6 }
       ];
 
       const result = categorizeSkills(
@@ -309,18 +316,21 @@ describe('Multi-Skill Scoring', () => {
         MAX_SUGGESTED_SKILLS
       );
 
-      expect(result.required).toEqual(['testing-strategy', 'mcp-tools-development']);
-      expect(result.suggested).toEqual(['code-reuse-enforcement']);
+      expect(result.required).toEqual([
+        "testing-strategy",
+        "mcp-tools-development"
+      ]);
+      expect(result.suggested).toEqual(["code-reuse-enforcement"]);
     });
 
-    it('should deprioritize keyword soup prompts (all mid-range scores)', () => {
+    it("should deprioritize keyword soup prompts (all mid-range scores)", () => {
       // Simulates: "Skill system check: adapter, mcp, testing, ci/cd"
       const scores: SkillScore[] = [
-        { name: 'troubleshooting', confidence: 0.75 }, // Highest (system check)
-        { name: 'adapter-development', confidence: 0.58 }, // Mentioned but not active work
-        { name: 'mcp-tools-development', confidence: 0.56 },
-        { name: 'testing-strategy', confidence: 0.54 },
-        { name: 'ci-cd-workflows', confidence: 0.52 },
+        { name: "troubleshooting", confidence: 0.75 }, // Highest (system check)
+        { name: "adapter-development", confidence: 0.58 }, // Mentioned but not active work
+        { name: "mcp-tools-development", confidence: 0.56 },
+        { name: "testing-strategy", confidence: 0.54 },
+        { name: "ci-cd-workflows", confidence: 0.52 }
       ];
 
       const result = categorizeSkills(
@@ -332,17 +342,20 @@ describe('Multi-Skill Scoring', () => {
       );
 
       // Only troubleshooting exceeds 0.65
-      expect(result.required).toEqual(['troubleshooting']);
+      expect(result.required).toEqual(["troubleshooting"]);
       // Top 2 from suggested range
-      expect(result.suggested).toEqual(['adapter-development', 'mcp-tools-development']);
+      expect(result.suggested).toEqual([
+        "adapter-development",
+        "mcp-tools-development"
+      ]);
     });
 
-    it('should handle CI/CD + adapter work (cross-domain)', () => {
+    it("should handle CI/CD + adapter work (cross-domain)", () => {
       // Simulates: "Fix the CI workflow that builds adapters"
       const scores: SkillScore[] = [
-        { name: 'ci-cd-workflows', confidence: 0.9 },
-        { name: 'adapter-development', confidence: 0.75 },
-        { name: 'troubleshooting', confidence: 0.6 },
+        { name: "ci-cd-workflows", confidence: 0.9 },
+        { name: "adapter-development", confidence: 0.75 },
+        { name: "troubleshooting", confidence: 0.6 }
       ];
 
       const result = categorizeSkills(
@@ -353,16 +366,19 @@ describe('Multi-Skill Scoring', () => {
         MAX_SUGGESTED_SKILLS
       );
 
-      expect(result.required).toEqual(['ci-cd-workflows', 'adapter-development']);
-      expect(result.suggested).toEqual(['troubleshooting']);
+      expect(result.required).toEqual([
+        "ci-cd-workflows",
+        "adapter-development"
+      ]);
+      expect(result.suggested).toEqual(["troubleshooting"]);
     });
   });
 
-  describe('Empty and Edge Cases', () => {
-    it('should handle no high-confidence skills (all suggested)', () => {
+  describe("Empty and Edge Cases", () => {
+    it("should handle no high-confidence skills (all suggested)", () => {
       const scores: SkillScore[] = [
-        { name: 'skill-a', confidence: 0.6 },
-        { name: 'skill-b', confidence: 0.55 },
+        { name: "skill-a", confidence: 0.6 },
+        { name: "skill-b", confidence: 0.55 }
       ];
 
       const result = categorizeSkills(
@@ -374,10 +390,10 @@ describe('Multi-Skill Scoring', () => {
       );
 
       expect(result.required).toEqual([]);
-      expect(result.suggested).toEqual(['skill-a', 'skill-b']);
+      expect(result.suggested).toEqual(["skill-a", "skill-b"]);
     });
 
-    it('should handle empty skill list', () => {
+    it("should handle empty skill list", () => {
       const scores: SkillScore[] = [];
 
       const result = categorizeSkills(
@@ -392,8 +408,8 @@ describe('Multi-Skill Scoring', () => {
       expect(result.suggested).toEqual([]);
     });
 
-    it('should handle single high-confidence skill', () => {
-      const scores: SkillScore[] = [{ name: 'skill-a', confidence: 0.9 }];
+    it("should handle single high-confidence skill", () => {
+      const scores: SkillScore[] = [{ name: "skill-a", confidence: 0.9 }];
 
       const result = categorizeSkills(
         scores,
@@ -403,15 +419,15 @@ describe('Multi-Skill Scoring', () => {
         MAX_SUGGESTED_SKILLS
       );
 
-      expect(result.required).toEqual(['skill-a']);
+      expect(result.required).toEqual(["skill-a"]);
       expect(result.suggested).toEqual([]);
     });
 
-    it('should handle all skills below all thresholds', () => {
+    it("should handle all skills below all thresholds", () => {
       const scores: SkillScore[] = [
-        { name: 'skill-a', confidence: 0.4 },
-        { name: 'skill-b', confidence: 0.3 },
-        { name: 'skill-c', confidence: 0.2 },
+        { name: "skill-a", confidence: 0.4 },
+        { name: "skill-b", confidence: 0.3 },
+        { name: "skill-c", confidence: 0.2 }
       ];
 
       const result = categorizeSkills(
@@ -427,15 +443,15 @@ describe('Multi-Skill Scoring', () => {
     });
   });
 
-  describe('Promotion Workflow', () => {
+  describe("Promotion Workflow", () => {
     const STANDARD_LIMIT = 2;
 
-    it('should promote top suggested skill when 1 critical + multiple suggested', () => {
+    it("should promote top suggested skill when 1 critical + multiple suggested", () => {
       // Simulate AI scoring: 1 critical (>0.65), 2 suggested (0.50-0.65)
       const scores: SkillScore[] = [
-        { name: 'skill-a', confidence: 0.7 }, // Critical
-        { name: 'skill-b', confidence: 0.6 }, // Suggested
-        { name: 'skill-c', confidence: 0.55 }, // Suggested
+        { name: "skill-a", confidence: 0.7 }, // Critical
+        { name: "skill-b", confidence: 0.6 }, // Suggested
+        { name: "skill-c", confidence: 0.55 } // Suggested
       ];
 
       // Categorize
@@ -447,26 +463,30 @@ describe('Multi-Skill Scoring', () => {
         MAX_SUGGESTED_SKILLS
       );
 
-      expect(categorized.required).toEqual(['skill-a']);
-      expect(categorized.suggested).toEqual(['skill-b', 'skill-c']);
+      expect(categorized.required).toEqual(["skill-a"]);
+      expect(categorized.suggested).toEqual(["skill-b", "skill-c"]);
 
       // Apply promotion
-      const promoted = applyPromotion(categorized.required, categorized.suggested, STANDARD_LIMIT);
+      const promoted = applyPromotion(
+        categorized.required,
+        categorized.suggested,
+        STANDARD_LIMIT
+      );
 
       // Should inject skill-a (critical) + skill-b (promoted)
       expect(promoted.toInject).toHaveLength(2);
-      expect(promoted.toInject).toEqual(['skill-a', 'skill-b']);
-      expect(promoted.promoted).toEqual(['skill-b']); // skill-b was promoted
-      expect(promoted.remainingSuggested).toEqual(['skill-c']); // skill-c remains suggested
+      expect(promoted.toInject).toEqual(["skill-a", "skill-b"]);
+      expect(promoted.promoted).toEqual(["skill-b"]); // skill-b was promoted
+      expect(promoted.remainingSuggested).toEqual(["skill-c"]); // skill-c remains suggested
     });
 
-    it('should promote top 2 suggested when 0 critical + multiple suggested', () => {
+    it("should promote top 2 suggested when 0 critical + multiple suggested", () => {
       // Simulate: All skills in suggested range (0.50-0.65)
       const scores: SkillScore[] = [
-        { name: 'skill-a', confidence: 0.6 },
-        { name: 'skill-b', confidence: 0.58 },
-        { name: 'skill-c', confidence: 0.55 },
-        { name: 'skill-d', confidence: 0.52 },
+        { name: "skill-a", confidence: 0.6 },
+        { name: "skill-b", confidence: 0.58 },
+        { name: "skill-c", confidence: 0.55 },
+        { name: "skill-d", confidence: 0.52 }
       ];
 
       const categorized = categorizeSkills(
@@ -478,23 +498,27 @@ describe('Multi-Skill Scoring', () => {
       );
 
       expect(categorized.required).toEqual([]);
-      expect(categorized.suggested).toEqual(['skill-a', 'skill-b']); // Limited to MAX_SUGGESTED_SKILLS
+      expect(categorized.suggested).toEqual(["skill-a", "skill-b"]); // Limited to MAX_SUGGESTED_SKILLS
 
-      const promoted = applyPromotion(categorized.required, categorized.suggested, STANDARD_LIMIT);
+      const promoted = applyPromotion(
+        categorized.required,
+        categorized.suggested,
+        STANDARD_LIMIT
+      );
 
       // Should promote top 2 suggested to fill all slots
       expect(promoted.toInject).toHaveLength(2);
-      expect(promoted.toInject).toEqual(['skill-a', 'skill-b']);
-      expect(promoted.promoted).toEqual(['skill-a', 'skill-b']); // Both promoted
+      expect(promoted.toInject).toEqual(["skill-a", "skill-b"]);
+      expect(promoted.promoted).toEqual(["skill-a", "skill-b"]); // Both promoted
       expect(promoted.remainingSuggested).toEqual([]); // None left
     });
 
-    it('should promote higher-confidence suggested skill (respects ordering)', () => {
+    it("should promote higher-confidence suggested skill (respects ordering)", () => {
       // Simulate: 1 critical, 2 suggested (out of confidence order)
       const scores: SkillScore[] = [
-        { name: 'skill-a', confidence: 0.9 }, // Critical
-        { name: 'skill-b', confidence: 0.55 }, // Suggested (lower)
-        { name: 'skill-c', confidence: 0.62 }, // Suggested (higher)
+        { name: "skill-a", confidence: 0.9 }, // Critical
+        { name: "skill-b", confidence: 0.55 }, // Suggested (lower)
+        { name: "skill-c", confidence: 0.62 } // Suggested (higher)
       ];
 
       const categorized = categorizeSkills(
@@ -505,23 +529,27 @@ describe('Multi-Skill Scoring', () => {
         MAX_SUGGESTED_SKILLS
       );
 
-      expect(categorized.required).toEqual(['skill-a']);
-      expect(categorized.suggested).toEqual(['skill-c', 'skill-b']); // Sorted by confidence
+      expect(categorized.required).toEqual(["skill-a"]);
+      expect(categorized.suggested).toEqual(["skill-c", "skill-b"]); // Sorted by confidence
 
-      const promoted = applyPromotion(categorized.required, categorized.suggested, STANDARD_LIMIT);
+      const promoted = applyPromotion(
+        categorized.required,
+        categorized.suggested,
+        STANDARD_LIMIT
+      );
 
       // Should promote skill-c (0.62) over skill-b (0.55)
-      expect(promoted.toInject).toEqual(['skill-a', 'skill-c']);
-      expect(promoted.promoted).toEqual(['skill-c']);
-      expect(promoted.remainingSuggested).toEqual(['skill-b']);
+      expect(promoted.toInject).toEqual(["skill-a", "skill-c"]);
+      expect(promoted.promoted).toEqual(["skill-c"]);
+      expect(promoted.remainingSuggested).toEqual(["skill-b"]);
     });
 
-    it('should NOT promote when critical slots are full', () => {
+    it("should NOT promote when critical slots are full", () => {
       // Simulate: 2 critical skills (slots full) + suggested skills
       const scores: SkillScore[] = [
-        { name: 'skill-a', confidence: 0.9 }, // Critical
-        { name: 'skill-b', confidence: 0.85 }, // Critical
-        { name: 'skill-c', confidence: 0.6 }, // Suggested
+        { name: "skill-a", confidence: 0.9 }, // Critical
+        { name: "skill-b", confidence: 0.85 }, // Critical
+        { name: "skill-c", confidence: 0.6 } // Suggested
       ];
 
       const categorized = categorizeSkills(
@@ -532,23 +560,27 @@ describe('Multi-Skill Scoring', () => {
         MAX_SUGGESTED_SKILLS
       );
 
-      expect(categorized.required).toEqual(['skill-a', 'skill-b']);
-      expect(categorized.suggested).toEqual(['skill-c']);
+      expect(categorized.required).toEqual(["skill-a", "skill-b"]);
+      expect(categorized.suggested).toEqual(["skill-c"]);
 
-      const promoted = applyPromotion(categorized.required, categorized.suggested, STANDARD_LIMIT);
+      const promoted = applyPromotion(
+        categorized.required,
+        categorized.suggested,
+        STANDARD_LIMIT
+      );
 
       // Should NOT promote skill-c (slots are full)
       expect(promoted.toInject).toHaveLength(2);
-      expect(promoted.toInject).toEqual(['skill-a', 'skill-b']);
+      expect(promoted.toInject).toEqual(["skill-a", "skill-b"]);
       expect(promoted.promoted).toEqual([]); // Nothing promoted
-      expect(promoted.remainingSuggested).toEqual(['skill-c']); // Remains suggested
+      expect(promoted.remainingSuggested).toEqual(["skill-c"]); // Remains suggested
     });
 
-    it('should promote single suggested when 1 critical + 1 suggested', () => {
+    it("should promote single suggested when 1 critical + 1 suggested", () => {
       // Simulate: 1 critical, 1 suggested
       const scores: SkillScore[] = [
-        { name: 'skill-a', confidence: 0.7 }, // Critical
-        { name: 'skill-b', confidence: 0.55 }, // Suggested
+        { name: "skill-a", confidence: 0.7 }, // Critical
+        { name: "skill-b", confidence: 0.55 } // Suggested
       ];
 
       const categorized = categorizeSkills(
@@ -559,21 +591,25 @@ describe('Multi-Skill Scoring', () => {
         MAX_SUGGESTED_SKILLS
       );
 
-      expect(categorized.required).toEqual(['skill-a']);
-      expect(categorized.suggested).toEqual(['skill-b']);
+      expect(categorized.required).toEqual(["skill-a"]);
+      expect(categorized.suggested).toEqual(["skill-b"]);
 
-      const promoted = applyPromotion(categorized.required, categorized.suggested, STANDARD_LIMIT);
+      const promoted = applyPromotion(
+        categorized.required,
+        categorized.suggested,
+        STANDARD_LIMIT
+      );
 
       // Should promote the single suggested skill
       expect(promoted.toInject).toHaveLength(2);
-      expect(promoted.toInject).toEqual(['skill-a', 'skill-b']);
-      expect(promoted.promoted).toEqual(['skill-b']);
+      expect(promoted.toInject).toEqual(["skill-a", "skill-b"]);
+      expect(promoted.promoted).toEqual(["skill-b"]);
       expect(promoted.remainingSuggested).toEqual([]);
     });
 
-    it('should handle empty suggested list (no promotion possible)', () => {
+    it("should handle empty suggested list (no promotion possible)", () => {
       // Simulate: 1 critical, no suggested
-      const scores: SkillScore[] = [{ name: 'skill-a', confidence: 0.7 }];
+      const scores: SkillScore[] = [{ name: "skill-a", confidence: 0.7 }];
 
       const categorized = categorizeSkills(
         scores,
@@ -583,25 +619,29 @@ describe('Multi-Skill Scoring', () => {
         MAX_SUGGESTED_SKILLS
       );
 
-      expect(categorized.required).toEqual(['skill-a']);
+      expect(categorized.required).toEqual(["skill-a"]);
       expect(categorized.suggested).toEqual([]);
 
-      const promoted = applyPromotion(categorized.required, categorized.suggested, STANDARD_LIMIT);
+      const promoted = applyPromotion(
+        categorized.required,
+        categorized.suggested,
+        STANDARD_LIMIT
+      );
 
       // Should inject only the critical skill (no promotion possible)
       expect(promoted.toInject).toHaveLength(1);
-      expect(promoted.toInject).toEqual(['skill-a']);
+      expect(promoted.toInject).toEqual(["skill-a"]);
       expect(promoted.promoted).toEqual([]);
       expect(promoted.remainingSuggested).toEqual([]);
     });
 
-    it('should handle real-world scenario: adapter work with multiple related skills', () => {
+    it("should handle real-world scenario: adapter work with multiple related skills", () => {
       // Simulate: "Working on adapter" → adapter-development (critical) + related skills (suggested)
       const scores: SkillScore[] = [
-        { name: 'adapter-development', confidence: 0.9 }, // Critical
-        { name: 'dap-protocol-guide', confidence: 0.62 }, // Suggested (high)
-        { name: 'troubleshooting', confidence: 0.58 }, // Suggested (medium)
-        { name: 'code-reuse-enforcement', confidence: 0.54 }, // Suggested (low)
+        { name: "adapter-development", confidence: 0.9 }, // Critical
+        { name: "dap-protocol-guide", confidence: 0.62 }, // Suggested (high)
+        { name: "troubleshooting", confidence: 0.58 }, // Suggested (medium)
+        { name: "code-reuse-enforcement", confidence: 0.54 } // Suggested (low)
       ];
 
       const categorized = categorizeSkills(
@@ -612,15 +652,25 @@ describe('Multi-Skill Scoring', () => {
         MAX_SUGGESTED_SKILLS
       );
 
-      expect(categorized.required).toEqual(['adapter-development']);
-      expect(categorized.suggested).toEqual(['dap-protocol-guide', 'troubleshooting']); // Top 2
+      expect(categorized.required).toEqual(["adapter-development"]);
+      expect(categorized.suggested).toEqual([
+        "dap-protocol-guide",
+        "troubleshooting"
+      ]); // Top 2
 
-      const promoted = applyPromotion(categorized.required, categorized.suggested, STANDARD_LIMIT);
+      const promoted = applyPromotion(
+        categorized.required,
+        categorized.suggested,
+        STANDARD_LIMIT
+      );
 
       // Should promote dap-protocol-guide (highest suggested)
-      expect(promoted.toInject).toEqual(['adapter-development', 'dap-protocol-guide']);
-      expect(promoted.promoted).toEqual(['dap-protocol-guide']);
-      expect(promoted.remainingSuggested).toEqual(['troubleshooting']);
+      expect(promoted.toInject).toEqual([
+        "adapter-development",
+        "dap-protocol-guide"
+      ]);
+      expect(promoted.promoted).toEqual(["dap-protocol-guide"]);
+      expect(promoted.remainingSuggested).toEqual(["troubleshooting"]);
     });
   });
 });

@@ -35,11 +35,11 @@ classifiers = [
 ]
 readme = "README.md"
 requires-python = ">=3.10"
-version = "0.0.4"
+version = "0.0.5"
 
 [project.urls]
 Homepage = "https://github.com/ai-debugger-inc/aidb"
-Documentation = "https://ai-debugger.readthedocs.io"
+Documentation = "https://ai-debugger.com"
 "Issue Tracker" = "https://github.com/ai-debugger-inc/aidb/issues"
 
 [project.scripts]

@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { SHORT_PROMPT_WORD_THRESHOLD } from '../constants';
+import { describe, it, expect } from "vitest";
+import { SHORT_PROMPT_WORD_THRESHOLD } from "../constants";
 
 /**
  * Tests for keyword fallback logic
@@ -44,102 +44,102 @@ function shouldUseKeywordFallback(prompt: string): boolean {
   return wordCount <= SHORT_PROMPT_WORD_THRESHOLD;
 }
 
-describe('Keyword Fallback Logic', () => {
-  it('should use keyword matching for short prompts', () => {
-    const shortPrompt = 'fix adapter bug'; // 3 words < threshold
+describe("Keyword Fallback Logic", () => {
+  it("should use keyword matching for short prompts", () => {
+    const shortPrompt = "fix adapter bug"; // 3 words < threshold
 
     const shouldUse = shouldUseKeywordFallback(shortPrompt);
 
     expect(shouldUse).toBe(true);
   });
 
-  it('should NOT use keyword matching for long prompts', () => {
+  it("should NOT use keyword matching for long prompts", () => {
     const longPrompt =
-      'Please help me fix the adapter bug that is causing issues with the DAP protocol';
+      "Please help me fix the adapter bug that is causing issues with the DAP protocol";
 
     const shouldUse = shouldUseKeywordFallback(longPrompt);
 
     expect(shouldUse).toBe(false);
   });
 
-  it('should perform case-insensitive keyword matching', () => {
-    const prompt = 'FIX THE ADAPTER BUG';
+  it("should perform case-insensitive keyword matching", () => {
+    const prompt = "FIX THE ADAPTER BUG";
     const skills = {
-      'adapter-development': {
+      "adapter-development": {
         promptTriggers: {
-          keywords: ['adapter', 'debug adapter'],
-        },
-      },
+          keywords: ["adapter", "debug adapter"]
+        }
+      }
     };
 
     const result = fallbackToKeywords(prompt, skills);
 
-    expect(result.required).toContain('adapter-development');
+    expect(result.required).toContain("adapter-development");
   });
 
-  it('should detect multiple keywords triggering same skill', () => {
-    const prompt = 'debug adapter issue';
+  it("should detect multiple keywords triggering same skill", () => {
+    const prompt = "debug adapter issue";
     const skills = {
-      'adapter-development': {
+      "adapter-development": {
         promptTriggers: {
-          keywords: ['adapter', 'debug adapter', 'DAP'],
-        },
-      },
+          keywords: ["adapter", "debug adapter", "DAP"]
+        }
+      }
     };
 
     const result = fallbackToKeywords(prompt, skills);
 
     // Both 'adapter' and 'debug adapter' match, but skill only added once
-    expect(result.required).toEqual(['adapter-development']);
+    expect(result.required).toEqual(["adapter-development"]);
   });
 
-  it('should match partial keywords (substring includes)', () => {
-    const prompt = 'debugging adapters for Python';
+  it("should match partial keywords (substring includes)", () => {
+    const prompt = "debugging adapters for Python";
     const skills = {
-      'adapter-development': {
+      "adapter-development": {
         promptTriggers: {
-          keywords: ['adapter'],
-        },
-      },
+          keywords: ["adapter"]
+        }
+      }
     };
 
     const result = fallbackToKeywords(prompt, skills);
 
     // 'adapter' matches 'adapters' via includes()
-    expect(result.required).toContain('adapter-development');
+    expect(result.required).toContain("adapter-development");
   });
 
-  it('should return all detected skills as required (none as suggested)', () => {
-    const prompt = 'fix adapter and test';
+  it("should return all detected skills as required (none as suggested)", () => {
+    const prompt = "fix adapter and test";
     const skills = {
-      'adapter-development': {
+      "adapter-development": {
         promptTriggers: {
-          keywords: ['adapter'],
-        },
+          keywords: ["adapter"]
+        }
       },
-      'testing-strategy': {
+      "testing-strategy": {
         promptTriggers: {
-          keywords: ['test', 'testing'],
-        },
-      },
+          keywords: ["test", "testing"]
+        }
+      }
     };
 
     const result = fallbackToKeywords(prompt, skills);
 
     expect(result.required).toHaveLength(2);
-    expect(result.required).toContain('adapter-development');
-    expect(result.required).toContain('testing-strategy');
+    expect(result.required).toContain("adapter-development");
+    expect(result.required).toContain("testing-strategy");
     expect(result.suggested).toEqual([]); // Fallback always returns empty suggested
   });
 
-  it('should return empty arrays when no keywords match', () => {
-    const prompt = 'completely unrelated topic';
+  it("should return empty arrays when no keywords match", () => {
+    const prompt = "completely unrelated topic";
     const skills = {
-      'adapter-development': {
+      "adapter-development": {
         promptTriggers: {
-          keywords: ['adapter', 'DAP'],
-        },
-      },
+          keywords: ["adapter", "DAP"]
+        }
+      }
     };
 
     const result = fallbackToKeywords(prompt, skills);
@@ -148,14 +148,14 @@ describe('Keyword Fallback Logic', () => {
     expect(result.suggested).toEqual([]);
   });
 
-  it('should handle skills with empty keywords array', () => {
-    const prompt = 'test prompt';
+  it("should handle skills with empty keywords array", () => {
+    const prompt = "test prompt";
     const skills = {
-      'skill-without-keywords': {
+      "skill-without-keywords": {
         promptTriggers: {
-          keywords: [],
-        },
-      },
+          keywords: []
+        }
+      }
     };
 
     const result = fallbackToKeywords(prompt, skills);

@@ -27,11 +27,11 @@ export function validateSkillRules(skillRules: any): ValidationResult {
   const errors: string[] = [];
 
   if (!skillRules.version) {
-    errors.push('Missing required field: version');
+    errors.push("Missing required field: version");
   }
 
-  if (!skillRules.skills || typeof skillRules.skills !== 'object') {
-    errors.push('Missing or invalid field: skills (must be object)');
+  if (!skillRules.skills || typeof skillRules.skills !== "object") {
+    errors.push("Missing or invalid field: skills (must be object)");
     return { valid: false, errors };
   }
 
@@ -39,20 +39,30 @@ export function validateSkillRules(skillRules: any): ValidationResult {
     const skill = config as any;
 
     // Validate required fields
-    if (!skill.type || !['guardrail', 'domain'].includes(skill.type)) {
-      errors.push(`${skillName}: Invalid or missing 'type' (must be 'guardrail' or 'domain')`);
+    if (!skill.type || !["guardrail", "domain"].includes(skill.type)) {
+      errors.push(
+        `${skillName}: Invalid or missing 'type' (must be 'guardrail' or 'domain')`
+      );
     }
 
-    if (!skill.enforcement || !['block', 'suggest', 'warn'].includes(skill.enforcement)) {
+    if (
+      !skill.enforcement ||
+      !["block", "suggest", "warn"].includes(skill.enforcement)
+    ) {
       errors.push(`${skillName}: Invalid or missing 'enforcement'`);
     }
 
-    if (!skill.priority || !['critical', 'high', 'medium', 'low'].includes(skill.priority)) {
+    if (
+      !skill.priority ||
+      !["critical", "high", "medium", "low"].includes(skill.priority)
+    ) {
       errors.push(`${skillName}: Invalid or missing 'priority'`);
     }
 
-    if (typeof skill.autoInject !== 'boolean') {
-      errors.push(`${skillName}: Missing or invalid 'autoInject' (must be boolean)`);
+    if (typeof skill.autoInject !== "boolean") {
+      errors.push(
+        `${skillName}: Missing or invalid 'autoInject' (must be boolean)`
+      );
     }
 
     // Validate affinity if present

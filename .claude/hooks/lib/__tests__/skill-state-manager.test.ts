@@ -1,8 +1,18 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdirSync, rmSync, writeFileSync, existsSync, chmodSync, readFileSync } from 'fs';
-import { join } from 'path';
-import { tmpdir } from 'os';
-import { readAcknowledgedSkills, writeSessionState } from '../skill-state-manager.js';
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import {
+  mkdirSync,
+  rmSync,
+  writeFileSync,
+  existsSync,
+  chmodSync,
+  readFileSync
+} from "fs";
+import { join } from "path";
+import { tmpdir } from "os";
+import {
+  readAcknowledgedSkills,
+  writeSessionState
+} from "../skill-state-manager.js";
 
 /**
  * Tests for session state management
@@ -11,14 +21,17 @@ import { readAcknowledgedSkills, writeSessionState } from '../skill-state-manage
  * for skill acknowledgment tracking across conversation turns.
  */
 
-describe('Skill State Manager', () => {
+describe("Skill State Manager", () => {
   let testStateDir: string;
   let testStateId: string;
 
   beforeEach(() => {
     // Create unique temp directory for each test
-    testStateDir = join(tmpdir(), `skill-state-test-${Date.now()}-${Math.random()}`);
-    testStateId = 'test-conversation-123';
+    testStateDir = join(
+      tmpdir(),
+      `skill-state-test-${Date.now()}-${Math.random()}`
+    );
+    testStateId = "test-conversation-123";
   });
 
   afterEach(() => {
@@ -33,42 +46,58 @@ describe('Skill State Manager', () => {
     }
   });
 
-  it('should write and read state successfully (normal flow)', () => {
-    const acknowledgedSkills = ['adapter-development', 'testing-strategy'];
-    const injectedSkills = ['adapter-development'];
+  it("should write and read state successfully (normal flow)", () => {
+    const acknowledgedSkills = ["adapter-development", "testing-strategy"];
+    const injectedSkills = ["adapter-development"];
 
-    writeSessionState(testStateDir, testStateId, acknowledgedSkills, injectedSkills);
+    writeSessionState(
+      testStateDir,
+      testStateId,
+      acknowledgedSkills,
+      injectedSkills
+    );
 
     const readSkills = readAcknowledgedSkills(testStateDir, testStateId);
 
     expect(readSkills).toEqual(acknowledgedSkills);
   });
 
-  it('should return empty array when state file does not exist', () => {
+  it("should return empty array when state file does not exist", () => {
     // Don't create any state file
     const readSkills = readAcknowledgedSkills(testStateDir, testStateId);
 
     expect(readSkills).toEqual([]);
   });
 
-  it('should return empty array when state file contains corrupted JSON', () => {
+  it("should return empty array when state file contains corrupted JSON", () => {
     // Create directory and write invalid JSON
     mkdirSync(testStateDir, { recursive: true });
-    const stateFile = join(testStateDir, `${testStateId}-skills-suggested.json`);
-    writeFileSync(stateFile, '{ this is not valid JSON }');
+    const stateFile = join(
+      testStateDir,
+      `${testStateId}-skills-suggested.json`
+    );
+    writeFileSync(stateFile, "{ this is not valid JSON }");
 
     const readSkills = readAcknowledgedSkills(testStateDir, testStateId);
 
     expect(readSkills).toEqual([]);
   });
 
-  it('should use atomic write pattern (temp file + rename)', () => {
-    const acknowledgedSkills = ['skill-1', 'skill-2'];
-    const injectedSkills = ['skill-1'];
+  it("should use atomic write pattern (temp file + rename)", () => {
+    const acknowledgedSkills = ["skill-1", "skill-2"];
+    const injectedSkills = ["skill-1"];
 
-    writeSessionState(testStateDir, testStateId, acknowledgedSkills, injectedSkills);
+    writeSessionState(
+      testStateDir,
+      testStateId,
+      acknowledgedSkills,
+      injectedSkills
+    );
 
-    const stateFile = join(testStateDir, `${testStateId}-skills-suggested.json`);
+    const stateFile = join(
+      testStateDir,
+      `${testStateId}-skills-suggested.json`
+    );
     const tempFile = `${stateFile}.tmp`;
 
     // After write completes:
@@ -79,7 +108,7 @@ describe('Skill State Manager', () => {
     expect(existsSync(tempFile)).toBe(false);
   });
 
-  it('should handle permission errors gracefully (no crash)', () => {
+  it("should handle permission errors gracefully (no crash)", () => {
     // Create read-only directory to trigger permission error
     mkdirSync(testStateDir, { recursive: true });
 
@@ -91,26 +120,36 @@ describe('Skill State Manager', () => {
       return;
     }
 
-    const acknowledgedSkills = ['test-skill'];
-    const injectedSkills = ['test-skill'];
+    const acknowledgedSkills = ["test-skill"];
+    const injectedSkills = ["test-skill"];
 
     // Should not throw - just log warning
     expect(() => {
-      writeSessionState(testStateDir, testStateId, acknowledgedSkills, injectedSkills);
+      writeSessionState(
+        testStateDir,
+        testStateId,
+        acknowledgedSkills,
+        injectedSkills
+      );
     }).not.toThrow();
 
     // Restore permissions for cleanup
     chmodSync(testStateDir, 0o755);
   });
 
-  it('should create state directory if it does not exist', () => {
+  it("should create state directory if it does not exist", () => {
     // Ensure directory doesn't exist
     expect(existsSync(testStateDir)).toBe(false);
 
-    const acknowledgedSkills = ['new-skill'];
-    const injectedSkills = ['new-skill'];
+    const acknowledgedSkills = ["new-skill"];
+    const injectedSkills = ["new-skill"];
 
-    writeSessionState(testStateDir, testStateId, acknowledgedSkills, injectedSkills);
+    writeSessionState(
+      testStateDir,
+      testStateId,
+      acknowledgedSkills,
+      injectedSkills
+    );
 
     // Directory should be created
     expect(existsSync(testStateDir)).toBe(true);
@@ -120,61 +159,82 @@ describe('Skill State Manager', () => {
     expect(readSkills).toEqual(acknowledgedSkills);
   });
 
-  it('should preserve all state fields when updating', () => {
-    const firstAcknowledged = ['skill-1'];
-    const firstInjected = ['skill-1'];
+  it("should preserve all state fields when updating", () => {
+    const firstAcknowledged = ["skill-1"];
+    const firstInjected = ["skill-1"];
 
     // First write
-    writeSessionState(testStateDir, testStateId, firstAcknowledged, firstInjected);
+    writeSessionState(
+      testStateDir,
+      testStateId,
+      firstAcknowledged,
+      firstInjected
+    );
 
-    const stateFile = join(testStateDir, `${testStateId}-skills-suggested.json`);
-    const firstState = JSON.parse(readFileSync(stateFile, 'utf-8'));
+    const stateFile = join(
+      testStateDir,
+      `${testStateId}-skills-suggested.json`
+    );
+    const firstState = JSON.parse(readFileSync(stateFile, "utf-8"));
 
     // Verify all fields present
-    expect(firstState).toHaveProperty('timestamp');
-    expect(firstState).toHaveProperty('acknowledgedSkills');
-    expect(firstState).toHaveProperty('injectedSkills');
-    expect(firstState).toHaveProperty('injectionTimestamp');
+    expect(firstState).toHaveProperty("timestamp");
+    expect(firstState).toHaveProperty("acknowledgedSkills");
+    expect(firstState).toHaveProperty("injectedSkills");
+    expect(firstState).toHaveProperty("injectionTimestamp");
 
     expect(firstState.acknowledgedSkills).toEqual(firstAcknowledged);
     expect(firstState.injectedSkills).toEqual(firstInjected);
   });
 
-  it('should handle empty acknowledged skills array', () => {
+  it("should handle empty acknowledged skills array", () => {
     const acknowledgedSkills: string[] = [];
     const injectedSkills: string[] = [];
 
-    writeSessionState(testStateDir, testStateId, acknowledgedSkills, injectedSkills);
+    writeSessionState(
+      testStateDir,
+      testStateId,
+      acknowledgedSkills,
+      injectedSkills
+    );
 
     const readSkills = readAcknowledgedSkills(testStateDir, testStateId);
 
     expect(readSkills).toEqual([]);
   });
 
-  it('should handle updates to existing state file', () => {
+  it("should handle updates to existing state file", () => {
     // First write
-    writeSessionState(testStateDir, testStateId, ['skill-1'], ['skill-1']);
+    writeSessionState(testStateDir, testStateId, ["skill-1"], ["skill-1"]);
 
     let readSkills = readAcknowledgedSkills(testStateDir, testStateId);
-    expect(readSkills).toEqual(['skill-1']);
+    expect(readSkills).toEqual(["skill-1"]);
 
     // Second write (update)
-    writeSessionState(testStateDir, testStateId, ['skill-1', 'skill-2'], ['skill-2']);
+    writeSessionState(
+      testStateDir,
+      testStateId,
+      ["skill-1", "skill-2"],
+      ["skill-2"]
+    );
 
     readSkills = readAcknowledgedSkills(testStateDir, testStateId);
-    expect(readSkills).toEqual(['skill-1', 'skill-2']);
+    expect(readSkills).toEqual(["skill-1", "skill-2"]);
   });
 
-  it('should return empty array when state file has malformed structure', () => {
+  it("should return empty array when state file has malformed structure", () => {
     // Create state file with valid JSON but missing acknowledgedSkills field
     mkdirSync(testStateDir, { recursive: true });
-    const stateFile = join(testStateDir, `${testStateId}-skills-suggested.json`);
+    const stateFile = join(
+      testStateDir,
+      `${testStateId}-skills-suggested.json`
+    );
     writeFileSync(
       stateFile,
       JSON.stringify({
         timestamp: Date.now(),
         // Missing acknowledgedSkills field
-        injectedSkills: ['skill-1'],
+        injectedSkills: ["skill-1"]
       })
     );
 

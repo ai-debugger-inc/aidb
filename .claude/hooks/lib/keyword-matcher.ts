@@ -6,7 +6,7 @@
  * against the user prompt.
  */
 
-import type { SkillRule } from './types.js';
+import type { SkillRule } from "./types.js";
 
 /**
  * Detect skills using keyword matching

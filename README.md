@@ -1,10 +1,13 @@
 # AI Debugger
 
-[![PyPI version](https://badge.fury.io/py/ai-debugger-inc.svg)](https://badge.fury.io/py/ai-debugger-inc)
-[![Python versions](https://img.shields.io/pypi/pyversions/ai-debugger-inc.svg)](https://pypi.org/project/ai-debugger-inc/)
+[![PyPI
+version](https://badge.fury.io/py/ai-debugger-inc.svg)](https://badge.fury.io/py/ai-debugger-inc)
+[![Python
+versions](https://img.shields.io/pypi/pyversions/ai-debugger-inc.svg)](https://pypi.org/project/ai-debugger-inc/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/ai-debugger-inc/aidb/blob/main/LICENSE)
 [![Downloads](https://static.pepy.tech/badge/aidb)](https://pepy.tech/project/aidb)
-[![GitHub stars](https://img.shields.io/github/stars/ai-debugger-inc/aidb?style=social)](https://github.com/ai-debugger-inc/aidb)
+[![GitHub
+stars](https://img.shields.io/github/stars/ai-debugger-inc/aidb?style=social)](https://github.com/ai-debugger-inc/aidb)
 
 **AI-Powered Debugging for Every Language**
 
@@ -14,7 +17,7 @@ Python, JavaScript, TypeScript, and Java programs using the same battle-tested
 adapters that power VS Code—no IDE required, no heavyweight dependencies, just
 powerful debugging at your AI assistant's fingertips.
 
-**[Read the Docs](https://ai-debugger.readthedocs.io)** | **[Join
+**[Read the Docs](https://ai-debugger.com)** | **[Join
 Discord](https://discord.com/invite/UGS92b6KgR)** | **[Star on
 GitHub](https://github.com/ai-debugger-inc/aidb)**
 
@@ -47,8 +50,8 @@ Ask your AI assistant:
 > 25."
 
 **JavaScript/Java?** [Visit the
-docs](https://ai-debugger.readthedocs.io/en/latest/user-guide/mcp/quickstart.html)
-for multi-language setup.
+docs](https://ai-debugger.com/en/latest/user-guide/mcp/quickstart.html) for
+multi-language setup.
 
 ______________________________________________________________________
 
@@ -107,7 +110,7 @@ ______________________________________________________________________
                             MCP Protocol
 ┌──────────────────────────────────────────────────────────────────┐
 │                      AI Debugger MCP Server                      │
-│       12 Agent-Optimized Tools (init, step, inspect, etc.)       │
+│          Agent-Optimized Tools (init, step, inspect, etc.)       │
 └────────────────────────────────┬─────────────────────────────────┘
                                  │
                                  ▼
@@ -136,7 +139,7 @@ Your AI assistant gets powerful debugging capabilities, and you get the
 reliability of debug adapters used by millions of developers worldwide.
 
 **[Learn more about the architecture
-→](https://ai-debugger.readthedocs.io/en/latest/technical/architecture.html)**
+→](https://ai-debugger.com/en/latest/developer-guide/overview.html)**
 
 ______________________________________________________________________
 
@@ -162,34 +165,34 @@ ______________________________________________________________________
 ### Getting Started
 
 - **[Quickstart
-  Guide](https://ai-debugger.readthedocs.io/en/latest/user-guide/mcp/quickstart.html)**
+  Guide](https://ai-debugger.com/en/latest/user-guide/mcp/quickstart.html)**
   - Install and debug in 5 minutes
 - **[Core
-  Concepts](https://ai-debugger.readthedocs.io/en/latest/user-guide/mcp/core-concepts.html)**
+  Concepts](https://ai-debugger.com/en/latest/user-guide/mcp/core-concepts.html)**
   - Sessions, breakpoints, execution flow
 - **[Language
-  Guides](https://ai-debugger.readthedocs.io/en/latest/user-guide/mcp/languages/python.html)**
+  Guides](https://ai-debugger.com/en/latest/user-guide/mcp/languages/python.html)**
   - Python, JavaScript, Java examples
 
 ### Technical Reference
 
 - **[MCP Tools
-  Reference](https://ai-debugger.readthedocs.io/en/latest/user-guide/mcp-usage.html#mcp-tools-reference)**
+  Reference](https://ai-debugger.com/en/latest/user-guide/mcp-usage.html#mcp-tools-reference)**
   - Complete tool documentation
 - **[API
-  Documentation](https://ai-debugger.readthedocs.io/en/latest/api/index.html)**
+  Documentation](https://ai-debugger.com/en/latest/developer-guide/api/index.html)**
   - Python API reference
 - **[Advanced
-  Workflows](https://ai-debugger.readthedocs.io/en/latest/user-guide/mcp/advanced-workflows.html)**
+  Workflows](https://ai-debugger.com/en/latest/user-guide/mcp/advanced-workflows.html)**
   - Remote debugging, multi-session
 
 ### Architecture & Design
 
 - **[How It
-  Works](https://ai-debugger.readthedocs.io/en/latest/technical/architecture.html)**
+  Works](https://ai-debugger.com/en/latest/developer-guide/overview.html)**
   - System architecture deep dive
 - **[DAP Protocol
-  Guide](https://ai-debugger.readthedocs.io/en/latest/technical/dap-protocol.html)**
+  Guide](https://ai-debugger.com/en/latest/developer-guide/adapters.html)**
   - Debug Adapter Protocol reference
 
 ______________________________________________________________________
@@ -222,7 +225,7 @@ bash scripts/install/src/install.sh -v
   logging
 
 For architecture details and implementation guidance, see the [Developer
-Guide](https://ai-debugger.readthedocs.io/en/latest/developer-guide/).
+Guide](https://ai-debugger.com/en/latest/developer-guide/).
 
 ______________________________________________________________________
 
@@ -255,8 +258,7 @@ ______________________________________________________________________
 
 ## Community & Support
 
-- **Documentation**:
-  [ai-debugger.readthedocs.io](https://ai-debugger.readthedocs.io)
+- **Documentation**: [ai-debugger.com](https://ai-debugger.com)
 - **Discord Community**: [Join the
   conversation](https://discord.com/invite/UGS92b6KgR)
 - **Issues & Features**: [GitHub
@@ -275,9 +277,8 @@ ______________________________________________________________________
 
 **Ready to bring debugging to your AI assistant?**
 
-[Get
-Started](https://ai-debugger.readthedocs.io/en/latest/user-guide/mcp/quickstart.html)
-| [Read the Docs](https://ai-debugger.readthedocs.io) | [Join
+[Get Started](https://ai-debugger.com/en/latest/user-guide/mcp/quickstart.html)
+| [Read the Docs](https://ai-debugger.com) | [Join
 Discord](https://discord.com/invite/UGS92b6KgR)
 
 </div>

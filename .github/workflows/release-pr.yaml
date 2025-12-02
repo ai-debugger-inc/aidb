@@ -396,36 +396,9 @@ jobs:
         id: adapter-config
         shell: bash
         run: |
-          python3 << 'EOF'
-          import json
-          import os
-
-          with open('versions.json', 'r') as f:
-              versions = json.load(f)
-
-          adapter = "${{ matrix.adapter }}"
-          config = versions['adapters'][adapter]
-
-          # Extract build dependencies
-          build_deps = config.get('build_deps', {})
-
-          # Write outputs using modern GitHub Actions syntax
-          github_output = os.environ['GITHUB_OUTPUT']
-
-          if adapter == 'javascript':
-              node_version = build_deps.get('node_version', '18')
-              with open(github_output, 'a') as f:
-                  f.write(f"node_version={node_version}\n")
-          elif adapter == 'java':
-              java_version = build_deps.get('java_version', '21')
-              java_distribution = build_deps.get('java_distribution', 'temurin')
-              maven_opts = build_deps.get('maven_opts', '')
-
-              with open(github_output, 'a') as f:
-                  f.write(f"java_version={java_version}\n")
-                  f.write(f"java_distribution={java_distribution}\n")
-                  f.write(f"maven_opts={maven_opts}\n")
-          EOF
+          python3 .github/scripts/adapters/extract_build_config.py \
+            --adapter "${{ matrix.adapter }}" \
+            --output-mode output
 
       - name: Setup Node.js (for JavaScript adapter)
         if: matrix.adapter == 'javascript'
@@ -554,46 +527,9 @@ jobs:
           fi
 
           # Generate manifest from versions.json
-          python3 << 'EOF'
-          import json
-          import os
-          from datetime import datetime
-
-          with open('versions.json', 'r') as f:
-              versions = json.load(f)
-
-          version = "${{ needs.validate-and-extract-version.outputs.version }}"
-
-          manifest = {
-              "version": version,
-              "build_date": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
-              "adapters": {}
-          }
-
-          # Build adapter manifest from versions.json
-          for adapter_name, adapter_config in versions['adapters'].items():
-              if not adapter_config.get('enabled', True):
-                  continue
-
-              platforms = []
-              if adapter_name == 'java':
-                  platforms = ['universal']
-              else:
-                  for platform_entry in adapter_config.get('platforms', []):
-                      platforms.append(f"{platform_entry['platform']}-{platform_entry['arch']}")
-
-              manifest['adapters'][adapter_name] = {
-                  'version': adapter_config['version'],
-                  'platforms': platforms
-              }
-
-          # Write manifest
-          with open('consolidated-adapters/manifest.json', 'w') as f:
-              json.dump(manifest, f, indent=2)
-
-          print("Generated manifest:")
-          print(json.dumps(manifest, indent=2))
-          EOF
+          python3 .github/scripts/adapters/generate_manifest.py \
+            --version "${{ needs.validate-and-extract-version.outputs.version }}" \
+            --output consolidated-adapters/manifest.json
 
           echo "Consolidated adapter artifacts:"
           ls -la consolidated-adapters/

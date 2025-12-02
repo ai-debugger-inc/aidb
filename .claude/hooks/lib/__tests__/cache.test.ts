@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createHash } from 'crypto';
-import { CACHE_TTL_MS } from '../constants';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { createHash } from "crypto";
+import { CACHE_TTL_MS } from "../constants";
 
 /**
  * Tests for intent analysis caching logic
@@ -34,10 +34,13 @@ class TestCache {
     return entry.result;
   }
 
-  write(key: string, result: { required: string[]; suggested: string[] }): void {
+  write(
+    key: string,
+    result: { required: string[]; suggested: string[] }
+  ): void {
     this.cache.set(key, {
       timestamp: Date.now(),
-      result,
+      result
     });
   }
 
@@ -51,14 +54,17 @@ class TestCache {
  * (Mirrors intent-analyzer.ts lines 86-97)
  */
 function generateCacheKey(prompt: string, skills: Record<string, any>): string {
-  const skillsHash = createHash('md5').update(JSON.stringify(skills)).digest('hex').substring(0, 8);
+  const skillsHash = createHash("md5")
+    .update(JSON.stringify(skills))
+    .digest("hex")
+    .substring(0, 8);
 
-  return createHash('md5')
+  return createHash("md5")
     .update(prompt + skillsHash)
-    .digest('hex');
+    .digest("hex");
 }
 
-describe('Cache Logic', () => {
+describe("Cache Logic", () => {
   let testCache: TestCache;
   let originalDateNow: () => number;
 
@@ -71,11 +77,11 @@ describe('Cache Logic', () => {
     Date.now = originalDateNow;
   });
 
-  it('should return cached result if not expired', () => {
-    const prompt = 'Fix adapter bug';
-    const skills = { 'adapter-development': { keywords: ['adapter'] } };
+  it("should return cached result if not expired", () => {
+    const prompt = "Fix adapter bug";
+    const skills = { "adapter-development": { keywords: ["adapter"] } };
     const cacheKey = generateCacheKey(prompt, skills);
-    const mockResult = { required: ['adapter-development'], suggested: [] };
+    const mockResult = { required: ["adapter-development"], suggested: [] };
 
     // Write to cache
     testCache.write(cacheKey, mockResult);
@@ -86,14 +92,14 @@ describe('Cache Logic', () => {
     expect(cached).toEqual(mockResult);
   });
 
-  it('should return null for expired cache entries', () => {
+  it("should return null for expired cache entries", () => {
     let fakeTime = Date.now();
     Date.now = vi.fn(() => fakeTime);
 
-    const prompt = 'Test prompt';
-    const skills = { 'test-skill': { keywords: ['test'] } };
+    const prompt = "Test prompt";
+    const skills = { "test-skill": { keywords: ["test"] } };
     const cacheKey = generateCacheKey(prompt, skills);
-    const mockResult = { required: ['test-skill'], suggested: [] };
+    const mockResult = { required: ["test-skill"], suggested: [] };
 
     // Write to cache at time T
     testCache.write(cacheKey, mockResult);
@@ -107,19 +113,19 @@ describe('Cache Logic', () => {
     expect(cached).toBeNull();
   });
 
-  it('should invalidate cache when skill configuration changes', () => {
-    const prompt = 'Fix adapter';
+  it("should invalidate cache when skill configuration changes", () => {
+    const prompt = "Fix adapter";
     const skills1 = {
-      'adapter-development': {
-        keywords: ['adapter'],
-        description: 'Version 1',
-      },
+      "adapter-development": {
+        keywords: ["adapter"],
+        description: "Version 1"
+      }
     };
     const skills2 = {
-      'adapter-development': {
-        keywords: ['adapter'],
-        description: 'Version 2', // Changed description
-      },
+      "adapter-development": {
+        keywords: ["adapter"],
+        description: "Version 2" // Changed description
+      }
     };
 
     const key1 = generateCacheKey(prompt, skills1);
@@ -129,19 +135,19 @@ describe('Cache Logic', () => {
     expect(key1).not.toEqual(key2);
   });
 
-  it('should return null for non-existent cache entries', () => {
-    const nonExistentKey = 'definitely-not-in-cache';
+  it("should return null for non-existent cache entries", () => {
+    const nonExistentKey = "definitely-not-in-cache";
 
     const cached = testCache.read(nonExistentKey);
 
     expect(cached).toBeNull();
   });
 
-  it('should handle malformed cache data gracefully', () => {
+  it("should handle malformed cache data gracefully", () => {
     // This test simulates what happens when cache JSON is corrupted
     // In the real implementation, readCache has try-catch that returns null
 
-    const prompt = 'Test';
+    const prompt = "Test";
     const skills = { test: {} };
     const key = generateCacheKey(prompt, skills);
 

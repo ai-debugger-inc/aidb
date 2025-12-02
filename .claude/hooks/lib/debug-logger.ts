@@ -5,10 +5,10 @@
  * Provides detailed trace of skill injection pipeline for troubleshooting.
  */
 
-import { appendFileSync, existsSync, statSync, renameSync } from 'fs';
-import { join } from 'path';
+import { appendFileSync, existsSync, statSync, renameSync } from "fs";
+import { join } from "path";
 
-const DEBUG_SKILLS = process.env.AIDB_DEBUG_SKILLS === '1';
+const DEBUG_SKILLS = process.env.AIDB_DEBUG_SKILLS === "1";
 const MAX_LOG_SIZE = 10 * 1024 * 1024; // 10MB
 
 /**
@@ -26,9 +26,9 @@ export function debugLog(message: string): void {
   try {
     const logPath = join(
       process.env.CLAUDE_PROJECT_DIR || process.cwd(),
-      '.claude',
-      'hooks',
-      'skill-injection-debug.log'
+      ".claude",
+      "hooks",
+      "skill-injection-debug.log"
     );
 
     // Rotate log if too large
@@ -43,6 +43,6 @@ export function debugLog(message: string): void {
     appendFileSync(logPath, `[${timestamp}] ${message}\n`);
   } catch (err) {
     // Silently fail - logging must never break the hook
-    console.error('⚠️ Debug logging failed:', err);
+    console.error("⚠️ Debug logging failed:", err);
   }
 }

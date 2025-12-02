@@ -96,36 +96,9 @@ jobs:
           set -e
           set -o pipefail
 
-          # Install dependencies in same step to ensure availability
-          python3 << 'EOF'
-          import json
-          import os
-
-          with open('versions.json', 'r') as f:
-              versions = json.load(f)
-
-          adapter = "${{ matrix.adapter }}"
-          config = versions['adapters'][adapter]
-          build_deps = config.get('build_deps', {})
-          github_env = os.environ['GITHUB_ENV']
-
-          if adapter == 'javascript':
-              node_version = build_deps.get('node_version', '18')
-              with open(github_env, 'a') as f:
-                  f.write(f"NODE_VERSION={node_version}\n")
-          elif adapter == 'java':
-              java_version = build_deps.get('java_version', '21')
-              java_distribution = build_deps.get('java_distribution', 'temurin')
-              maven_opts = build_deps.get('maven_opts', '')
-              with open(github_env, 'a') as f:
-                  f.write(f"JAVA_VERSION={java_version}\n")
-                  f.write(f"JAVA_DISTRIBUTION={java_distribution}\n")
-                  f.write(f"MAVEN_OPTS={maven_opts}\n")
-          elif adapter == 'python':
-              python_version = build_deps.get('python_version', '3.12')
-              with open(github_env, 'a') as f:
-                  f.write(f"PYTHON_VERSION={python_version}\n")
-          EOF
+          python3 .github/scripts/adapters/extract_build_config.py \
+            --adapter "${{ matrix.adapter }}" \
+            --output-mode env
 
       - name: Install adapter build dependencies
         run: |
