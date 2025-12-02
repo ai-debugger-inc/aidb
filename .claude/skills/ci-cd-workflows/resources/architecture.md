@@ -14,7 +14,7 @@ Core CI/CD workflow organization, patterns, and reusable components.
 
 **Maintenance** (`maintenance-*.yaml`): Version updates (weekly), Dependabot auto-merge
 
-**Reusable**: `load-versions.yaml`, `test-suite.yaml`, `test-frameworks.yaml`, `build-adapters.yaml`, `build-docker.yaml`
+**Reusable**: `load-versions.yaml`, `test-suite.yaml`, `test-frameworks.yaml`, `build-adapters.yaml`, `build-docker.yaml`, `pypi-publish.yaml`
 
 ## Key Patterns
 
@@ -126,12 +126,15 @@ Build debug adapters and Docker images for testing. Require `python-version` inp
 
 Located in `.github/actions/`:
 
-| Action                    | Purpose                              |
-| ------------------------- | ------------------------------------ |
-| `setup-aidb-env`          | Checkout, Python setup, install deps |
-| `setup-multi-lang`        | Node.js and Java setup               |
-| `download-test-artifacts` | Conditional artifact download        |
-| `run-aidb-tests`          | Execute tests, upload coverage       |
+| Action                    | Purpose                                |
+| ------------------------- | -------------------------------------- |
+| `setup-aidb-env`          | Checkout, Python setup, install deps   |
+| `setup-multi-lang`        | Node.js and Java setup                 |
+| `download-test-artifacts` | Conditional artifact download          |
+| `run-aidb-tests`          | Execute tests, upload coverage         |
+| `pypi-upload`             | Idempotent PyPI upload (version check) |
+| `smoke-test`              | PyPI package verification with retry   |
+| `extract-version`         | Parse release branch versions          |
 
 ## Cross-Workflow Dependencies
 

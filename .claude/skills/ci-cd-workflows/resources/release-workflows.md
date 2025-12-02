@@ -55,10 +55,18 @@ See `docs/developer-guide/ci-cd.md` for complete job list and descriptions.
 - Testing workflow changes
 - Training and familiarization
 
-## Composite Actions
+## Composite Actions & Reusable Workflows
 
-New reusable actions for release workflow:
+**Reusable Workflows:**
 
+- **pypi-publish.yaml** - Unified PyPI upload workflow (handles TestPyPI and Production)
+  - Idempotent uploads (skips if version exists)
+  - Smoke tests with configurable wait times
+  - Automatic job summary generation
+
+**Composite Actions:**
+
+- **pypi-upload** - Idempotent PyPI upload with version existence checking
 - **extract-version** - Parse `release/X.Y.Z` branch names and validate versions
 - **smoke-test** - Verify PyPI package functionality with retry logic
 
@@ -164,5 +172,7 @@ git push origin release/X.Y.Z
 
 - `.github/workflows/release-pr.yaml` - Main release orchestration
 - `.github/workflows/release-publish.yaml` - Publish draft on merge
+- `.github/workflows/pypi-publish.yaml` - Reusable PyPI upload workflow
+- `.github/actions/pypi-upload/` - Idempotent PyPI upload action
 - `.github/actions/extract-version/` - Version extraction action
 - `.github/actions/smoke-test/` - PyPI smoke test action

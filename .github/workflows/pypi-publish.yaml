@@ -1,0 +1,138 @@
+name: PyPI Publish
+
+on:
+  workflow_call:
+    inputs:
+      source:
+        description: 'PyPI source: testpypi or pypi'
+        required: true
+        type: string
+      version:
+        description: 'Package version to upload'
+        required: true
+        type: string
+      python-version:
+        description: 'Python version to use'
+        required: true
+        type: string
+      wait_seconds:
+        description: 'Seconds to wait for package availability'
+        required: false
+        type: number
+        default: 180
+      skip_pypi:
+        description: 'Whether to skip PyPI upload (CD_SKIP_PYPI)'
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      twine_token:
+        description: 'PyPI API token for authentication'
+        required: true
+    outputs:
+      success:
+        description: 'Whether the upload and smoke test succeeded'
+        value: ${{ jobs.publish.outputs.success }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      success: ${{ steps.smoke.outputs.success || steps.smoke_skip.outputs.success || 'false' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Download wheel artifact
+        uses: actions/download-artifact@v6
+        with:
+          name: distribution
+          path: dist/
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ inputs.python-version }}
+          cache: 'pip'
+
+      - name: Set source display name
+        id: source-info
+        run: |
+          if [[ "${{ inputs.source }}" == "testpypi" ]]; then
+            echo "display_name=TestPyPI" >> $GITHUB_OUTPUT
+            echo "package_url=https://test.pypi.org/project/ai-debugger-inc/${{ inputs.version }}/" >> $GITHUB_OUTPUT
+          else
+            echo "display_name=Production PyPI" >> $GITHUB_OUTPUT
+            echo "package_url=https://pypi.org/project/ai-debugger-inc/${{ inputs.version }}/" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload to ${{ steps.source-info.outputs.display_name }}
+        if: ${{ !inputs.skip_pypi }}
+        id: upload
+        uses: ./.github/actions/pypi-upload
+        with:
+          source: ${{ inputs.source }}
+          version: ${{ inputs.version }}
+          twine_token: ${{ secrets.twine_token }}
+
+      - name: Skip ${{ steps.source-info.outputs.display_name }} upload (CD_SKIP_PYPI enabled)
+        if: ${{ inputs.skip_pypi }}
+        run: |
+          echo "ℹ️  Skipping ${{ steps.source-info.outputs.display_name }} upload: CD_SKIP_PYPI is set to true"
+          echo "This is typically used for testing the release workflow end-to-end."
+          echo "Wheel artifact available in GitHub Actions artifacts."
+
+      - name: Run ${{ steps.source-info.outputs.display_name }} smoke test
+        if: ${{ !inputs.skip_pypi }}
+        id: smoke
+        uses: ./.github/actions/smoke-test
+        with:
+          source: ${{ inputs.source }}
+          version: ${{ inputs.version }}
+          wait_seconds: ${{ inputs.wait_seconds }}
+
+      - name: Skip ${{ steps.source-info.outputs.display_name }} smoke test (CD_SKIP_PYPI enabled)
+        if: ${{ inputs.skip_pypi }}
+        id: smoke_skip
+        run: |
+          echo "ℹ️  Skipping ${{ steps.source-info.outputs.display_name }} smoke test: CD_SKIP_PYPI is set to true"
+          echo "success=true" >> $GITHUB_OUTPUT
+
+      - name: Add ${{ steps.source-info.outputs.display_name }} summary
+        if: always()
+        run: |
+          VERSION="${{ inputs.version }}"
+          PACKAGE_URL="${{ steps.source-info.outputs.package_url }}"
+          DISPLAY_NAME="${{ steps.source-info.outputs.display_name }}"
+          SKIPPED="${{ inputs.skip_pypi }}"
+
+          echo "## 📦 $DISPLAY_NAME Upload" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$SKIPPED" = "true" ]; then
+            echo "ℹ️  **Status**: Skipped (CD_SKIP_PYPI enabled)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Wheel artifacts are available in GitHub Actions artifacts for manual testing." >> $GITHUB_STEP_SUMMARY
+          else
+            if [ "${{ steps.smoke.outputs.success }}" = "true" ]; then
+              echo "✅ **Status**: Upload and smoke test successful" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "❌ **Status**: Smoke test failed" >> $GITHUB_STEP_SUMMARY
+            fi
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Package Information:" >> $GITHUB_STEP_SUMMARY
+            echo "- **Version**: \`$VERSION\`" >> $GITHUB_STEP_SUMMARY
+            echo "- **Package URL**: [$PACKAGE_URL]($PACKAGE_URL)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Installation:" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+            if [[ "${{ inputs.source }}" == "testpypi" ]]; then
+              echo "pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ ai-debugger-inc==$VERSION" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "pip install ai-debugger-inc==$VERSION" >> $GITHUB_STEP_SUMMARY
+            fi
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi

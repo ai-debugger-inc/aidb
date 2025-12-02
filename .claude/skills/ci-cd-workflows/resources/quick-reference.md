@@ -69,6 +69,7 @@ act -W .github/workflows/test-parallel.yaml
 | `build-test-deps.yaml` | path-filtered      | Adapter/Docker builds         |
 | `load-versions.yaml`   | reusable           | Version loading               |
 | `test-suite.yaml`      | reusable           | Generic test runner           |
+| `pypi-publish.yaml`    | reusable           | Idempotent PyPI upload        |
 
 ## Composite Actions
 
@@ -82,6 +83,7 @@ Located in `.github/actions/`:
 | `run-aidb-tests`          | Execute tests + coverage      |
 | `extract-version`         | Parse release branch version  |
 | `smoke-test`              | PyPI package verification     |
+| `pypi-upload`             | Idempotent PyPI upload        |
 
 ## CI Scripts
 
