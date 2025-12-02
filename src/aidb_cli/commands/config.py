@@ -7,8 +7,7 @@ import click
 
 from aidb_cli.core.constants import ExitCode, Icons
 from aidb_cli.core.decorators import handle_exceptions
-from aidb_common.io import safe_read_yaml
-from aidb_common.io.files import FileOperationError
+from aidb_cli.core.yaml import YamlOperationError, safe_read_yaml
 from aidb_logging import get_cli_logger
 
 logger = get_cli_logger(__name__)
@@ -204,14 +203,14 @@ def validate(ctx: click.Context) -> None:
 
     for section, is_valid in version_results.items():
         icon = f"{Icons.SUCCESS}" if is_valid else f"{Icons.ERROR}"
-        output.plain(f"{icon} versions.yaml {section}")
+        output.plain(f"{icon} versions.json {section}")
 
     user_valid = True
     if config_manager.user_config.exists():
         try:
             safe_read_yaml(config_manager.user_config)
             output.plain(f"{Icons.SUCCESS} User config syntax")
-        except FileOperationError as e:
+        except YamlOperationError as e:
             output.plain(f"{Icons.ERROR} User config syntax: {e}")
             user_valid = False
     else:
@@ -222,7 +221,7 @@ def validate(ctx: click.Context) -> None:
         try:
             safe_read_yaml(config_manager.project_config)
             output.plain(f"{Icons.SUCCESS} Project config syntax")
-        except FileOperationError as e:
+        except YamlOperationError as e:
             output.plain(f"{Icons.ERROR} Project config syntax: {e}")
             project_valid = False
     else:

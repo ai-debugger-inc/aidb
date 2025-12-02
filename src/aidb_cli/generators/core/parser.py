@@ -55,7 +55,7 @@ class ScenarioParser:
         -------
             List of parsed scenarios
         """
-        from aidb_common.io import safe_read_yaml
+        from aidb_cli.core.yaml import safe_read_yaml
 
         data = safe_read_yaml(file_path)
 

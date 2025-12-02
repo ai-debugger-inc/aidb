@@ -149,7 +149,7 @@ class MCPConfig:
 
     # Server configuration
     server_name: str = "aidb-debug-v2"
-    server_version: str = "0.0.1"
+    server_version: str = "0.0.2"
 
     @classmethod
     def from_env(cls) -> MCPConfig:

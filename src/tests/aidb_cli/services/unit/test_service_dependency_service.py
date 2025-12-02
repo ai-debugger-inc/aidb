@@ -5,11 +5,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from aidb_cli.core.yaml import YamlOperationError
 from aidb_cli.services.docker.service_dependency_service import (
     ServiceDependency,
     ServiceDependencyService,
 )
-from aidb_common.io.files import FileOperationError
 
 
 class TestServiceDependency:
@@ -294,13 +294,13 @@ class TestServiceDependencyService:
         assert len(service.services) == 0
 
     def test_load_services_invalid_yaml(self, service, tmp_path):
-        """Test loading services with invalid YAML (FileOperationError)."""
+        """Test loading services with invalid YAML (YamlOperationError)."""
         compose_file = tmp_path / "compose.yaml"
 
         with patch(
             "aidb_cli.services.docker.service_dependency_service.safe_read_yaml",
         ) as mock_read:
-            mock_read.side_effect = FileOperationError("Invalid YAML")
+            mock_read.side_effect = YamlOperationError("Invalid YAML")
 
             service.load_services(compose_file)
 

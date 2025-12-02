@@ -17,7 +17,7 @@ class TypeScriptAdapterBuilder(AdapterBuilder):
     """
 
     def get_adapter_config(self) -> Dict:
-        """Get TypeScript adapter configuration from versions.yaml."""
+        """Get TypeScript adapter configuration from versions.json."""
         # TypeScript uses the JavaScript adapter by default
         # Override this method if a separate TypeScript adapter is added
         return self.versions["adapters"].get("typescript",

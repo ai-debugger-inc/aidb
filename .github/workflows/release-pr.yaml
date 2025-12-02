@@ -10,7 +10,7 @@ on:
       - reopened
 
 jobs:
-  # Job 0: Load versions from versions.yaml
+  # Job 0: Load versions from versions.json
   load-versions:
     uses: ./.github/workflows/load-versions.yaml
 
@@ -220,191 +220,31 @@ jobs:
 
   # Job 6: Upload to TestPyPI and run smoke tests (waits for tests to pass)
   test-pypi-upload:
-    runs-on: ubuntu-latest
     needs: [load-versions, build-wheel, run-tests, validate-and-extract-version]
-    timeout-minutes: 15
-    outputs:
-      success: ${{ steps.smoke.outputs.success || steps.smoke_skip.outputs.success || 'false' }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Download wheel artifact
-        uses: actions/download-artifact@v6
-        with:
-          name: distribution
-          path: dist/
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ needs.load-versions.outputs.python-version }}
-          cache: 'pip'
-
-      - name: Install twine
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install twine
-
-      - name: Upload to TestPyPI
-        if: ${{ vars.CD_SKIP_PYPI != 'true' }}
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.TESTPYPI_TOKEN }}
-        run: |
-          echo "📦 Uploading to TestPyPI..."
-          twine upload --repository testpypi dist/*
-          echo "✅ Upload to TestPyPI successful"
-
-      - name: Skip TestPyPI upload (CD_SKIP_PYPI enabled)
-        if: ${{ vars.CD_SKIP_PYPI == 'true' }}
-        run: |
-          echo "ℹ️  Skipping TestPyPI upload: CD_SKIP_PYPI is set to true"
-          echo "This is typically used for testing the release workflow end-to-end."
-          echo "Wheel artifact available in GitHub Actions artifacts."
-
-      - name: Run TestPyPI smoke test
-        if: ${{ vars.CD_SKIP_PYPI != 'true' }}
-        id: smoke
-        uses: ./.github/actions/smoke-test
-        with:
-          source: testpypi
-          version: ${{ needs.validate-and-extract-version.outputs.version }}
-          wait_seconds: 180
-
-      - name: Skip TestPyPI smoke test (CD_SKIP_PYPI enabled)
-        if: ${{ vars.CD_SKIP_PYPI == 'true' }}
-        id: smoke_skip
-        run: |
-          echo "ℹ️  Skipping TestPyPI smoke test: CD_SKIP_PYPI is set to true"
-          echo "success=true" >> $GITHUB_OUTPUT
-
-      - name: Add TestPyPI summary
-        if: always()
-        run: |
-          VERSION="${{ needs.validate-and-extract-version.outputs.version }}"
-          PACKAGE_URL="https://test.pypi.org/project/aidb/$VERSION/"
-          SKIPPED="${{ vars.CD_SKIP_PYPI == 'true' }}"
-
-          echo "## 📦 TestPyPI Upload" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          if [ "$SKIPPED" = "true" ]; then
-            echo "ℹ️  **Status**: Skipped (CD_SKIP_PYPI enabled)" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Wheel artifacts are available in GitHub Actions artifacts for manual testing." >> $GITHUB_STEP_SUMMARY
-          else
-            if [ "${{ steps.smoke.outputs.success }}" = "true" ]; then
-              echo "✅ **Status**: Upload and smoke test successful" >> $GITHUB_STEP_SUMMARY
-            else
-              echo "❌ **Status**: Smoke test failed" >> $GITHUB_STEP_SUMMARY
-            fi
-
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Package Information:" >> $GITHUB_STEP_SUMMARY
-            echo "- **Version**: \`$VERSION\`" >> $GITHUB_STEP_SUMMARY
-            echo "- **Package URL**: [$PACKAGE_URL]($PACKAGE_URL)" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Installation:" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-            echo "pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ aidb==$VERSION" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          fi
+    uses: ./.github/workflows/pypi-publish.yaml
+    with:
+      source: testpypi
+      version: ${{ needs.validate-and-extract-version.outputs.version }}
+      python-version: ${{ needs.load-versions.outputs.python-version }}
+      wait_seconds: 180
+      skip_pypi: ${{ vars.CD_SKIP_PYPI == 'true' }}
+    secrets:
+      twine_token: ${{ secrets.TEST_PYPI_TOKEN }}
 
   # Job 7: Upload to Production PyPI and run smoke tests
   prod-pypi-upload:
-    runs-on: ubuntu-latest
     needs: [load-versions, test-pypi-upload, validate-and-extract-version]
     # Only proceed if CD_SKIP_PYPI is enabled OR TestPyPI smoke test passed
     if: ${{ vars.CD_SKIP_PYPI == 'true' || needs.test-pypi-upload.outputs.success == 'true' }}
-    timeout-minutes: 15
-    outputs:
-      success: ${{ steps.smoke.outputs.success }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Download wheel artifact
-        uses: actions/download-artifact@v6
-        with:
-          name: distribution
-          path: dist/
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ needs.load-versions.outputs.python-version }}
-          cache: 'pip'
-
-      - name: Install twine
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install twine
-
-      - name: Upload to Production PyPI
-        if: ${{ vars.CD_SKIP_PYPI != 'true' }}
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-        run: |
-          echo "📦 Uploading to Production PyPI..."
-          twine upload dist/*
-          echo "✅ Upload to Production PyPI successful"
-
-      - name: Skip Production PyPI upload (CD_SKIP_PYPI enabled)
-        if: ${{ vars.CD_SKIP_PYPI == 'true' }}
-        run: |
-          echo "ℹ️  Skipping Production PyPI upload: CD_SKIP_PYPI is set to true"
-          echo "This is typically used for testing the release workflow end-to-end."
-          echo "Wheel artifact available in GitHub Actions artifacts."
-
-      - name: Run Production PyPI smoke test
-        if: ${{ vars.CD_SKIP_PYPI != 'true' }}
-        id: smoke
-        uses: ./.github/actions/smoke-test
-        with:
-          source: pypi
-          version: ${{ needs.validate-and-extract-version.outputs.version }}
-          wait_seconds: 120
-
-      - name: Skip Production PyPI smoke test (CD_SKIP_PYPI enabled)
-        if: ${{ vars.CD_SKIP_PYPI == 'true' }}
-        run: |
-          echo "ℹ️  Skipping Production PyPI smoke test: CD_SKIP_PYPI is set to true"
-
-      - name: Add Production PyPI summary
-        if: always()
-        run: |
-          VERSION="${{ needs.validate-and-extract-version.outputs.version }}"
-          PACKAGE_URL="https://pypi.org/project/aidb/$VERSION/"
-          SKIPPED="${{ vars.CD_SKIP_PYPI == 'true' }}"
-
-          echo "## 📦 Production PyPI Upload" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          if [ "$SKIPPED" = "true" ]; then
-            echo "ℹ️  **Status**: Skipped (CD_SKIP_PYPI enabled)" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Wheel artifacts are available in GitHub Actions artifacts for manual testing." >> $GITHUB_STEP_SUMMARY
-          else
-            if [ "${{ steps.smoke.outputs.success }}" = "true" ]; then
-              echo "✅ **Status**: Upload and smoke test successful" >> $GITHUB_STEP_SUMMARY
-            else
-              echo "❌ **Status**: Smoke test failed" >> $GITHUB_STEP_SUMMARY
-            fi
-
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Package Information:" >> $GITHUB_STEP_SUMMARY
-            echo "- **Version**: \`$VERSION\`" >> $GITHUB_STEP_SUMMARY
-            echo "- **Package URL**: [$PACKAGE_URL]($PACKAGE_URL)" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Installation:" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-            echo "pip install aidb==$VERSION" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          fi
+    uses: ./.github/workflows/pypi-publish.yaml
+    with:
+      source: pypi
+      version: ${{ needs.validate-and-extract-version.outputs.version }}
+      python-version: ${{ needs.load-versions.outputs.python-version }}
+      wait_seconds: 120
+      skip_pypi: ${{ vars.CD_SKIP_PYPI == 'true' }}
+    secrets:
+      twine_token: ${{ secrets.PYPI_TOKEN }}
 
   # Job 8: Create draft GitHub release
   create-draft-release:
@@ -494,7 +334,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "[View Draft Release](https://github.com/${{ github.repository }}/releases/tag/$TAG_NAME)" >> $GITHUB_STEP_SUMMARY
 
-  # Job 9: Generate adapter build matrix dynamically from versions.yaml
+  # Job 9: Generate adapter build matrix dynamically from versions.json
   # Note: Does not depend on create-draft-release - matrix generation can happen early
   generate-adapter-matrix:
     runs-on: ubuntu-latest
@@ -557,11 +397,11 @@ jobs:
         shell: bash
         run: |
           python3 << 'EOF'
-          import yaml
+          import json
           import os
 
-          with open('versions.yaml', 'r') as f:
-              versions = yaml.safe_load(f)
+          with open('versions.json', 'r') as f:
+              versions = json.load(f)
 
           adapter = "${{ matrix.adapter }}"
           config = versions['adapters'][adapter]
@@ -713,15 +553,14 @@ jobs:
             exit 1
           fi
 
-          # Generate manifest from versions.yaml
+          # Generate manifest from versions.json
           python3 << 'EOF'
-          import yaml
           import json
           import os
           from datetime import datetime
 
-          with open('versions.yaml', 'r') as f:
-              versions = yaml.safe_load(f)
+          with open('versions.json', 'r') as f:
+              versions = json.load(f)
 
           version = "${{ needs.validate-and-extract-version.outputs.version }}"
 
@@ -731,7 +570,7 @@ jobs:
               "adapters": {}
           }
 
-          # Build adapter manifest from versions.yaml
+          # Build adapter manifest from versions.json
           for adapter_name, adapter_config in versions['adapters'].items():
               if not adapter_config.get('enabled', True):
                   continue

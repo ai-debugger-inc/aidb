@@ -18,7 +18,7 @@ class TestParseResults:
         results_json = json.dumps(
             {
                 "test-cli": {"result": "success"},
-                "test-backend": {"result": "failure"},
+                "test-core": {"result": "failure"},
                 "test-mcp": {"result": "skipped"},
             },
         )
@@ -28,7 +28,7 @@ class TestParseResults:
 
         assert results == {
             "test-cli": "success",
-            "test-backend": "failure",
+            "test-core": "failure",
             "test-mcp": "skipped",
         }
 
@@ -54,7 +54,7 @@ class TestParseResults:
         results_json = json.dumps(
             {
                 "test-cli": {},
-                "test-backend": {"result": "success"},
+                "test-core": {"result": "success"},
             },
         )
         monkeypatch.setenv("RESULTS_JSON", results_json)
@@ -63,7 +63,7 @@ class TestParseResults:
 
         assert results == {
             "test-cli": "unknown",
-            "test-backend": "success",
+            "test-core": "success",
         }
 
 
@@ -73,7 +73,7 @@ class TestFormatJobName:
     def test_format_job_name_removes_test_prefix(self):
         """Test that 'test-' prefix is removed."""
         assert format_job_summary.format_job_name("test-cli") == "CLI"
-        assert format_job_summary.format_job_name("test-backend") == "Backend"
+        assert format_job_summary.format_job_name("test-core") == "Core"
 
     def test_format_job_name_preserves_acronyms(self):
         """Test that acronyms are preserved in uppercase."""
@@ -110,27 +110,27 @@ class TestGenerateSummaryTable:
         """Test summary table with all successful jobs."""
         results = {
             "test-cli": "success",
-            "test-backend": "success",
+            "test-core": "success",
         }
 
         summary = format_job_summary.generate_summary_table(results)
 
         assert "## Test Results" in summary
         assert "| Job | Status |" in summary
-        assert "| Backend | ✅ Success |" in summary
+        assert "| Core | ✅ Success |" in summary
         assert "| CLI | ✅ Success |" in summary
 
     def test_generate_summary_table_mixed_statuses(self):
         """Test summary table with mixed job statuses."""
         results = {
             "test-cli": "success",
-            "test-backend": "failure",
+            "test-core": "failure",
             "test-mcp": "skipped",
         }
 
         summary = format_job_summary.generate_summary_table(results)
 
-        assert "| Backend | ❌ Failed |" in summary
+        assert "| Core | ❌ Failed |" in summary
         assert "| CLI | ✅ Success |" in summary
         assert "| MCP | ⏭️ Skipped |" in summary
 
@@ -138,30 +138,30 @@ class TestGenerateSummaryTable:
         """Test summary table with unknown status."""
         results = {
             "test-cli": "unknown",
-            "test-backend": "cancelled",
+            "test-core": "cancelled",
         }
 
         summary = format_job_summary.generate_summary_table(results)
 
         assert "| CLI | ❓ Unknown |" in summary
-        assert "| Backend | ❓ Cancelled |" in summary
+        assert "| Core | ❓ Cancelled |" in summary
 
     def test_generate_summary_table_sorted_output(self):
         """Test that jobs are sorted alphabetically."""
         results = {
             "test-mcp": "success",
-            "test-backend": "success",
+            "test-core": "success",
             "test-cli": "success",
         }
 
         summary = format_job_summary.generate_summary_table(results)
         lines = summary.split("\n")
 
-        backend_idx = next(i for i, line in enumerate(lines) if "Backend" in line)
         cli_idx = next(i for i, line in enumerate(lines) if "CLI" in line)
+        core_idx = next(i for i, line in enumerate(lines) if "Core" in line)
         mcp_idx = next(i for i, line in enumerate(lines) if "MCP" in line)
 
-        assert backend_idx < cli_idx < mcp_idx
+        assert cli_idx < core_idx < mcp_idx
 
 
 class TestCheckFailures:
@@ -171,7 +171,7 @@ class TestCheckFailures:
         """Test check_failures with all successful jobs."""
         results = {
             "test-cli": "success",
-            "test-backend": "success",
+            "test-core": "success",
         }
 
         result = format_job_summary.check_failures(results)
@@ -184,7 +184,7 @@ class TestCheckFailures:
         """Test check_failures with failed jobs."""
         results = {
             "test-cli": "success",
-            "test-backend": "failure",
+            "test-core": "failure",
             "test-mcp": "failure",
         }
 
@@ -193,14 +193,14 @@ class TestCheckFailures:
         assert result is False
         captured = capsys.readouterr()
         assert "❌ Some tests failed" in captured.out
-        assert "test-backend" in captured.out
+        assert "test-core" in captured.out
         assert "test-mcp" in captured.out
 
     def test_check_failures_with_skipped(self, capsys):
         """Test check_failures treats skipped as non-failure."""
         results = {
             "test-cli": "success",
-            "test-backend": "skipped",
+            "test-core": "skipped",
         }
 
         result = format_job_summary.check_failures(results)
@@ -218,7 +218,7 @@ class TestMain:
         results_json = json.dumps(
             {
                 "test-cli": {"result": "success"},
-                "test-backend": {"result": "success"},
+                "test-core": {"result": "success"},
             },
         )
         monkeypatch.setenv("RESULTS_JSON", results_json)
@@ -236,7 +236,7 @@ class TestMain:
         results_json = json.dumps(
             {
                 "test-cli": {"result": "success"},
-                "test-backend": {"result": "failure"},
+                "test-core": {"result": "failure"},
             },
         )
         monkeypatch.setenv("RESULTS_JSON", results_json)
@@ -307,7 +307,7 @@ class TestIntegration:
         results_json = json.dumps(
             {
                 "test-cli": {"result": "success"},
-                "test-backend": {"result": "success"},
+                "test-core": {"result": "success"},
                 "test-shared": {"result": "success"},
                 "test-frameworks": {"result": "success"},
                 "test-launch": {"result": "success"},
@@ -322,7 +322,7 @@ class TestIntegration:
         assert exit_code == 0
         content = summary_file.read_text()
 
-        assert "| Backend | ✅ Success |" in content
+        assert "| Core | ✅ Success |" in content
         assert "| CLI | ✅ Success |" in content
         assert "| Shared | ✅ Success |" in content
         assert "| Frameworks | ✅ Success |" in content

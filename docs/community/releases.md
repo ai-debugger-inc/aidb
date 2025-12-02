@@ -154,7 +154,7 @@ When an AI agent attempts to start a debugging session without the required adap
 
 AI Debugger is free and open source. Get started in minutes:
 
-1. Install AI Debugger: `pip install ai-debugger`
+1. Install AI Debugger: `pip install ai-debugger-inc`
 2. Set up MCP integration with your AI assistant
 3. Join our [Discord community](https://discord.com/invite/UGS92b6KgR)
 

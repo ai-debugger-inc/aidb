@@ -25,7 +25,7 @@ def detect_repo_root(start_path: Path | None = None) -> Path:
     # Walk up the directory tree looking for repo markers
     current = start_path
     while current != current.parent:
-        if (current / "versions.yaml").exists() and (
+        if (current / "versions.json").exists() and (
             current / "pyproject.toml"
         ).exists():
             return current

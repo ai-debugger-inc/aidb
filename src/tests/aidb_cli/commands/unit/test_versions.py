@@ -134,7 +134,7 @@ class TestVersionsCommands:
                     "Some version configurations are missing or invalid"
                     in result.output
                 )
-                assert "Check versions.yaml for missing sections" in result.output
+                assert "Check versions.json for missing sections" in result.output
 
     def test_validate_output_format(self, cli_runner, mock_repo_root):
         """Test versions validate output shows section status."""

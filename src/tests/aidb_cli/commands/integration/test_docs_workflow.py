@@ -66,37 +66,6 @@ class TestDocsPublicCommands:
 
     @pytest.mark.integration
     @pytest.mark.requires_docker
-    def test_public_docs_build_command(self):
-        """Test public docs build command."""
-        if not _docker_available():
-            pytest.skip("Docker not available")
-
-        runner = CliRunner()
-
-        # Build public documentation
-        build_result = runner.invoke(
-            cli,
-            ["docs", "build"],
-            catch_exceptions=False,
-        )
-
-        # Build should either succeed or fail gracefully
-        if build_result.exit_code == 0:
-            assert any(
-                keyword in build_result.output.lower()
-                for keyword in [
-                    "build",
-                    "documentation",
-                    "success",
-                    "complete",
-                ]
-            )
-        else:
-            # If it fails, it should provide meaningful error info
-            assert len(build_result.output.strip()) > 0
-
-    @pytest.mark.integration
-    @pytest.mark.requires_docker
     @pytest.mark.skipif(
         os.environ.get("GITHUB_ACTIONS") == "true",
         reason="Docs tests require building images not pre-pulled in CI",

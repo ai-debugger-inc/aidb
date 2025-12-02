@@ -1,7 +1,7 @@
 # Language-specific test image for JavaScript/Node.js
 # Optimized for JavaScript framework testing with minimal size
 # NOTE: Inherits from aidb-test-base which provides Python 3.12 + common dependencies
-# NOTE: Versions from versions.yaml
+# NOTE: Versions from versions.json
 
 # Parametrize base image for CI flexibility (local: aidb-test-base:latest, CI: GHCR)
 # Must be declared in global scope (before first FROM) for multi-stage builds

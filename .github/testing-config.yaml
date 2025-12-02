@@ -10,14 +10,6 @@ test_suites:
     needs_docker: false
     description: Command-line interface tests
 
-  backend:
-    name: Backend Tests
-    suite: backend
-    needs_adapters: false
-    needs_docker: true
-    secrets_required: true
-    description: Backend service tests (requires external services)
-
   shared:
     name: Shared Tests
     suite: shared

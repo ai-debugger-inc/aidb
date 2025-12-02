@@ -2,6 +2,9 @@
 
 Provides functions to estimate token consumption from response data. Supports both
 tiktoken (accurate) and simple (chars/4) estimation methods.
+
+Note: tiktoken is an optional dependency. If not installed, the tiktoken method
+falls back to the simple estimation method with a warning.
 """
 
 from __future__ import annotations
@@ -9,10 +12,12 @@ from __future__ import annotations
 import json
 from typing import Any
 
-import tiktoken
-
 from aidb_logging import get_mcp_logger as get_logger
 from aidb_mcp.core.performance_types import TokenEstimationMethod
+
+# Lazy import for optional tiktoken dependency
+_tiktoken_encoder = None
+_tiktoken_import_attempted = False
 
 __all__ = [
     "estimate_tokens",
@@ -24,6 +29,35 @@ __all__ = [
 ]
 
 logger = get_logger(__name__)
+
+
+def _get_tiktoken_encoder():
+    """Lazily load tiktoken encoder if available.
+
+    Returns
+    -------
+    tiktoken.Encoding | None
+        The cl100k_base encoder if tiktoken is installed, None otherwise
+    """
+    global _tiktoken_encoder, _tiktoken_import_attempted
+
+    if _tiktoken_import_attempted:
+        return _tiktoken_encoder
+
+    _tiktoken_import_attempted = True
+
+    try:
+        import tiktoken
+
+        _tiktoken_encoder = tiktoken.get_encoding("cl100k_base")
+        logger.debug("tiktoken loaded successfully")
+    except ImportError:
+        logger.debug(
+            "tiktoken not installed - will fall back to simple estimation",
+        )
+        _tiktoken_encoder = None
+
+    return _tiktoken_encoder
 
 
 def _get_config():
@@ -73,10 +107,13 @@ def estimate_tokens(
     if method_str == TokenEstimationMethod.DISABLED.value:
         return None
 
-    # Use tiktoken for accurate estimation
+    # Use tiktoken for accurate estimation (if available)
     if method_str == TokenEstimationMethod.TIKTOKEN.value:
-        enc = tiktoken.get_encoding("cl100k_base")
-        return len(enc.encode(text))
+        encoder = _get_tiktoken_encoder()
+        if encoder is not None:
+            return len(encoder.encode(text))
+        # Fall back to simple if tiktoken not installed
+        logger.debug("tiktoken requested but not available, using simple estimation")
 
     # Simple estimation: ~4 chars per token
     return len(text) // 4

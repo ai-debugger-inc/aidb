@@ -7,7 +7,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-import yaml
 from _script_loader import load_script_module
 
 
@@ -27,7 +26,7 @@ class TestMatrixGeneration:
 
     @pytest.fixture
     def simple_versions_config(self, tmp_path):
-        """Create a simple versions.yaml for testing.
+        """Create a simple versions.json for testing.
 
         Parameters
         ----------
@@ -37,7 +36,7 @@ class TestMatrixGeneration:
         Returns
         -------
         Path
-            Path to temporary versions.yaml file.
+            Path to temporary versions.json file.
         """
         config = {
             "version": "1.0.0",
@@ -67,9 +66,9 @@ class TestMatrixGeneration:
             ],
         }
 
-        versions_file = tmp_path / "versions.yaml"
+        versions_file = tmp_path / "versions.json"
         with versions_file.open("w") as f:
-            yaml.dump(config, f)
+            json.dump(config, f, indent=2)
 
         return versions_file
 
@@ -116,9 +115,9 @@ class TestMatrixGeneration:
             ],
         }
 
-        versions_file = tmp_path / "versions.yaml"
+        versions_file = tmp_path / "versions.json"
         with versions_file.open("w") as f:
-            yaml.dump(config, f)
+            json.dump(config, f)
 
         result = matrix_generator.generate_matrix("gha", str(versions_file))
         adapters = {entry["adapter"] for entry in result["include"]}
@@ -208,7 +207,7 @@ class TestJavaSpecialCase:
 
     @pytest.fixture
     def versions_with_java(self, tmp_path):
-        """Create versions.yaml with Java adapter.
+        """Create versions.json with Java adapter.
 
         Parameters
         ----------
@@ -218,7 +217,7 @@ class TestJavaSpecialCase:
         Returns
         -------
         Path
-            Path to temporary versions.yaml file.
+            Path to temporary versions.json file.
         """
         config = {
             "version": "1.0.0",
@@ -232,9 +231,9 @@ class TestJavaSpecialCase:
             ],
         }
 
-        versions_file = tmp_path / "versions.yaml"
+        versions_file = tmp_path / "versions.json"
         with versions_file.open("w") as f:
-            yaml.dump(config, f)
+            json.dump(config, f, indent=2)
 
         return versions_file
 
@@ -279,9 +278,9 @@ class TestJavaSpecialCase:
             ],
         }
 
-        versions_file = tmp_path / "versions.yaml"
+        versions_file = tmp_path / "versions.json"
         with versions_file.open("w") as f:
-            yaml.dump(config, f)
+            json.dump(config, f)
 
         result = matrix_generator.generate_matrix("gha", str(versions_file))
 
@@ -302,7 +301,7 @@ class TestWorkflowModes:
 
     @pytest.fixture
     def multi_platform_config(self, tmp_path):
-        """Create versions.yaml with multiple platforms.
+        """Create versions.json with multiple platforms.
 
         Parameters
         ----------
@@ -312,7 +311,7 @@ class TestWorkflowModes:
         Returns
         -------
         Path
-            Path to temporary versions.yaml file.
+            Path to temporary versions.json file.
         """
         config = {
             "version": "1.0.0",
@@ -326,9 +325,9 @@ class TestWorkflowModes:
             ],
         }
 
-        versions_file = tmp_path / "versions.yaml"
+        versions_file = tmp_path / "versions.json"
         with versions_file.open("w") as f:
-            yaml.dump(config, f)
+            json.dump(config, f, indent=2)
 
         return versions_file
 
@@ -432,7 +431,7 @@ class TestOutputFormats:
 
     @pytest.fixture
     def simple_versions(self, tmp_path):
-        """Create a minimal versions.yaml for output testing.
+        """Create a minimal versions.json for output testing.
 
         Parameters
         ----------
@@ -442,7 +441,7 @@ class TestOutputFormats:
         Returns
         -------
         Path
-            Path to temporary versions.yaml file.
+            Path to temporary versions.json file.
         """
         config = {
             "version": "1.0.0",
@@ -454,9 +453,9 @@ class TestOutputFormats:
             ],
         }
 
-        versions_file = tmp_path / "versions.yaml"
+        versions_file = tmp_path / "versions.json"
         with versions_file.open("w") as f:
-            yaml.dump(config, f)
+            json.dump(config, f, indent=2)
 
         return versions_file
 
@@ -548,7 +547,7 @@ class TestOutputFormats:
                 str(python_exe),
                 str(matrix_generator_script),
                 "--versions-file",
-                "/nonexistent/versions.yaml",
+                "/nonexistent/versions.json",
             ],
             cwd=repo_root,
             capture_output=True,
@@ -561,23 +560,23 @@ class TestOutputFormats:
 
 
 class TestRealVersionsYaml:
-    """Test matrix generation with actual project versions.yaml."""
+    """Test matrix generation with actual project versions.json."""
 
     @pytest.fixture
     def matrix_generator(self):
         """Load matrix_generator.py as a module."""
         return load_script_module("utils/matrix_generator")
 
-    def test_generate_from_real_versions_yaml(
+    def test_generate_from_real_versions_json(
         self,
         matrix_generator,
         repo_root,
     ):
-        """Verify matrix generation works with real versions.yaml."""
-        versions_file = repo_root / "versions.yaml"
+        """Verify matrix generation works with real versions.json."""
+        versions_file = repo_root / "versions.json"
 
         if not versions_file.exists():
-            pytest.skip("versions.yaml not found in repository root")
+            pytest.skip("versions.json not found in repository root")
 
         result = matrix_generator.generate_matrix("gha", str(versions_file))
 
@@ -596,11 +595,11 @@ class TestRealVersionsYaml:
         matrix_generator,
         repo_root,
     ):
-        """Verify Java adapter in real versions.yaml creates single entry."""
-        versions_file = repo_root / "versions.yaml"
+        """Verify Java adapter in real versions.json creates single entry."""
+        versions_file = repo_root / "versions.json"
 
         if not versions_file.exists():
-            pytest.skip("versions.yaml not found in repository root")
+            pytest.skip("versions.json not found in repository root")
 
         result = matrix_generator.generate_matrix("gha", str(versions_file))
 

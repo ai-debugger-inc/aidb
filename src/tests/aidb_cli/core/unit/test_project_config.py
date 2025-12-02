@@ -1,4 +1,4 @@
-"""Tests for aidb_common.config.project module."""
+"""Tests for aidb_cli.core.project_config module."""
 
 from pathlib import Path
 from typing import Any
@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 import yaml
 
-from aidb_common.config.project import (
+from aidb_cli.core.project_config import (
     deep_merge,
     default_config,
     get_project_config_path,
@@ -330,7 +330,7 @@ class TestLoadMergedConfig:
         user_config_file.write_text(yaml.dump(user_data))
 
         monkeypatch.setattr(
-            "aidb_common.config.project.get_user_config_path",
+            "aidb_cli.core.project_config.get_user_config_path",
             lambda: user_config_file,
         )
 
@@ -360,7 +360,7 @@ class TestLoadMergedConfig:
         project_config_file.write_text(yaml.dump(project_data))
 
         monkeypatch.setattr(
-            "aidb_common.config.project.get_user_config_path",
+            "aidb_cli.core.project_config.get_user_config_path",
             lambda: user_config_file,
         )
 
@@ -409,7 +409,7 @@ class TestLoadMergedConfig:
         user_config_file.write_text("invalid: yaml:\n  bad indentation")
 
         monkeypatch.setattr(
-            "aidb_common.config.project.get_user_config_path",
+            "aidb_cli.core.project_config.get_user_config_path",
             lambda: user_config_file,
         )
 
@@ -441,7 +441,7 @@ class TestLoadMergedConfig:
         )
 
         monkeypatch.setattr(
-            "aidb_common.config.project.get_user_config_path",
+            "aidb_cli.core.project_config.get_user_config_path",
             lambda: user_config_file,
         )
 

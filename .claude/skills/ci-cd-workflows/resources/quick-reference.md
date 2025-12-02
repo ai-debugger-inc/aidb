@@ -24,7 +24,6 @@ Commands, file locations, and links for CI/CD operations.
 ### Validation
 
 ```bash
-python .github/scripts/quick_validate_versions.py
 actionlint .github/workflows/**/*.yaml
 ```
 
@@ -53,7 +52,7 @@ act -W .github/workflows/test-parallel.yaml
 
 | File                          | Purpose                                                        |
 | ----------------------------- | -------------------------------------------------------------- |
-| `versions.yaml`               | Infrastructure versions (Python, Node, Java), adapter versions |
+| `versions.json`               | Infrastructure versions (Python, Node, Java), adapter versions |
 | `.github/testing-config.yaml` | Framework test configuration                                   |
 | `.github/dependabot.yaml`     | Dependabot configuration                                       |
 | `.actrc`                      | Local CI configuration                                         |
@@ -69,6 +68,7 @@ act -W .github/workflows/test-parallel.yaml
 | `build-test-deps.yaml` | path-filtered      | Adapter/Docker builds         |
 | `load-versions.yaml`   | reusable           | Version loading               |
 | `test-suite.yaml`      | reusable           | Generic test runner           |
+| `pypi-publish.yaml`    | reusable           | Idempotent PyPI upload        |
 
 ## Composite Actions
 
@@ -82,24 +82,22 @@ Located in `.github/actions/`:
 | `run-aidb-tests`          | Execute tests + coverage      |
 | `extract-version`         | Parse release branch version  |
 | `smoke-test`              | PyPI package verification     |
+| `pypi-upload`             | Idempotent PyPI upload        |
 
 ## CI Scripts
 
 Located in `.github/scripts/`:
 
-| Script                       | Purpose                          |
-| ---------------------------- | -------------------------------- |
-| `quick_validate_versions.py` | Validate versions.yaml           |
-| `format_job_summary.py`      | Auto-detect test results         |
-| `build-adapter.py`           | Adapter build orchestrator       |
-| `wait_for_check.py`          | Cross-workflow dependency        |
-| `download_artifact.py`       | Cross-workflow artifact download |
+| Script                       | Purpose                      |
+| ---------------------------- | ---------------------------- |
+| `format_job_summary.py`      | Auto-detect test results     |
+| `format_test_summary.py`     | Format pytest output         |
+| `build-adapter.py`           | Adapter build orchestrator   |
+| `aggregate_flakes_report.py` | Aggregate flaky test reports |
 
 ## Version Management
 
-**Dual automation:**
-
-- `versions.yaml` - Infrastructure & adapters (monitored every 12 hours)
+- `versions.json` - Infrastructure & adapter versions (updated manually)
 - `pyproject.toml` - App dependencies (Dependabot PRs)
 
 **Dependabot branch flow:**
@@ -110,14 +108,13 @@ Dependabot PR → dependabot-updates (auto-merge) → release/X.Y.Z → main
 
 ## Workflow Triggers
 
-| Event                      | Workflow                         |
-| -------------------------- | -------------------------------- |
-| Push to main/develop       | test-parallel.yaml               |
-| PR to main                 | test-parallel.yaml               |
-| PR from release/\* to main | release-pr.yaml                  |
-| PR merge from release/\*   | release-publish.yaml             |
-| release:published          | adapter-build.yaml               |
-| Weekly (Mondays)           | maintenance-update-versions.yaml |
+| Event                      | Workflow             |
+| -------------------------- | -------------------- |
+| Push to main/develop       | test-parallel.yaml   |
+| PR to main                 | test-parallel.yaml   |
+| PR from release/\* to main | release-pr.yaml      |
+| PR merge from release/\*   | release-publish.yaml |
+| release:published          | adapter-build.yaml   |
 
 ## Debug Logging
 

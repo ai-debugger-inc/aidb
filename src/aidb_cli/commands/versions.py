@@ -29,7 +29,7 @@ def group(ctx: click.Context) -> None:
 @click.pass_context
 @handle_exceptions
 def show_versions(ctx: click.Context, fmt: str) -> None:
-    """Display all version information from versions.yaml.
+    """Display all version information from versions.json.
 
     \b This shows the current versions for infrastructure (Python, Node, Java),
     adapters, and runtime requirements.
@@ -48,7 +48,7 @@ def show_versions(ctx: click.Context, fmt: str) -> None:
 def validate_versions(ctx: click.Context) -> None:
     """Validate that all required version fields are present.
 
-    \b Checks that versions.yaml has all required sections and fields.
+    \b Checks that versions.json has all required sections and fields.
     """  # noqa: W605
     cli_output = ctx.obj.output
     aidb_ctx: Context = ctx.obj
@@ -67,7 +67,7 @@ def validate_versions(ctx: click.Context) -> None:
         cli_output.success("All version configurations are valid!")
     else:
         cli_output.error("Some version configurations are missing or invalid.")
-        cli_output.plain("Check versions.yaml for missing sections.")
+        cli_output.plain("Check versions.json for missing sections.")
         ctx.exit(ExitCode.GENERAL_ERROR)
 
 
@@ -82,7 +82,7 @@ def validate_versions(ctx: click.Context) -> None:
 @click.pass_context
 @handle_exceptions
 def docker_versions(ctx: click.Context, fmt: str) -> None:
-    """Display Docker build arguments derived from versions.yaml.
+    """Display Docker build arguments derived from versions.json.
 
     \b Shows the exact build arguments that will be used for Docker builds.
     """  # noqa: W605
@@ -110,7 +110,7 @@ def check_consistency(ctx: click.Context) -> None:
     """Check version consistency across Docker files.
 
     \b Runs the validation script to ensure versions in Dockerfiles and docker-
-    compose.yaml match versions.yaml.
+    compose.yaml match versions.json.
     """  # noqa: W605
     cli_output = ctx.obj.output
     cli_output.section("Version Consistency Check", Icons.CHECK)

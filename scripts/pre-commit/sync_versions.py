@@ -222,33 +222,23 @@ def update_config_files(version, repo_root):
     return len(updates) > 0
 
 
-def update_versions_yaml(version, repo_root):
-    """Update version in versions.yaml."""
-    import yaml
-
-    versions_path = repo_root / "versions.yaml"
+def update_versions_json(version, repo_root):
+    """Update version in versions.json."""
+    versions_path = repo_root / "versions.json"
     if not versions_path.exists():
         return False
 
     with versions_path.open() as f:
-        data = yaml.safe_load(f)
+        data = json.load(f)
 
     if data.get("version") != version:
         data["version"] = version
 
-        # Preserve comments by reading the file and replacing just the version line
-        content = versions_path.read_text()
-        lines = content.split("\n")
-        new_lines = []
+        with versions_path.open("w") as f:
+            json.dump(data, f, indent=2)
+            f.write("\n")  # Add trailing newline
 
-        for line in lines:
-            if line.startswith("version:"):
-                new_lines.append(f'version: "{version}"')
-            else:
-                new_lines.append(line)
-
-        versions_path.write_text("\n".join(new_lines))
-        print(f"Updated versions.yaml to version {version}")
+        print(f"Updated versions.json to version {version}")
         return True
     return False
 
@@ -341,7 +331,7 @@ def main():
     changes |= update_pyproject_toml(version, repo_root)
     changes |= update_python_init_files(version, repo_root)
     changes |= update_config_files(version, repo_root)
-    changes |= update_versions_yaml(version, repo_root)
+    changes |= update_versions_json(version, repo_root)
     changes |= update_vscode_extension_package_json(version, repo_root)
     changes |= update_workflow_aidb_version(version, repo_root)
     changes |= create_version_file(version, repo_root)

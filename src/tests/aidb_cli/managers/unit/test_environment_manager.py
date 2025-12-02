@@ -22,13 +22,10 @@ class TestEnvironmentManager:
         env_test = repo_root / ".env.test"
         env_test.write_text("TEST_VAR=test_value\nAIDB_TEST=1\n")
 
-        # Create versions.yaml
-        versions = repo_root / "versions.yaml"
+        # Create versions.json
+        versions = repo_root / "versions.json"
         versions.write_text(
-            "infrastructure:\n"
-            "  python:\n"
-            "    version: '3.12'\n"
-            "    docker_tag: '3.12-slim'\n",
+            '{"infrastructure": {"python": {"version": "3.12", "docker_tag": "3.12-slim"}}}'
         )
 
         return repo_root

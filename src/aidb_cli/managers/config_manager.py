@@ -8,14 +8,12 @@ import json
 from pathlib import Path
 from typing import Any, Optional
 
-import yaml
-
 from aidb_cli.core.constants import Icons, LogLevel
+from aidb_cli.core.project_config import load_merged_config
 from aidb_cli.core.utils import CliOutput
-from aidb_common.config import VersionManager, load_merged_config
+from aidb_cli.core.yaml import YamlOperationError, safe_read_yaml, safe_write_yaml
+from aidb_common.config import VersionManager
 from aidb_common.constants import Language
-from aidb_common.io import safe_read_yaml, safe_write_yaml
-from aidb_common.io.files import FileOperationError
 from aidb_common.repo import detect_repo_root
 from aidb_logging import get_cli_logger
 
@@ -115,7 +113,7 @@ class ConfigManager:
         return self.version_manager.get_adapter_version(language)
 
     def get_docker_build_args(self) -> dict[str, str]:
-        """Generate Docker build arguments from versions.yaml.
+        """Generate Docker build arguments from versions.json.
 
         Returns
         -------
@@ -188,7 +186,7 @@ class ConfigManager:
             if config_file.exists():
                 try:
                     file_config = safe_read_yaml(config_file)
-                except FileOperationError as read_error:
+                except YamlOperationError as read_error:
                     logger.error(
                         "Failed to read config %s: %s",
                         config_file,
@@ -210,7 +208,7 @@ class ConfigManager:
 
             try:
                 safe_write_yaml(config_file, file_config)
-            except FileOperationError as write_error:
+            except YamlOperationError as write_error:
                 logger.error(
                     "Failed to write config %s: %s",
                     config_file,
@@ -268,7 +266,7 @@ class ConfigManager:
 
             try:
                 safe_write_yaml(config_file, default_config)
-            except FileOperationError as write_error:
+            except YamlOperationError as write_error:
                 logger.error("Failed to create default config: %s", write_error)
                 CliOutput.plain(
                     f"{Icons.ERROR} Failed to create config: {write_error}",
@@ -281,7 +279,7 @@ class ConfigManager:
             )
             return True
 
-        except (OSError, FileOperationError) as e:
+        except (OSError, YamlOperationError) as e:
             logger.error("Failed to create default config: %s", e)
             CliOutput.plain(f"{Icons.ERROR} Failed to create config: {e}", err=True)
             return False
@@ -305,7 +303,7 @@ class ConfigManager:
             output = self._format_output(config, format_type, config_type)
             CliOutput.plain(output)
 
-        except (OSError, FileOperationError, yaml.YAMLError) as e:
+        except (OSError, YamlOperationError) as e:
             logger.error("Failed to show config: %s", e)
             CliOutput.plain(f"{Icons.ERROR} Failed to show config: {e}", err=True)
 
@@ -356,7 +354,7 @@ class ConfigManager:
             if self.user_config.exists():
                 try:
                     return safe_read_yaml(self.user_config)
-                except FileOperationError as read_error:
+                except YamlOperationError as read_error:
                     logger.error("Failed to read user config: %s", read_error)
             return {}
 
@@ -364,7 +362,7 @@ class ConfigManager:
             if self.project_config.exists():
                 try:
                     return safe_read_yaml(self.project_config)
-                except FileOperationError as read_error:
+                except YamlOperationError as read_error:
                     logger.error("Failed to read project config: %s", read_error)
             return {}
 
@@ -399,6 +397,8 @@ class ConfigManager:
             return json.dumps(config, indent=2)
 
         if format_type == "yaml":
+            import yaml
+
             return yaml.dump(config, default_flow_style=False)
 
         return self._format_config_text(config or {})

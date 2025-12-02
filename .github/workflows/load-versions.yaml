@@ -4,16 +4,16 @@ on:
   workflow_call:
     outputs:
       python-version:
-        description: 'Python version from versions.yaml'
+        description: 'Python version from versions.json'
         value: ${{ jobs.load-versions.outputs.python-version }}
       node-version:
-        description: 'Node.js version from versions.yaml'
+        description: 'Node.js version from versions.json'
         value: ${{ jobs.load-versions.outputs.node-version }}
       java-version:
-        description: 'Java version from versions.yaml'
+        description: 'Java version from versions.json'
         value: ${{ jobs.load-versions.outputs.java-version }}
       java-distribution:
-        description: 'Java distribution from versions.yaml'
+        description: 'Java distribution from versions.json'
         value: ${{ jobs.load-versions.outputs.java-distribution }}
       adapter-languages:
         description: 'Comma-separated list of adapter languages (e.g., python,javascript,java)'
@@ -50,13 +50,12 @@ jobs:
         run: |
           python3 << 'EOF'
           import json
-          import yaml
           import os
           import sys
 
-          # Load versions.yaml
-          with open('versions.yaml', 'r') as f:
-              versions_data = yaml.safe_load(f)
+          # Load versions.json
+          with open('versions.json', 'r') as f:
+              versions_data = json.load(f)
 
           infrastructure = versions_data['infrastructure']
           adapters = versions_data['adapters']

@@ -28,7 +28,7 @@ def configure_test_logging() -> None:
     """Configure comprehensive logging for tests using aidb_logging.
 
     Creates multiple log outputs:
-    - Individual log files: aidb.log, mcp.log, backend.log
+    - Individual log files: aidb.log, mcp.log
     - Pytest propagation: for caplog integration
     """
     from aidb_logging import configure_logger

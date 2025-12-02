@@ -111,7 +111,7 @@ jobs:
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
-          echo "1. Verify installation from PyPI: \`pip install ai-debugger==$VERSION\`" >> $GITHUB_STEP_SUMMARY
+          echo "1. Verify installation from PyPI: \`pip install ai-debugger-inc==$VERSION\`" >> $GITHUB_STEP_SUMMARY
           echo "2. Test VS Code extension from release assets" >> $GITHUB_STEP_SUMMARY
           echo "3. Announce release to community" >> $GITHUB_STEP_SUMMARY
 

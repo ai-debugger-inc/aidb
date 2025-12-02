@@ -320,7 +320,7 @@ class TestTestManager:
 
         test_cases = [
             ("mcp", "mcp"),
-            ("backend", "backend"),
+            ("core", "core"),
             ("adapters", "adapters"),
             ("all", "all"),
             ("cli", "base"),

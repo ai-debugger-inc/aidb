@@ -7,7 +7,7 @@ Quick setup for AIDB development.
 To use AI Debugger as an end user:
 
 ```bash
-pip install ai-debugger
+pip install ai-debugger-inc
 ```
 
 See the [User Guide](../user-guide/mcp-usage.md) for MCP configuration and usage.

@@ -153,7 +153,7 @@ class TestManager(BaseOrchestrator):
         Parameters
         ----------
         suite : str
-            Test suite to run (mcp, backend, adapters, etc.)
+            Test suite to run (mcp, core, adapters, etc.)
         language : str
             Language to test (python, javascript, java, all)
         profile : str

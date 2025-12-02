@@ -11,8 +11,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
-import yaml
-
 
 @dataclass
 class AdapterMetadata:
@@ -23,7 +21,7 @@ class AdapterMetadata:
     adapter_name : str
         Name of the adapter (e.g., "javascript", "java")
     adapter_version : str
-        Version of the upstream adapter (from versions.yaml)
+        Version of the upstream adapter (from versions.json)
     aidb_version : str
         Version of aidb that built this adapter
     platform : str
@@ -48,7 +46,7 @@ class AdapterMetadata:
 
 
 def get_project_root() -> Path:
-    """Find the project root directory containing versions.yaml.
+    """Find the project root directory containing versions.json.
 
     Returns
     -------
@@ -58,39 +56,39 @@ def get_project_root() -> Path:
     Raises
     ------
     FileNotFoundError
-        If versions.yaml cannot be found
+        If versions.json cannot be found
     """
     current = Path(__file__)
 
-    # Walk up the directory tree looking for versions.yaml
+    # Walk up the directory tree looking for versions.json
     for parent in current.parents:
-        versions_file = parent / "versions.yaml"
+        versions_file = parent / "versions.json"
         if versions_file.exists():
             return parent
 
-    raise FileNotFoundError("Could not locate project root with versions.yaml")
+    raise FileNotFoundError("Could not locate project root with versions.json")
 
 
 def load_versions_config() -> dict:
-    """Load versions.yaml configuration.
+    """Load versions.json configuration.
 
     Returns
     -------
     dict[str, Any]
-        Parsed versions.yaml content
+        Parsed versions.json content
 
     Raises
     ------
     FileNotFoundError
-        If versions.yaml cannot be found
-    yaml.YAMLError
-        If versions.yaml cannot be parsed
+        If versions.json cannot be found
+    json.JSONDecodeError
+        If versions.json cannot be parsed
     """
     project_root = get_project_root()
-    versions_file = project_root / "versions.yaml"
+    versions_file = project_root / "versions.json"
 
     with open(versions_file) as f:
-        return yaml.safe_load(f)
+        return json.load(f)
 
 
 def create_metadata(
@@ -99,12 +97,12 @@ def create_metadata(
     arch: str,
     binary_identifier: Optional[str] = None,
 ) -> AdapterMetadata:
-    """Create adapter metadata from versions.yaml and runtime info.
+    """Create adapter metadata from versions.json and runtime info.
 
     Parameters
     ----------
     adapter_name : str
-        Name of the adapter (must exist in versions.yaml)
+        Name of the adapter (must exist in versions.json)
     platform : str
         Target platform (e.g., "darwin", "linux", "windows", "universal")
     arch : str
@@ -120,7 +118,7 @@ def create_metadata(
     Raises
     ------
     KeyError
-        If adapter not found in versions.yaml
+        If adapter not found in versions.json
     ValueError
         If required configuration is missing
     """
@@ -129,7 +127,7 @@ def create_metadata(
     # Get adapter configuration
     adapter_config = versions.get("adapters", {}).get(adapter_name)
     if not adapter_config:
-        raise KeyError(f"Adapter '{adapter_name}' not found in versions.yaml")
+        raise KeyError(f"Adapter '{adapter_name}' not found in versions.json")
 
     # Get adapter version and repo
     adapter_version = adapter_config.get("version")
@@ -228,7 +226,7 @@ def create_and_write_metadata(
     Parameters
     ----------
     adapter_name : str
-        Name of the adapter (must exist in versions.yaml)
+        Name of the adapter (must exist in versions.json)
     platform : str
         Target platform (e.g., "darwin", "linux", "windows", "universal")
     arch : str

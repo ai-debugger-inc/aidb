@@ -248,11 +248,11 @@ class TestDockerHealthService:
             stderr="",
         )
 
-        results = service.run_health_checks(["postgres", "redis", "backend"])
+        results = service.run_health_checks(["postgres", "redis", "api"])
 
         assert results["postgres"] is True
         assert results["redis"] is True
-        assert results["backend"] is True
+        assert results["api"] is True
         assert len(results) == 3
 
     def test_run_health_checks_mixed_health(self, service, mock_command_executor):
@@ -263,11 +263,11 @@ class TestDockerHealthService:
             Mock(returncode=0, stdout="healthy\n", stderr=""),
         ]
 
-        results = service.run_health_checks(["postgres", "redis", "backend"])
+        results = service.run_health_checks(["postgres", "redis", "api"])
 
         assert results["postgres"] is True
         assert results["redis"] is False
-        assert results["backend"] is True
+        assert results["api"] is True
 
     def test_wait_for_services_all_succeed(self, service, mock_command_executor):
         """Test waiting for multiple services to become healthy."""

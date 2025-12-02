@@ -36,7 +36,7 @@ def get_builder(
     adapter_name : str
         Name of the adapter (e.g., "javascript", "java")
     versions : dict
-        Versions configuration from versions.yaml
+        Versions configuration from versions.json
     platform_name : str
         Target platform (linux, darwin, windows)
     arch : str

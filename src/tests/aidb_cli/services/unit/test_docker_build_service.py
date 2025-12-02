@@ -421,7 +421,7 @@ class TestDockerBuildService:
 
         # Should only have REPO_ROOT
         assert env_passed["REPO_ROOT"] == str(tmp_path)
-        # Should not have build args (they would come from versions.yaml if it existed)
+        # Should not have build args (they would come from versions.json if it existed)
         assert (
             "DEBUGPY_VERSION" not in env_passed
             or env_passed.get("DEBUGPY_VERSION") is None

@@ -41,7 +41,7 @@ MULTI-DOMAIN WORK DETECTION:
 
 - KEYWORD SOUP (listing many domains without clear action) should score lower (0.50-0.65):
   Examples:
-  * "Review: adapters, mcp, testing, ci/cd, backend" → Ambiguous intent, likely research (all 0.50-0.60)
+  * "Review: adapters, mcp, testing, ci/cd, core" → Ambiguous intent, likely research (all 0.50-0.60)
   * Exception: If context suggests active work across domains, score higher
 
 META-SKILL DETECTION (Skills System Itself):

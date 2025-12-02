@@ -68,7 +68,7 @@ class TestReusableWorkflows:
         workflows_dir : Path
             Path to workflows directory.
         """
-        reusable_path = workflows_dir / "testing" / "_reusable" / "load-versions.yaml"
+        reusable_path = workflows_dir / "testing" / "_reusable" / "load-versions.json"
 
         if not reusable_path.exists():
             pytest.skip(f"Reusable workflow not found: {reusable_path}")

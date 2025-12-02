@@ -29,12 +29,12 @@ Responsible for:
 
 The generation system uses these source files:
 
-1. **docker-compose.base.yaml** - Static services (backend, utilities, network configuration)
+1. **docker-compose.base.yaml** - Static services (utilities, network configuration)
 1. **languages.yaml** - Language-specific metadata (healthchecks, dockerfiles, test paths)
 1. **templates/\*.j2** - Jinja2 service templates
    - `framework-test-runner.yaml.j2` - Framework testing services
    - `mcp-test-runner.yaml.j2` - MCP testing services
-1. **versions.yaml** - Version dependencies (Python, Node, Java versions)
+1. **versions.json** - Version dependencies (Python, Node, Java versions)
 
 ### Output File
 
@@ -117,7 +117,7 @@ languages:
 **Field Definitions:**
 
 - `dockerfile` - Relative path to language-specific Dockerfile
-- `version_key` - Environment variable name for version (used with versions.yaml)
+- `version_key` - Environment variable name for version (used with versions.json)
 - `adapter_env_vars` - Language-specific environment variables for adapter paths
 - `healthcheck` - Shell command to verify language and adapter availability
 - `pip_flags` - Additional flags for pip install (e.g., `--break-system-packages` for system Python)
@@ -131,7 +131,7 @@ languages:
 1. **Load Configurations**
 
    - Load `languages.yaml` configuration
-   - Load `versions.yaml` for build args
+   - Load `versions.json` for build args
    - Initialize Jinja2 environment with templates directory
 
 1. **Generate Language Services**
@@ -186,7 +186,7 @@ def generate(self, force: bool = False) -> tuple[bool, str]:
 ComposeGeneratorService tracks checksums of:
 
 - `languages.yaml` - Language configuration changes
-- `versions.yaml` - Version dependency changes
+- `versions.json` - Version dependency changes
 - `docker-compose.base.yaml` - Base configuration changes
 - All `*.j2` templates - Template logic changes
 
@@ -249,7 +249,7 @@ Automatic regeneration happens before:
 
 ### Modifying Service Configuration
 
-**Static Services (backend, utilities, network):**
+**Static Services (utilities, network):**
 
 - Edit `docker-compose.base.yaml` directly
 - Run `./dev-cli test run` to regenerate
@@ -267,7 +267,7 @@ Automatic regeneration happens before:
 
 **Version Dependencies:**
 
-- Edit `versions.yaml` (infrastructure section)
+- Edit `versions.json` (infrastructure section)
 - Used in build args for Dockerfiles
 
 ### Template Development Tips
@@ -321,7 +321,7 @@ def validate_generated_file(self) -> tuple[bool, list[str]]:
     # Validate YAML syntax
     try:
         safe_read_yaml(self.output_file)
-    except FileOperationError as e:
+    except YamlOperationError as e:
         return False, [str(e)]
 
     return True, []
@@ -405,7 +405,7 @@ rm .cache/compose-generation-hash
 - `src/tests/_docker/docker-compose.base.yaml` - Static configuration
 - `src/tests/_docker/languages.yaml` - Language metadata
 - `src/tests/_docker/templates/*.j2` - Jinja2 templates
-- `versions.yaml` - Version dependencies
+- `versions.json` - Version dependencies
 
 **Generated Output:**
 

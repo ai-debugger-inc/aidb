@@ -10,17 +10,18 @@ import tempfile
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
+from urllib.request import urlopen
 
 from aidb.patterns import Obj
 from aidb.session.adapter_registry import AdapterRegistry
 from aidb_common.config import config as env_config
-from aidb_common.io import safe_read_json, safe_read_yaml
+from aidb_common.io import safe_read_json
 from aidb_common.io.files import FileOperationError
 from aidb_common.path import get_aidb_adapters_dir
 
 
 def find_project_root() -> Path:
-    """Find the project root directory containing versions.yaml.
+    """Find the project root directory containing versions.json.
 
     Returns
     -------
@@ -30,13 +31,13 @@ def find_project_root() -> Path:
     Raises
     ------
     FileNotFoundError
-        If versions.yaml cannot be found
+        If versions.json cannot be found
     """
     current = Path(__file__)
 
-    # Walk up the directory tree looking for versions.yaml
+    # Walk up the directory tree looking for versions.json
     for parent in current.parents:
-        versions_file = parent / "versions.yaml"
+        versions_file = parent / "versions.json"
         if versions_file.exists():
             return parent
 
@@ -49,16 +50,16 @@ def find_project_root() -> Path:
     ]
 
     for location in common_locations:
-        versions_file = location / "versions.yaml"
+        versions_file = location / "versions.json"
         if versions_file.exists():
             return location
 
-    msg = "Could not locate project root with versions.yaml"
+    msg = "Could not locate project root with versions.json"
     raise FileNotFoundError(msg)
 
 
 def get_project_version() -> str:
-    """Get the current project version from versions.yaml.
+    """Get the current project version from versions.json.
 
     Returns
     -------
@@ -67,9 +68,9 @@ def get_project_version() -> str:
     """
     try:
         project_root = find_project_root()
-        versions_file = project_root / "versions.yaml"
+        versions_file = project_root / "versions.json"
 
-        versions = safe_read_yaml(versions_file)
+        versions = safe_read_json(versions_file)
         return versions.get("version", "latest")
     except (FileOperationError, FileNotFoundError):
         return "latest"
@@ -155,14 +156,14 @@ class AdapterDownloader(Obj):
         Returns
         -------
         dict
-            Versions configuration from versions.yaml
+            Versions configuration from versions.json
         """
         if self._versions_cache is None:
             try:
-                versions_file = self.project_root / "versions.yaml"
-                self._versions_cache = safe_read_yaml(versions_file)
+                versions_file = self.project_root / "versions.json"
+                self._versions_cache = safe_read_json(versions_file)
             except FileOperationError as e:
-                self.ctx.warning(f"Failed to load versions.yaml: {e}")
+                self.ctx.warning(f"Failed to load versions.json: {e}")
                 self._versions_cache = {}
 
         return self._versions_cache
@@ -221,7 +222,7 @@ class AdapterDownloader(Obj):
 
             # Get version to download
             if version is None:
-                # Try to get version from versions.yaml, fallback to project version
+                # Try to get version from versions.json, fallback to project version
                 adapter_version = adapter_config.get("version")
                 if adapter_version:
                     version = str(adapter_version)
@@ -255,11 +256,10 @@ class AdapterDownloader(Obj):
                         msg = f"Disallowed URL scheme: {parsed.scheme}"
                         raise ValueError(msg)
 
-                    import requests
-
-                    resp = requests.get(download_url, timeout=30)
-                    resp.raise_for_status()
-                    tmp_file.write(resp.content)
+                    # Use stdlib urlopen to avoid external dependency
+                    # URL scheme already validated above (https only)
+                    with urlopen(download_url, timeout=30) as resp:  # nosec B310
+                        tmp_file.write(resp.read())
                     tmp_path = tmp_file.name
                 except HTTPError as e:
                     if e.code == 404:
@@ -477,8 +477,9 @@ class AdapterDownloader(Obj):
 
         # Validate adapter name matches expected language
         if metadata.get("adapter_name") != language:
+            adapter_name = metadata.get("adapter_name")
             self.ctx.warning(
-                f"Adapter name mismatch: metadata has '{metadata.get('adapter_name')}', "
+                f"Adapter name mismatch: metadata has '{adapter_name}', "
                 f"expected '{language}'",
             )
 

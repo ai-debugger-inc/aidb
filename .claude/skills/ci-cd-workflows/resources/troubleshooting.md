@@ -16,7 +16,7 @@ Systematic diagnosis and resolution of CI/CD workflow issues.
 
 ```bash
 git log --oneline --follow .github/workflows/
-git log --oneline versions.yaml .github/testing-config.yaml
+git log --oneline versions.json .github/testing-config.yaml
 gh run view <run-id>
 ```
 
@@ -25,20 +25,13 @@ gh run view <run-id>
 ```bash
 ./dev-cli test run --suite {suite}
 ./dev-cli adapters build --local
-python .github/scripts/quick_validate_versions.py
 ```
 
 ### 4. Analyze Logs
 
 Look for: Error messages, stack traces, warnings before failure, dependency failures, network timeouts, permission errors.
 
-### 5. Validate Configuration
-
-```bash
-python .github/scripts/quick_validate_versions.py
-```
-
-### 6. Test Incrementally
+### 5. Test Incrementally
 
 ```bash
 ./dev-cli test run --suite shared
@@ -72,18 +65,16 @@ docker images | grep aidb
 **Causes:** Upstream unavailable, version not found, platform incompatibility
 
 ```bash
-python .github/scripts/quick_validate_versions.py
 curl -I https://github.com/microsoft/debugpy/releases/tag/v1.8.0
 ./dev-cli adapters build --local --language python
 ```
 
 ### Version Loading Failures
 
-**Causes:** versions.yaml syntax error, missing fields, invalid structure
+**Causes:** versions.json syntax error, missing fields, invalid structure
 
 ```bash
-python -c "import yaml; yaml.safe_load(open('versions.yaml'))"
-python .github/scripts/quick_validate_versions.py
+python -c "import json; json.load(open('versions.json'))"
 ```
 
 ### Docker Build Failures
@@ -210,8 +201,6 @@ gh run list --workflow=test-parallel.yaml --limit 10
 - Merge untested workflows
 
 ## Getting Help
-
-**Validate:** `python .github/scripts/quick_validate_versions.py`
 
 **Tools:** `gh` CLI, `act`, `./dev-cli`
 

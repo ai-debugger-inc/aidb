@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import Any
 
 from aidb_cli.core.constants import LogLevel
+from aidb_cli.core.project_config import load_merged_config
 from aidb_common.config import ConfigManager as BaseConfigManager
-from aidb_common.config import load_merged_config
 from aidb_common.repo import detect_repo_root
 
 

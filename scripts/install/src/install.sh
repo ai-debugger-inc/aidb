@@ -144,17 +144,17 @@ handle_venv() {
 }
 
 pip_install() {
-    echo "Installing editable ai-debugger with [dev,docs,test] extras from source..."
+    echo "Installing editable ai-debugger-inc with [dev,docs,test] extras from source..."
     if [[ "${FORCE}" -eq 1 ]]; then
-        echo "Forcing reinstall of ai-debugger..."
-        "${PYTHON}" -m pip uninstall -y ai-debugger || true
+        echo "Forcing reinstall of ai-debugger-inc..."
+        "${PYTHON}" -m pip uninstall -y ai-debugger-inc || true
     fi
     "${PYTHON}" -m pip install --disable-pip-version-check --upgrade pip setuptools wheel || {
         echo "Error: Failed to upgrade pip, setuptools, or wheel"
         exit 1
     }
-    "${PYTHON}" -m pip install -e "${REPO_ROOT}/.[dev,backend,docs,test]" --use-pep517 || {
-        echo "Error: Failed to install AI Debugger main module with [dev,backend,docs,test] extras"
+    "${PYTHON}" -m pip install -e "${REPO_ROOT}/.[dev,docs,test]" --use-pep517 || {
+        echo "Error: Failed to install AI Debugger main module with [dev,docs,test] extras"
         exit 1
     }
 }

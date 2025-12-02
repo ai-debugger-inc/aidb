@@ -221,6 +221,7 @@ class TestDockerBuild:
         assert "build" in result.output.lower()
 
     @pytest.mark.integration
+    @pytest.mark.slow
     @pytest.mark.requires_docker
     def test_docker_build_dry_run(self):
         """Test Docker build dry run or status check."""
@@ -260,6 +261,7 @@ class TestDockerServiceOrchestration:
     """Test Docker service orchestration using test services."""
 
     @pytest.mark.integration
+    @pytest.mark.slow
     @pytest.mark.requires_docker
     def test_test_service_orchestration(self, repo_root):
         """Test orchestration using our test docker-compose services."""
@@ -359,6 +361,7 @@ class TestDockerServiceOrchestration:
             )
 
     @pytest.mark.integration
+    @pytest.mark.slow
     @pytest.mark.requires_docker
     def test_service_health_checks(self, repo_root):
         """Test service health check functionality."""

@@ -174,9 +174,9 @@ class TestMCPCommands:
                     # Clean up
                     mock_log_file.unlink()
 
-    def test_mcp_status_command(self, cli_runner, mock_repo_root):
+    def test_mcp_status_command(self, cli_runner, mock_repo_root, tmp_path):
         """Test MCP status command."""
-        # Create a mock Claude config
+        # Create a real Claude config file in a temp location
         claude_config_content = {
             "projects": {
                 str(mock_repo_root): {
@@ -190,21 +190,17 @@ class TestMCPCommands:
             },
         }
 
+        # Create actual config file to avoid mocking builtins.open
+        claude_config_path = tmp_path / ".claude.json"
+        claude_config_path.write_text(json.dumps(claude_config_content))
+
         with patch(
             "aidb_common.repo.detect_repo_root",
             return_value=mock_repo_root,
         ):
-            with patch("pathlib.Path.home") as mock_home:
-                mock_claude_config = mock_home.return_value / ".claude.json"
-                mock_claude_config.exists.return_value = True
+            with patch("pathlib.Path.home", return_value=tmp_path):
+                result = cli_runner.invoke(cli, ["mcp", "status"])
 
-                # Use mock_open for file reading
-                with patch("builtins.open", create=True) as mock_open:
-                    mock_open.return_value.__enter__.return_value = Mock()
-
-                    with patch("json.load", return_value=claude_config_content):
-                        result = cli_runner.invoke(cli, ["mcp", "status"])
-
-                        assert result.exit_code == 0
-                        assert "Registration Status:" in result.output
-                        assert "aidb-debug" in result.output
+                assert result.exit_code == 0
+                assert "Registration Status:" in result.output
+                assert "aidb-debug" in result.output

@@ -21,7 +21,7 @@ class JavaAdapterBuilder(AdapterBuilder):
         return "java"
 
     def get_adapter_config(self) -> dict:
-        """Get adapter configuration from versions.yaml."""
+        """Get adapter configuration from versions.json."""
         return self.versions["adapters"]["java"]
 
     def clone_repository(self) -> Path:
@@ -156,7 +156,7 @@ class JavaAdapterBuilder(AdapterBuilder):
         jdtls_version = config.get("jdtls_version")
 
         if not jdtls_version:
-            msg = "jdtls_version not found in versions.yaml for java adapter"
+            msg = "jdtls_version not found in versions.json for java adapter"
             raise BuildError(msg)
 
         # Create distribution directory

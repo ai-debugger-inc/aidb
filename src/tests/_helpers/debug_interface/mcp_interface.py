@@ -204,7 +204,7 @@ class MCPInterface(DebugInterface):
 
         # Store the session ID permanently
         # This is this interface instance's permanent session ID
-        # It references an entry in the global _DEBUG_SESSIONS dict in the MCP backend
+        # It references an entry in the global _DEBUG_SESSIONS dict in the MCP server
         # Important: This session_id will not change even if new sessions are created,
         # allowing this instance to always reference its original session
         if self.session_id:  # type: ignore[has-type]

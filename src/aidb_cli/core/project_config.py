@@ -1,8 +1,10 @@
-"""Project/user YAML configuration loading for AIDB.
+"""Project/user YAML configuration loading for AIDB CLI.
 
-This module provides shared helpers to locate, load, and deep-merge configuration from
+This module provides helpers to locate, load, and deep-merge configuration from
 user (~/.config/aidb/config.yaml) and project (.aidb.yaml) files. It also applies
-sensible defaults used across the toolchain.
+sensible defaults used across the CLI toolchain.
+
+Note: This is a CLI-only module. The core aidb package does not depend on PyYAML.
 """
 
 from __future__ import annotations
@@ -10,8 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from aidb_common.io import safe_read_yaml
-from aidb_common.io.files import FileOperationError
+from aidb_cli.core.yaml import YamlOperationError, safe_read_yaml
 from aidb_common.path import get_aidb_adapters_dir
 
 
@@ -58,18 +59,17 @@ def default_config(repo_root: Path) -> dict[str, Any]:
 
 
 def load_yaml(path: Path) -> dict[str, Any]:
-    """Load YAML file with shared IO helper and tolerant fallback.
+    """Load YAML file with tolerant fallback.
 
     Preserves previous behavior of returning an empty dict when the file is missing,
-    unreadable, or not a mapping at the top level, while delegating actual IO/parsing to
-    the shared safe_read_yaml helper.
+    unreadable, or not a mapping at the top level.
     """
     try:
         if not path.exists():
             return {}
         data = safe_read_yaml(path) or {}
         return data if isinstance(data, dict) else {}
-    except FileOperationError:
+    except YamlOperationError:
         # Maintain prior tolerance by returning an empty config on errors
         return {}
 

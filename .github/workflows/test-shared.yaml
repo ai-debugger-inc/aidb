@@ -20,7 +20,7 @@ on:
         type: boolean
         default: true
       all-adapter-languages:
-        description: Comma-separated list of all adapter languages from versions.yaml
+        description: Comma-separated list of all adapter languages from versions.json
         type: string
         required: false
         default: ''

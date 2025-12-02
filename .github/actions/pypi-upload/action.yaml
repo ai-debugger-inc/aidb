@@ -1,0 +1,101 @@
+name: PyPI Upload
+description: Upload package to PyPI (test or prod) with idempotent version checking
+
+inputs:
+  source:
+    description: 'PyPI source: testpypi or pypi'
+    required: true
+  package_name:
+    description: 'Package name to check/upload'
+    required: false
+    default: 'ai-debugger-inc'
+  version:
+    description: 'Package version to upload (e.g., 0.1.0)'
+    required: true
+  dist_path:
+    description: 'Path to distribution files'
+    required: false
+    default: 'dist/'
+  twine_token:
+    description: 'PyPI API token for authentication'
+    required: true
+
+outputs:
+  uploaded:
+    description: 'Whether package was uploaded (true) or skipped (false)'
+    value: ${{ steps.upload.outputs.uploaded }}
+  skipped_reason:
+    description: 'Reason for skipping upload if applicable'
+    value: ${{ steps.upload.outputs.skipped_reason }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install twine
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install twine
+
+    - name: Check and upload to PyPI
+      id: upload
+      shell: bash
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ inputs.twine_token }}
+      run: |
+        VERSION="${{ inputs.version }}"
+        PACKAGE="${{ inputs.package_name }}"
+        DIST_PATH="${{ inputs.dist_path }}"
+
+        # Determine index URL based on source
+        if [[ "${{ inputs.source }}" == "testpypi" ]]; then
+          INDEX_URL="https://test.pypi.org/simple/"
+          REPO_FLAG="--repository testpypi"
+          SOURCE_NAME="TestPyPI"
+        else
+          INDEX_URL="https://pypi.org/simple/"
+          REPO_FLAG=""
+          SOURCE_NAME="PyPI"
+        fi
+
+        echo "🔍 Checking if $PACKAGE==$VERSION exists on $SOURCE_NAME..."
+
+        # Determine API URL based on source
+        if [[ "${{ inputs.source }}" == "testpypi" ]]; then
+          API_URL="https://test.pypi.org/pypi/$PACKAGE/$VERSION/json"
+        else
+          API_URL="https://pypi.org/pypi/$PACKAGE/$VERSION/json"
+        fi
+
+        # Check if version exists using PyPI JSON API (more reliable than pip index)
+        HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL")
+        if [[ "$HTTP_STATUS" == "200" ]]; then
+          echo "ℹ️  Version $VERSION already exists on $SOURCE_NAME"
+          echo "uploaded=false" >> $GITHUB_OUTPUT
+          echo "skipped_reason=version_exists" >> $GITHUB_OUTPUT
+          echo ""
+          echo "### 📦 $SOURCE_NAME Upload" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ⏭️ Skipped (version already exists)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: $VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> This is expected when re-running a workflow after a partial failure." >> $GITHUB_STEP_SUMMARY
+        else
+          echo "📦 Uploading $PACKAGE==$VERSION to $SOURCE_NAME..."
+          twine upload $REPO_FLAG "$DIST_PATH"*
+
+          if [[ $? -eq 0 ]]; then
+            echo "✅ Upload to $SOURCE_NAME successful"
+            echo "uploaded=true" >> $GITHUB_OUTPUT
+            echo "skipped_reason=" >> $GITHUB_OUTPUT
+            echo ""
+            echo "### 📦 $SOURCE_NAME Upload" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- **Status**: ✅ Uploaded successfully" >> $GITHUB_STEP_SUMMARY
+            echo "- **Version**: $VERSION" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Upload to $SOURCE_NAME failed"
+            exit 1
+          fi
+        fi

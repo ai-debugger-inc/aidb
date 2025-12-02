@@ -481,7 +481,7 @@ class TestAllFlag:
                     "conclusion": "success",
                 },
                 {
-                    "name": "run-tests / test-backend / Backend Tests",
+                    "name": "run-tests / test-core / Core Tests",
                     "conclusion": "failure",
                 },
                 {
@@ -509,7 +509,7 @@ class TestAllFlag:
         result = runner.invoke(cli, ["ci", "summary", "12345"])
 
         # Should show failure but not successes
-        assert "Backend Tests" in result.output
+        assert "Core Tests" in result.output
         assert "CLI Tests" not in result.output
         assert "MCP Tests" not in result.output
 
@@ -522,7 +522,7 @@ class TestAllFlag:
                     "conclusion": "success",
                 },
                 {
-                    "name": "run-tests / test-backend / Backend Tests",
+                    "name": "run-tests / test-core / Core Tests",
                     "conclusion": "failure",
                 },
             ],
@@ -547,7 +547,7 @@ class TestAllFlag:
 
         # Should show both success and failure
         assert "CLI Tests" in result.output
-        assert "Backend Tests" in result.output
+        assert "Core Tests" in result.output
 
     def test_all_tests_passed_with_default_filter(self, runner, mock_gh_installed):
         """Test message when all tests pass (default filter)."""
@@ -558,7 +558,7 @@ class TestAllFlag:
                     "conclusion": "success",
                 },
                 {
-                    "name": "run-tests / test-backend / Backend Tests",
+                    "name": "run-tests / test-core / Core Tests",
                     "conclusion": "success",
                 },
             ],

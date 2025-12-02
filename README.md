@@ -1,13 +1,10 @@
 # AI Debugger
 
-[![PyPI
-version](https://badge.fury.io/py/ai-debugger.svg)](https://badge.fury.io/py/ai-debugger)
-[![Python
-versions](https://img.shields.io/pypi/pyversions/ai-debugger.svg)](https://pypi.org/project/ai-debugger/)
+[![PyPI version](https://badge.fury.io/py/ai-debugger-inc.svg)](https://badge.fury.io/py/ai-debugger-inc)
+[![Python versions](https://img.shields.io/pypi/pyversions/ai-debugger-inc.svg)](https://pypi.org/project/ai-debugger-inc/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/ai-debugger-inc/aidb/blob/main/LICENSE)
-[![Downloads](https://static.pepy.tech/badge/ai-debugger)](https://pepy.tech/project/ai-debugger)
-[![GitHub
-stars](https://img.shields.io/github/stars/ai-debugger-inc/aidb?style=social)](https://github.com/ai-debugger-inc/aidb)
+[![Downloads](https://static.pepy.tech/badge/aidb)](https://pepy.tech/project/aidb)
+[![GitHub stars](https://img.shields.io/github/stars/ai-debugger-inc/aidb?style=social)](https://github.com/ai-debugger-inc/aidb)
 
 **AI-Powered Debugging for Every Language**
 
@@ -28,7 +25,7 @@ ______________________________________________________________________
 Get started with Python debugging in under 60 seconds:
 
 ```bash
-pip install ai-debugger
+pip install ai-debugger-inc
 ```
 
 Add to your MCP client settings (Claude Code, Cline, Cursor, etc.):
@@ -145,12 +142,12 @@ ______________________________________________________________________
 
 ## Supported Languages
 
-| Language            | Python       | JavaScript/TypeScript | Java         |
-| ------------------- | ------------ | --------------------- | ------------ |
-| **Status**          | ✅ Available | ✅ Available          | ✅ Available |
-| **Versions**        | 3.10+.       | Node 18+              | JDK 17+      |
-| **Platforms**       | All          | All                   | All          |
-| **Backend Adapter** | debugpy      | vscode-js-debug       | java-debug   |
+| Language          | Python       | JavaScript/TypeScript | Java         |
+| ----------------- | ------------ | --------------------- | ------------ |
+| **Status**        | ✅ Available | ✅ Available          | ✅ Available |
+| **Versions**      | 3.10+.       | Node 18+              | JDK 17+      |
+| **Platforms**     | All          | All                   | All          |
+| **Debug Adapter** | debugpy      | vscode-js-debug       | java-debug   |
 
 **Platforms**: macOS, Linux, Windows (x64, arm64)
 

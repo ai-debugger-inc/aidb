@@ -12,21 +12,22 @@ class TestDocsBuilderService:
     """Test the DocsBuilderService."""
 
     @pytest.fixture
-    def versions_yaml_content(self):
-        """Sample versions.yaml content."""
-        return """infrastructure:
-  python:
-    docker_tag: "3.12-slim"
-
-global_packages:
-  pip:
-    pip:
-      version: "25.3"
-    setuptools:
-      version: "80.9.0"
-    wheel:
-      version: "0.45.1"
-"""
+    def versions_json_content(self):
+        """Sample versions.json content."""
+        return """{
+  "infrastructure": {
+    "python": {
+      "docker_tag": "3.12-slim"
+    }
+  },
+  "global_packages": {
+    "pip": {
+      "pip": {"version": "25.3"},
+      "setuptools": {"version": "80.9.0"},
+      "wheel": {"version": "0.45.1"}
+    }
+  }
+}"""
 
     @pytest.fixture
     def mock_command_executor(self):
@@ -36,11 +37,11 @@ global_packages:
         return executor
 
     @pytest.fixture
-    def service(self, tmp_path, mock_command_executor, versions_yaml_content):
+    def service(self, tmp_path, mock_command_executor, versions_json_content):
         """Create a DocsBuilderService instance."""
-        # Create versions.yaml
-        versions_file = tmp_path / "versions.yaml"
-        versions_file.write_text(versions_yaml_content)
+        # Create versions.json
+        versions_file = tmp_path / "versions.json"
+        versions_file.write_text(versions_json_content)
 
         # Create the compose file at the expected location
         compose_file = tmp_path / "docs" / "docker-compose.yaml"
@@ -60,12 +61,12 @@ global_packages:
         self,
         tmp_path,
         mock_command_executor,
-        versions_yaml_content,
+        versions_json_content,
     ):
         """Test service initialization."""
-        # Create versions.yaml
-        versions_file = tmp_path / "versions.yaml"
-        versions_file.write_text(versions_yaml_content)
+        # Create versions.json
+        versions_file = tmp_path / "versions.json"
+        versions_file.write_text(versions_json_content)
 
         compose_file = tmp_path / "docs" / "docker-compose.yaml"
         compose_file.parent.mkdir(parents=True)
@@ -109,12 +110,12 @@ global_packages:
         self,
         tmp_path,
         mock_command_executor,
-        versions_yaml_content,
+        versions_json_content,
     ):
         """Test ensure_compose_file when file doesn't exist."""
-        # Create versions.yaml
-        versions_file = tmp_path / "versions.yaml"
-        versions_file.write_text(versions_yaml_content)
+        # Create versions.json
+        versions_file = tmp_path / "versions.json"
+        versions_file.write_text(versions_json_content)
 
         with patch(
             "aidb_cli.core.paths.ProjectPaths.DOCS_DOCKER_COMPOSE",
@@ -355,12 +356,12 @@ global_packages:
     def test_initialization_without_command_executor(
         self,
         tmp_path,
-        versions_yaml_content,
+        versions_json_content,
     ):
         """Test initialization without explicit command executor."""
-        # Create versions.yaml
-        versions_file = tmp_path / "versions.yaml"
-        versions_file.write_text(versions_yaml_content)
+        # Create versions.json
+        versions_file = tmp_path / "versions.json"
+        versions_file.write_text(versions_json_content)
 
         compose_file = tmp_path / "docs" / "docker-compose.yaml"
         compose_file.parent.mkdir(parents=True)

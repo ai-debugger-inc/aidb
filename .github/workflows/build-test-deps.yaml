@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       python-version:
-        description: 'Python version to use (overrides versions.yaml if provided)'
+        description: 'Python version to use (overrides versions.json if provided)'
         type: string
         required: false
 
@@ -20,7 +20,7 @@ env:
   COMPOSE_DOCKER_CLI_BUILD: 1
 
 jobs:
-  # Load versions from versions.yaml
+  # Load versions from versions.json
   load-versions:
     uses: ./.github/workflows/load-versions.yaml
 

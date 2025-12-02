@@ -120,8 +120,8 @@ class TestAdapterBuildAct:
         ), "build-act.yaml should have a build job (using matrix strategy)"
 
     @pytest.mark.integration
-    def test_build_act_workflow_uses_versions_yaml(self, repo_root):
-        """Verify build-act.yaml references versions.yaml for adapter versions.
+    def test_build_act_workflow_uses_versions_json(self, repo_root):
+        """Verify build-act.yaml references versions.json for adapter versions.
 
         The workflow should not hardcode adapter versions.
 
@@ -138,9 +138,9 @@ class TestAdapterBuildAct:
         with workflow_path.open("r") as f:
             workflow_content = f.read()
 
-        # Check that workflow references versions.yaml
-        assert "versions.yaml" in workflow_content, (
-            "build-act.yaml should reference versions.yaml for version management"
+        # Check that workflow references versions.json
+        assert "versions.json" in workflow_content, (
+            "build-act.yaml should reference versions.json for version management"
         )
 
         # Verify no hardcoded versions (basic check for semver patterns in suspicious places)
@@ -168,7 +168,7 @@ class TestAdapterBuildAct:
             msg = (
                 "Found potentially hardcoded versions in build-act.yaml:\n"
                 + "\n".join(suspicious_lines)
-                + "\n\nVersions should be read from versions.yaml"
+                + "\n\nVersions should be read from versions.json"
             )
             pytest.fail(msg)
 

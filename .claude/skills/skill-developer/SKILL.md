@@ -129,7 +129,7 @@ ______________________________________________________________________
 
 **Examples:**
 
-- `backend-dev-guidelines` - Node.js/Express/TypeScript patterns
+- `api-dev-guidelines` - Node.js/Express/TypeScript patterns
 - `frontend-dev-guidelines` - React/TypeScript best practices
 - `error-tracking` - Sentry integration guidance
 

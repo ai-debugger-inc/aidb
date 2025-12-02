@@ -221,8 +221,13 @@ class TestAdapterBuilding:
         assert "build" in result.output.lower()
 
     @pytest.mark.integration
+    @pytest.mark.slow
     def test_adapter_build_list_options(self):
-        """Test adapter build options and languages."""
+        """Test adapter build options and languages.
+
+        NOTE: Marked slow because `adapters build` without arguments
+        triggers building ALL adapters, which is very slow.
+        """
         runner = CliRunner()
 
         # Build should accept language specifications

@@ -37,7 +37,7 @@ docker compose --profile shared up shared-test-runner
 docker compose --profile generated up generated-program-test-runner
 
 # Run specific profile
-docker compose --profile backend up
+docker compose --profile core up
 ```
 
 ## Test Suites
@@ -161,7 +161,7 @@ python -c "import aidb; print(aidb.__file__)"
 # Should show: /workspace/src/aidb/__init__.py
 
 # If not, manually install
-pip install -e .[backend,test,dev]
+pip install -e .[test,dev]
 ```
 
 ### Container won't start
@@ -226,7 +226,7 @@ The `docker-compose.yaml` file is **automatically generated** from templates to 
 
 **Source files:**
 
-- `docker-compose.base.yaml` - Static services (backend, utilities, etc.)
+- `docker-compose.base.yaml` - Static services (utilities, etc.)
 - `languages.yaml` - Language-specific metadata (adapters, healthchecks, etc.)
 - `templates/*.j2` - Jinja2 templates for language services
 

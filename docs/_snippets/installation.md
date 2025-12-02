@@ -1,7 +1,7 @@
 Install AI Debugger via pip:
 
 ```bash
-pip install ai-debugger
+pip install ai-debugger-inc
 ```
 
 For the latest development version:

@@ -35,7 +35,7 @@ runs:
       shell: bash
       run: |
         source venv/bin/activate
-        pip install -e ".[dev,backend,docs,test]" --no-deps
+        pip install -e ".[dev,docs,test]" --no-deps
 
     - name: Verify environment
       shell: bash
@@ -48,14 +48,14 @@ runs:
     - name: Set adapter paths for CI
       shell: bash
       run: |
-        # Dynamically set adapter paths from versions.yaml (single source of truth)
+        # Dynamically set adapter paths from versions.json (single source of truth)
         source venv/bin/activate
         python3 << 'EOF'
         import os
-        import yaml
+        import json
 
-        with open('versions.yaml', 'r') as f:
-            versions = yaml.safe_load(f)
+        with open('versions.json', 'r') as f:
+            versions = json.load(f)
 
         github_env = os.environ['GITHUB_ENV']
         workspace = os.environ['GITHUB_WORKSPACE']

@@ -232,7 +232,7 @@ Client configuration examples are provided in the [Quick Start Guide](mcp/quicks
 Install via pip:
 
 ```bash
-pip install ai-debugger
+pip install ai-debugger-inc
 ```
 
 Or from source:

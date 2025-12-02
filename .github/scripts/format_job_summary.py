@@ -86,7 +86,6 @@ def format_job_name(job_name: str) -> str:
     Converts hyphenated job names to human-readable format:
     - test-python-shared → Python Shared
     - test-cli → CLI
-    - test-backend → Backend
 
     Parameters
     ----------

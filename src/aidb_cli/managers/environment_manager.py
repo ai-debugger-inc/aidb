@@ -8,8 +8,6 @@ made available via the Click context object.
 import os
 from pathlib import Path
 
-import yaml
-
 from aidb_cli.core.constants import ProjectNames
 from aidb_common.config import VersionManager
 from aidb_common.env.resolver import resolve_env_template
@@ -193,7 +191,7 @@ class EnvironmentManager:
                 if versions_file.exists():
                     self._version_manager = VersionManager(versions_file)
                     logger.debug("Loaded version manager from %s", versions_file)
-            except (OSError, ValueError, yaml.YAMLError) as e:
+            except (OSError, ValueError) as e:
                 logger.debug("Could not load version manager: %s", e)
 
         return self._version_manager

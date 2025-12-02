@@ -6,10 +6,10 @@ from pathlib import Path
 import pytest
 import yaml
 
+from aidb_cli.core.yaml import YamlOperationError
 from aidb_cli.generators.core.generator import Generator
 from aidb_cli.generators.core.types import Scenario
 from aidb_cli.generators.plugins.python_generator import PythonGenerator
-from aidb_common.io.files import FileOperationError
 
 
 class TestGeneratorInitialization:
@@ -603,12 +603,12 @@ class TestErrorHandling:
         yaml_file = tmp_path / "invalid.yaml"
         yaml_file.write_text("invalid: yaml: content: [")
 
-        with pytest.raises((FileOperationError, Exception)):
+        with pytest.raises((YamlOperationError, Exception)):
             generator.generate_from_file(yaml_file)
 
     def test_handle_nonexistent_file(self, generator: Generator):
         """Test handling of nonexistent file."""
         fake_path = Path("/nonexistent/file.yaml")
 
-        with pytest.raises(FileOperationError):
+        with pytest.raises(YamlOperationError):
             generator.generate_from_file(fake_path)

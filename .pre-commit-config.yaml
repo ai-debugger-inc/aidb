@@ -1,8 +1,8 @@
 ---
 exclude: |
   (?x)^(
-    armored/|
     \.cache/|
+    dist/|
     src/tests/_assets/test_programs/generated/|
     src/tests/_assets/framework_apps/|
     src/tests/_assets/|

@@ -36,7 +36,7 @@ class TestPlatformDetection:
         with mock_script_environment(
             platform="Darwin",
             machine="x86_64",
-            yaml_data=config,
+            json_data=config,
         ):
             with patch.object(
                 build_adapter_module,
@@ -60,7 +60,7 @@ class TestPlatformDetection:
         with mock_script_environment(
             platform="Linux",
             machine="aarch64",
-            yaml_data=config,
+            json_data=config,
         ):
             with patch.object(
                 build_adapter_module,
@@ -83,7 +83,7 @@ class TestPlatformDetection:
         with mock_script_environment(
             platform="Windows",
             machine="AMD64",
-            yaml_data=config,
+            json_data=config,
         ):
             with patch.object(
                 build_adapter_module,
@@ -110,7 +110,7 @@ class TestPlatformDetection:
         with mock_script_environment(
             platform="Darwin",
             machine="x86_64",
-            yaml_data=config,
+            json_data=config,
         ):
             with patch.object(
                 build_adapter_module,
@@ -149,7 +149,7 @@ class TestPlatformValidation:
         """Verify validation passes for supported platform/arch combo."""
         config = create_mock_versions_config()
 
-        with mock_script_environment(yaml_data=config):
+        with mock_script_environment(json_data=config):
             with patch.object(
                 build_adapter_module,
                 "get_builder",
@@ -180,7 +180,7 @@ class TestPlatformValidation:
         """Verify validation fails for unsupported platform/arch combo."""
         config = create_mock_versions_config()
 
-        with mock_script_environment(yaml_data=config):
+        with mock_script_environment(json_data=config):
             with patch(
                 "sys.argv",
                 [
@@ -207,7 +207,7 @@ class TestPlatformValidation:
         """Verify validation checks both platform and arch match."""
         config = create_mock_versions_config()
 
-        with mock_script_environment(yaml_data=config):
+        with mock_script_environment(json_data=config):
             with patch(
                 "sys.argv",
                 [
@@ -228,13 +228,13 @@ class TestPlatformValidation:
 
 
 class TestConfigurationLoading:
-    """Test versions.yaml configuration loading."""
+    """Test versions.json configuration loading."""
 
     def test_successful_config_loading(self, build_adapter_module, mock_builder):
-        """Verify successful loading of versions.yaml."""
+        """Verify successful loading of versions.json."""
         config = create_mock_versions_config()
 
-        with mock_script_environment(yaml_data=config):
+        with mock_script_environment(json_data=config):
             with patch.object(
                 build_adapter_module,
                 "get_builder",
@@ -263,8 +263,8 @@ class TestConfigurationLoading:
         tmp_path,
         capsys,
     ):
-        """Verify error when versions.yaml file doesn't exist."""
-        nonexistent_file = tmp_path / "nonexistent.yaml"
+        """Verify error when versions.json file doesn't exist."""
+        nonexistent_file = tmp_path / "nonexistent.json"
 
         with patch(
             "sys.argv",
@@ -290,10 +290,10 @@ class TestConfigurationLoading:
     ):
         """Verify custom versions file path via --versions-file."""
         config = create_mock_versions_config()
-        custom_file = tmp_path / "custom-versions.yaml"
-        custom_file.write_text("platforms: []")
+        custom_file = tmp_path / "custom-versions.json"
+        custom_file.write_text('{"platforms": []}')
 
-        with mock_script_environment(yaml_data=config):
+        with mock_script_environment(json_data=config):
             with patch.object(
                 build_adapter_module,
                 "get_builder",
@@ -331,7 +331,7 @@ class TestCommandLineArguments:
             build_adapter_module.__dict__,
             {"ADAPTER_BUILDERS": mock_builders},
         ):
-            with mock_script_environment(yaml_data=config):
+            with mock_script_environment(json_data=config):
                 with patch("sys.argv", ["build-adapter.py", "--list"]):
                     build_adapter_module.main()
 
@@ -345,7 +345,7 @@ class TestCommandLineArguments:
         """Verify --validate-only flag."""
         config = create_mock_versions_config()
 
-        with mock_script_environment(yaml_data=config):
+        with mock_script_environment(json_data=config):
             with patch("sys.argv", ["build-adapter.py", "--validate-only"]):
                 build_adapter_module.main()
 
@@ -357,7 +357,7 @@ class TestCommandLineArguments:
         only."""
         config = create_mock_versions_config()
 
-        with mock_script_environment(yaml_data=config):
+        with mock_script_environment(json_data=config):
             with patch("sys.argv", ["build-adapter.py"]):
                 with pytest.raises(SystemExit) as exc_info:
                     build_adapter_module.main()
@@ -374,7 +374,7 @@ class TestCommandLineArguments:
         """Verify successful build with adapter argument."""
         config = create_mock_versions_config()
 
-        with mock_script_environment(yaml_data=config):
+        with mock_script_environment(json_data=config):
             with patch.object(
                 build_adapter_module,
                 "get_builder",
@@ -412,7 +412,7 @@ class TestAdapterBuilderIntegration:
         """Verify get_builder() is called with correct arguments."""
         config = create_mock_versions_config()
 
-        with mock_script_environment(yaml_data=config):
+        with mock_script_environment(json_data=config):
             with patch.object(
                 build_adapter_module,
                 "get_builder",
@@ -448,7 +448,7 @@ class TestAdapterBuilderIntegration:
         """Verify build_adapter() is executed."""
         config = create_mock_versions_config()
 
-        with mock_script_environment(yaml_data=config):
+        with mock_script_environment(json_data=config):
             with patch.object(
                 build_adapter_module,
                 "get_builder",
@@ -480,7 +480,7 @@ class TestAdapterBuilderIntegration:
         """Verify successful build output includes tarball path and checksum."""
         config = create_mock_versions_config()
 
-        with mock_script_environment(yaml_data=config):
+        with mock_script_environment(json_data=config):
             with patch.object(
                 build_adapter_module,
                 "get_builder",
@@ -520,7 +520,7 @@ class TestCacheExtraction:
         mock_tarfile = Mock()
         mock_tarfile.getmembers.return_value = []
 
-        with mock_script_environment(yaml_data=config):
+        with mock_script_environment(json_data=config):
             with patch.object(
                 build_adapter_module,
                 "get_builder",
@@ -564,7 +564,7 @@ class TestCacheExtraction:
         mock_tarfile.__enter__ = Mock(return_value=mock_tarfile)
         mock_tarfile.__exit__ = Mock(return_value=False)
 
-        with mock_script_environment(yaml_data=config):
+        with mock_script_environment(json_data=config):
             with patch.object(
                 build_adapter_module,
                 "get_builder",
@@ -610,7 +610,7 @@ class TestCacheExtraction:
         mock_tarfile.__enter__ = Mock(return_value=mock_tarfile)
         mock_tarfile.__exit__ = Mock(return_value=False)
 
-        with mock_script_environment(yaml_data=config):
+        with mock_script_environment(json_data=config):
             with patch.object(
                 build_adapter_module,
                 "get_builder",

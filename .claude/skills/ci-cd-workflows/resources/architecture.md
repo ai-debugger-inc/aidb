@@ -14,7 +14,7 @@ Core CI/CD workflow organization, patterns, and reusable components.
 
 **Maintenance** (`maintenance-*.yaml`): Version updates (weekly), Dependabot auto-merge
 
-**Reusable**: `load-versions.yaml`, `test-suite.yaml`, `test-frameworks.yaml`, `build-adapters.yaml`, `build-docker.yaml`
+**Reusable**: `load-versions.yaml`, `test-suite.yaml`, `test-frameworks.yaml`, `build-adapters.yaml`, `build-docker.yaml`, `pypi-publish.yaml`
 
 ## Key Patterns
 
@@ -77,7 +77,7 @@ test:
 
 ### load-versions.yaml
 
-Loads infrastructure versions from `versions.yaml` - eliminates hardcoding.
+Loads infrastructure versions from `versions.json` - eliminates hardcoding.
 
 **Outputs:**
 
@@ -126,45 +126,19 @@ Build debug adapters and Docker images for testing. Require `python-version` inp
 
 Located in `.github/actions/`:
 
-| Action                    | Purpose                              |
-| ------------------------- | ------------------------------------ |
-| `setup-aidb-env`          | Checkout, Python setup, install deps |
-| `setup-multi-lang`        | Node.js and Java setup               |
-| `download-test-artifacts` | Conditional artifact download        |
-| `run-aidb-tests`          | Execute tests, upload coverage       |
+| Action                    | Purpose                                |
+| ------------------------- | -------------------------------------- |
+| `setup-aidb-env`          | Checkout, Python setup, install deps   |
+| `setup-multi-lang`        | Node.js and Java setup                 |
+| `download-test-artifacts` | Conditional artifact download          |
+| `run-aidb-tests`          | Execute tests, upload coverage         |
+| `pypi-upload`             | Idempotent PyPI upload (version check) |
+| `smoke-test`              | PyPI package verification with retry   |
+| `extract-version`         | Parse release branch versions          |
 
 ## Cross-Workflow Dependencies
 
-GitHub workflows run independently. AIDB uses custom scripts for coordination:
-
-### wait_for_check.py
-
-Polls GitHub Checks API to wait for prerequisite check completion.
-
-```yaml
-- run: |
-    python3 .github/scripts/wait_for_check.py \
-      --ref ${{ github.event.pull_request.head.sha }} \
-      --check-name "prerequisite-job" \
-      --timeout 600
-  env:
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
-
-### download_artifact.py
-
-Downloads artifacts from other workflow runs.
-
-```yaml
-- run: |
-    python3 .github/scripts/download_artifact.py \
-      --workflow adapter-build.yaml \
-      --commit ${{ github.sha }} \
-      --name adapter-artifacts-all \
-      --path /tmp/artifacts/
-```
-
-Both scripts use stdlib only (no dependencies), handle errors gracefully, and avoid third-party actions for security.
+GitHub workflows run independently. AIDB uses job dependencies within workflows (`needs:`) and reusable workflows for coordination.
 
 ## Caching
 
@@ -178,7 +152,7 @@ Both scripts use stdlib only (no dependencies), handle errors gracefully, and av
 - uses: actions/cache@v4
   with:
     path: ~/.cache/adapters
-    key: adapters-${{ hashFiles('versions.yaml') }}
+    key: adapters-${{ hashFiles('versions.json') }}
 ```
 
 ## Secrets Management
@@ -203,12 +177,12 @@ secrets:
 
 - **Python 3.11** - CI tooling (most workflows)
 - **Python 3.10** - Release workflow (max PyPI compatibility)
-- **Python 3.12** - Runtime tests (from `versions.yaml`)
+- **Python 3.12** - Runtime tests (from `versions.json`)
 
 ## References
 
 - `.github/workflows/` - Workflow definitions
 - `.github/actions/` - Composite actions
 - `.github/scripts/` - CI/CD scripts
-- `versions.yaml` - Infrastructure versions
+- `versions.json` - Infrastructure versions
 - `docs/developer-guide/ci-cd.md` - Complete documentation

@@ -8,7 +8,7 @@ inputs:
   package_name:
     description: 'Package name to install'
     required: false
-    default: 'aidb'
+    default: 'ai-debugger-inc'
   version:
     description: 'Package version to install (e.g., 0.1.0)'
     required: true
@@ -40,12 +40,12 @@ runs:
     - name: Wait for package availability with retries
       shell: bash
       run: |
-        # Determine pip index URL
+        # Determine API URL based on source
         if [[ "${{ inputs.source }}" == "testpypi" ]]; then
-          INDEX_URL="https://test.pypi.org/simple/"
-          SOURCE_NAME="Test PyPI"
+          API_URL="https://test.pypi.org/pypi/${{ inputs.package_name }}/${{ inputs.version }}/json"
+          SOURCE_NAME="TestPyPI"
         else
-          INDEX_URL="https://pypi.org/simple/"
+          API_URL="https://pypi.org/pypi/${{ inputs.package_name }}/${{ inputs.version }}/json"
           SOURCE_NAME="PyPI"
         fi
 
@@ -53,14 +53,14 @@ runs:
 
         MAX_ATTEMPTS=5
         WAIT_BETWEEN=30
-        FOUND=false
 
         for i in $(seq 1 $MAX_ATTEMPTS); do
           echo "Attempt $i/$MAX_ATTEMPTS..."
 
-          if pip index versions ${{ inputs.package_name }} --index-url $INDEX_URL 2>/dev/null | grep -q "${{ inputs.version }}"; then
+          # Use PyPI JSON API (more reliable than pip index)
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL")
+          if [[ "$HTTP_STATUS" == "200" ]]; then
             echo "✅ Package found on $SOURCE_NAME!"
-            FOUND=true
             break
           fi
 
@@ -68,7 +68,7 @@ runs:
             echo "::warning::Package not found after $MAX_ATTEMPTS attempts ($((MAX_ATTEMPTS * WAIT_BETWEEN))s total)"
             echo "::warning::Proceeding with installation attempt anyway..."
           else
-            echo "Package not yet available, waiting ${WAIT_BETWEEN}s..."
+            echo "Package not yet available (HTTP $HTTP_STATUS), waiting ${WAIT_BETWEEN}s..."
             sleep $WAIT_BETWEEN
           fi
         done
@@ -135,9 +135,9 @@ runs:
             from aidb_common.config.runtime import config
             print(f'✅ Config accessible')
 
-            # Basic instantiation test
-            from aidb import AIDB
-            print(f'✅ AIDB class accessible')
+            # Verify core classes are accessible
+            from aidb import DebugAPI, Session, DAPClient
+            print(f'✅ Core classes accessible (DebugAPI, Session, DAPClient)')
 
             print('✅ All smoke tests passed!')
             sys.exit(0)
