@@ -6,60 +6,6 @@ from unittest.mock import MagicMock, Mock, patch
 
 
 @contextmanager
-def mock_version_management_sources(**source_returns):
-    """Mock all version management source modules.
-
-    Parameters
-    ----------
-    **source_returns : dict
-        Keyword arguments for source return values.
-        Example: endoflife_return={'version': '3.11'}, github_return=[...]
-
-    Yields
-    ------
-    dict
-        Dictionary of mocked source instances
-    """
-    with (
-        patch("version_management.sources.endoflife.EndOfLifeSource") as eol_mock,
-        patch("version_management.sources.github.GitHubSource") as gh_mock,
-        patch("version_management.sources.docker_hub.DockerHubSource") as docker_mock,
-        patch("version_management.sources.pypi.PyPISource") as pypi_mock,
-        patch("version_management.sources.npm.NPMSource") as npm_mock,
-    ):
-        # Create mock instances
-        mocks = {
-            "endoflife": eol_mock.return_value,
-            "github": gh_mock.return_value,
-            "docker_hub": docker_mock.return_value,
-            "pypi": pypi_mock.return_value,
-            "npm": npm_mock.return_value,
-        }
-
-        # Apply return values if provided
-        if "endoflife_return" in source_returns:
-            mocks["endoflife"].get_version_info.return_value = source_returns[
-                "endoflife_return"
-            ]
-        if "github_return" in source_returns:
-            mocks["github"].get_latest_release.return_value = source_returns[
-                "github_return"
-            ]
-        if "docker_hub_return" in source_returns:
-            mocks["docker_hub"].get_latest_tag.return_value = source_returns[
-                "docker_hub_return"
-            ]
-        if "pypi_return" in source_returns:
-            mocks["pypi"].get_latest_version.return_value = source_returns[
-                "pypi_return"
-            ]
-        if "npm_return" in source_returns:
-            mocks["npm"].get_latest_version.return_value = source_returns["npm_return"]
-
-        yield mocks
-
-
-@contextmanager
 def mock_script_environment(platform="Linux", machine="x86_64", json_data=None):
     """Mock common script execution environment.
 

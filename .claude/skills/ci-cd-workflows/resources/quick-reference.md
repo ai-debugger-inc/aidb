@@ -99,9 +99,7 @@ Located in `.github/scripts/`:
 
 ## Version Management
 
-**Dual automation:**
-
-- `versions.json` - Infrastructure & adapters (monitored every 12 hours)
+- `versions.json` - Infrastructure & adapter versions (updated manually)
 - `pyproject.toml` - App dependencies (Dependabot PRs)
 
 **Dependabot branch flow:**
@@ -112,14 +110,13 @@ Dependabot PR → dependabot-updates (auto-merge) → release/X.Y.Z → main
 
 ## Workflow Triggers
 
-| Event                      | Workflow                         |
-| -------------------------- | -------------------------------- |
-| Push to main/develop       | test-parallel.yaml               |
-| PR to main                 | test-parallel.yaml               |
-| PR from release/\* to main | release-pr.yaml                  |
-| PR merge from release/\*   | release-publish.yaml             |
-| release:published          | adapter-build.yaml               |
-| Weekly (Mondays)           | maintenance-update-versions.yaml |
+| Event                      | Workflow             |
+| -------------------------- | -------------------- |
+| Push to main/develop       | test-parallel.yaml   |
+| PR to main                 | test-parallel.yaml   |
+| PR from release/\* to main | release-pr.yaml      |
+| PR merge from release/\*   | release-publish.yaml |
+| release:published          | adapter-build.yaml   |
 
 ## Debug Logging
 

@@ -51,8 +51,6 @@ This skill provides practical guidance for working with workflows and configurat
 
 **Maintenance Workflows** (`maintenance-*.yaml`)
 
-- `maintenance-update-versions.yaml` - Weekly version updates
-- `maintenance-check-versions.yaml` - Check infrastructure version updates (every 12 hours)
 - `maintenance-dependabot-auto-merge.yaml` - Auto-merge Dependabot PRs to staging branch
 
 **Reusable Workflows** (`*.yaml`)
@@ -85,12 +83,8 @@ See `docs/developer-guide/ci-cd.md` for configuration overview.
 
 ### Version Management Strategy
 
-AIDB uses a **dual automation system**:
-
-1. **versions.json** - Infrastructure & adapters (monitored every 12 hours, creates GitHub issues)
-1. **pyproject.toml** - Application dependencies (Dependabot, creates PRs automatically)
-
-For complete details on what each system monitors and validation procedures, see [quick-reference.md](resources/quick-reference.md).
+- **versions.json** - Infrastructure versions (Python, Node, Java) and adapter versions updated manually
+- **pyproject.toml** - Application dependencies managed by Dependabot (creates PRs automatically)
 
 ### Dependabot Integration
 
@@ -112,7 +106,7 @@ AIDB uses Dependabot with a **staging branch strategy**:
 Dependabot PR (with checks) → dependabot-updates (auto-merge) → release/X.Y.Z → main
 ```
 
-For complete details, see `.github/dependabot.yaml` and `.github/workflows/maintenance-check-versions.yaml`.
+For complete details, see `.github/dependabot.yaml`.
 
 ## Common Tasks
 
@@ -426,7 +420,6 @@ Complete guides: `docs/developer-guide/ci-cd.md`
 **Release (draft):** PR to `main` from `release/**` branch
 **Release (publish):** PR merge to `main` from `release/**` branch
 **Build Adapters:** Part of release workflow (pr-release.yaml)
-**Maintenance:** Weekly (Mondays)
 
 ### Common Commands
 
