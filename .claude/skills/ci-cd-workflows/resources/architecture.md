@@ -138,36 +138,7 @@ Located in `.github/actions/`:
 
 ## Cross-Workflow Dependencies
 
-GitHub workflows run independently. AIDB uses custom scripts for coordination:
-
-### wait_for_check.py
-
-Polls GitHub Checks API to wait for prerequisite check completion.
-
-```yaml
-- run: |
-    python3 .github/scripts/wait_for_check.py \
-      --ref ${{ github.event.pull_request.head.sha }} \
-      --check-name "prerequisite-job" \
-      --timeout 600
-  env:
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
-
-### download_artifact.py
-
-Downloads artifacts from other workflow runs.
-
-```yaml
-- run: |
-    python3 .github/scripts/download_artifact.py \
-      --workflow adapter-build.yaml \
-      --commit ${{ github.sha }} \
-      --name adapter-artifacts-all \
-      --path /tmp/artifacts/
-```
-
-Both scripts use stdlib only (no dependencies), handle errors gracefully, and avoid third-party actions for security.
+GitHub workflows run independently. AIDB uses job dependencies within workflows (`needs:`) and reusable workflows for coordination.
 
 ## Caching
 

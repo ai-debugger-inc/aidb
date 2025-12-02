@@ -73,12 +73,6 @@ This skill provides practical guidance for working with workflows and configurat
 
 All workflows dynamically load versions via `load-versions.yaml` - zero hardcoded versions.
 
-**Validation:**
-
-```bash
-python .github/scripts/quick_validate_versions.py --config versions.json
-```
-
 See `docs/developer-guide/ci-cd.md` for configuration overview.
 
 ### Version Management Strategy
@@ -270,12 +264,6 @@ Framework dependencies auto-managed via checksum services.
 }
 ```
 
-**Always validate:**
-
-```bash
-python .github/scripts/quick_validate_versions.py
-```
-
 ## Test Orchestration
 
 **For detailed architecture**, see [Test Orchestration](resources/test-orchestration.md) and `docs/developer-guide/ci-cd.md`.
@@ -337,7 +325,6 @@ Frameworks use dynamic matrix from `testing-config.yaml`:
 
 - Validate versions.json syntax
 - Check Python version consistency
-- Run quick_validate_versions.py
 
 ### Investigation Workflow
 
@@ -345,7 +332,6 @@ Frameworks use dynamic matrix from `testing-config.yaml`:
 1. Check logs for errors
 1. Review recent changes
 1. Reproduce locally with dev-cli or act
-1. Validate: `python .github/scripts/quick_validate_versions.py`
 
 **Note:** `actionlint` runs automatically via pre-commit hooks when committing workflow changes.
 
@@ -385,9 +371,7 @@ For comprehensive guidelines on workflow development, configuration management, 
 
 ## Cross-Workflow Dependencies
 
-Workflows run independently by default. AIDB uses custom scripts (`.github/scripts/wait_for_check.py`, `download_artifact.py`) to enforce dependencies.
-
-See [architecture.md](resources/architecture.md) for cross-workflow coordination patterns.
+Workflows run independently by default. See [architecture.md](resources/architecture.md) for cross-workflow coordination patterns.
 
 ## Resources
 
@@ -429,7 +413,6 @@ Complete guides: `docs/developer-guide/ci-cd.md`
 ./dev-cli test run -t "path/to/test.py"
 
 # Validation
-python .github/scripts/quick_validate_versions.py
 actionlint .github/workflows/**/*.yaml
 
 # Local CI

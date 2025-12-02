@@ -25,20 +25,13 @@ gh run view <run-id>
 ```bash
 ./dev-cli test run --suite {suite}
 ./dev-cli adapters build --local
-python .github/scripts/quick_validate_versions.py
 ```
 
 ### 4. Analyze Logs
 
 Look for: Error messages, stack traces, warnings before failure, dependency failures, network timeouts, permission errors.
 
-### 5. Validate Configuration
-
-```bash
-python .github/scripts/quick_validate_versions.py
-```
-
-### 6. Test Incrementally
+### 5. Test Incrementally
 
 ```bash
 ./dev-cli test run --suite shared
@@ -72,7 +65,6 @@ docker images | grep aidb
 **Causes:** Upstream unavailable, version not found, platform incompatibility
 
 ```bash
-python .github/scripts/quick_validate_versions.py
 curl -I https://github.com/microsoft/debugpy/releases/tag/v1.8.0
 ./dev-cli adapters build --local --language python
 ```
@@ -83,7 +75,6 @@ curl -I https://github.com/microsoft/debugpy/releases/tag/v1.8.0
 
 ```bash
 python -c "import json; json.load(open('versions.json'))"
-python .github/scripts/quick_validate_versions.py
 ```
 
 ### Docker Build Failures
@@ -210,8 +201,6 @@ gh run list --workflow=test-parallel.yaml --limit 10
 - Merge untested workflows
 
 ## Getting Help
-
-**Validate:** `python .github/scripts/quick_validate_versions.py`
 
 **Tools:** `gh` CLI, `act`, `./dev-cli`
 

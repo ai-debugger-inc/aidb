@@ -24,7 +24,6 @@ Commands, file locations, and links for CI/CD operations.
 ### Validation
 
 ```bash
-python .github/scripts/quick_validate_versions.py
 actionlint .github/workflows/**/*.yaml
 ```
 
@@ -89,13 +88,12 @@ Located in `.github/actions/`:
 
 Located in `.github/scripts/`:
 
-| Script                       | Purpose                          |
-| ---------------------------- | -------------------------------- |
-| `quick_validate_versions.py` | Validate versions.json           |
-| `format_job_summary.py`      | Auto-detect test results         |
-| `build-adapter.py`           | Adapter build orchestrator       |
-| `wait_for_check.py`          | Cross-workflow dependency        |
-| `download_artifact.py`       | Cross-workflow artifact download |
+| Script                       | Purpose                      |
+| ---------------------------- | ---------------------------- |
+| `format_job_summary.py`      | Auto-detect test results     |
+| `format_test_summary.py`     | Format pytest output         |
+| `build-adapter.py`           | Adapter build orchestrator   |
+| `aggregate_flakes_report.py` | Aggregate flaky test reports |
 
 ## Version Management
 

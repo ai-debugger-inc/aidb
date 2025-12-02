@@ -325,12 +325,6 @@ For complete details, see the resource file for this topic.
 Check skill-rules.json syntax:
 
 ```bash
-python .github/scripts/quick_validate_versions.py  # Validates JSON syntax
-```
-
-Or use a JSON validator:
-
-```bash
 cat .claude/skills/skill-rules.json | python -m json.tool > /dev/null
 ```
 
