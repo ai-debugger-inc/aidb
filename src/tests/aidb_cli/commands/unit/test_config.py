@@ -440,7 +440,7 @@ class TestConfigCommands:
 
     def test_validate_user_config_syntax_error(self, cli_runner, mock_repo_root):
         """Test validate when user config has syntax errors."""
-        from aidb_common.io.files import FileOperationError
+        from aidb_cli.core.yaml import YamlOperationError
 
         with patch("aidb_common.repo.detect_repo_root", return_value=mock_repo_root):
             with patch("aidb_cli.cli.ConfigManager") as mock_cm_class:
@@ -461,7 +461,7 @@ class TestConfigCommands:
 
                 with patch(
                     "aidb_cli.commands.config.safe_read_yaml",
-                    side_effect=FileOperationError("YAML syntax error"),
+                    side_effect=YamlOperationError("YAML syntax error"),
                 ):
                     result = cli_runner.invoke(cli, ["config", "validate"])
                     assert result.exit_code == 1
@@ -470,7 +470,7 @@ class TestConfigCommands:
 
     def test_validate_project_config_syntax_error(self, cli_runner, mock_repo_root):
         """Test validate when project config has syntax errors."""
-        from aidb_common.io.files import FileOperationError
+        from aidb_cli.core.yaml import YamlOperationError
 
         with patch("aidb_common.repo.detect_repo_root", return_value=mock_repo_root):
             with patch("aidb_cli.cli.ConfigManager") as mock_cm_class:
@@ -492,7 +492,7 @@ class TestConfigCommands:
                 def safe_read_yaml_side_effect(path):
                     if path == mock_project_path:
                         msg = "Invalid YAML"
-                        raise FileOperationError(msg)
+                        raise YamlOperationError(msg)
                     return {}
 
                 with patch(

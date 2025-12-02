@@ -321,7 +321,7 @@ def validate_generated_file(self) -> tuple[bool, list[str]]:
     # Validate YAML syntax
     try:
         safe_read_yaml(self.output_file)
-    except FileOperationError as e:
+    except YamlOperationError as e:
         return False, [str(e)]
 
     return True, []

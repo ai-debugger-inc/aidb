@@ -6,13 +6,12 @@ cache invalidation and rebuild detection, and subprocess transport cleanup.
 
 from .checksum_service_base import ChecksumServiceBase
 from .files import (
+    FileOperationError,
     atomic_write,
     ensure_dir,
     read_cache_file,
     safe_read_json,
-    safe_read_yaml,
     safe_write_json,
-    safe_write_yaml,
     write_cache_file,
 )
 from .hashing import compute_files_hash, compute_pattern_hash
@@ -20,8 +19,7 @@ from .subprocess import close_subprocess_transports
 
 __all__ = [
     "ChecksumServiceBase",
-    "safe_read_yaml",
-    "safe_write_yaml",
+    "FileOperationError",
     "safe_read_json",
     "safe_write_json",
     "atomic_write",

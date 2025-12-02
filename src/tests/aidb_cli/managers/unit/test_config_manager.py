@@ -5,8 +5,8 @@ from unittest.mock import Mock, mock_open, patch
 
 import pytest
 
+from aidb_cli.core.yaml import YamlOperationError
 from aidb_cli.managers.config_manager import ConfigManager, get_config_manager
-from aidb_common.io.files import FileOperationError
 
 
 class TestConfigManager:
@@ -262,7 +262,7 @@ class TestConfigManager:
         """Test set_config_value handles write failure."""
         mock_vm_class.return_value = Mock()
         mock_load_config.return_value = {}
-        mock_write.side_effect = FileOperationError("write failed")
+        mock_write.side_effect = YamlOperationError("write failed")
 
         manager = ConfigManager(tmp_config_files)
         result = manager.set_config_value("test", "value", "user")

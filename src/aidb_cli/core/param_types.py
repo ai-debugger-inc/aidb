@@ -16,8 +16,7 @@ import click
 from click import Context
 from click.shell_completion import CompletionItem
 
-from aidb_common.io import safe_read_yaml
-from aidb_common.io.files import FileOperationError
+from aidb_cli.core.yaml import YamlOperationError, safe_read_yaml
 from aidb_common.repo import detect_repo_root
 from aidb_logging import get_cli_logger
 
@@ -59,7 +58,7 @@ def _load_compose_profiles(repo_root: Path) -> set[str]:
                         profiles.add(p.strip())
             elif isinstance(prof, str) and prof.strip():
                 profiles.add(prof.strip())
-    except FileOperationError as e:
+    except YamlOperationError as e:
         logger.debug("Failed to parse docker-compose.yaml: %s", e)
 
     return profiles

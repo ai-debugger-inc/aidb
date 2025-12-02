@@ -4,9 +4,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
 from aidb_cli.core.paths import ProjectPaths
+from aidb_cli.core.yaml import YamlOperationError, safe_read_yaml
 from aidb_cli.managers.base.service import BaseService
-from aidb_common.io import safe_read_yaml
-from aidb_common.io.files import FileOperationError
 from aidb_logging import get_cli_logger
 
 if TYPE_CHECKING:
@@ -154,7 +153,7 @@ class ServiceDependencyService(BaseService):
                     has_build,
                 )
 
-        except FileOperationError as e:
+        except YamlOperationError as e:
             self.log_error("Failed to load services from compose file: %s", str(e))
         except (KeyError, TypeError, AttributeError) as e:
             self.log_error("Invalid compose file structure: %s", str(e))
@@ -309,8 +308,6 @@ class ServiceDependencyService(BaseService):
         str or None
             Image tag if found, None otherwise
         """
-        from aidb_common.io.files import safe_read_yaml
-
         try:
             compose_data = safe_read_yaml(self.compose_file)
             services_data = compose_data.get("services", {})

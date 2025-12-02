@@ -10,14 +10,13 @@ from typing import Any
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from aidb_cli.core.paths import CachePaths, ProjectPaths
+from aidb_cli.core.yaml import YamlOperationError, safe_read_yaml
 from aidb_common.config import VersionManager
 from aidb_common.io import (
     compute_files_hash,
     read_cache_file,
-    safe_read_yaml,
     write_cache_file,
 )
-from aidb_common.io.files import FileOperationError
 from aidb_logging import get_cli_logger
 
 logger = get_cli_logger(__name__)
@@ -286,7 +285,7 @@ class ComposeGeneratorService:
         try:
             safe_read_yaml(self.output_file)
             logger.debug("Generated compose file is valid YAML")
-        except FileOperationError as e:
+        except YamlOperationError as e:
             errors.append(str(e))
             return False, errors
 

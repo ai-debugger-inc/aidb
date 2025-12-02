@@ -88,18 +88,19 @@ ______________________________________________________________________
 
 ## Utility Packages
 
-| Need               | Package                  | Key Functions                                                |
-| ------------------ | ------------------------ | ------------------------------------------------------------ |
-| Read/write JSON    | `aidb_common.io`         | `safe_read_json`, `safe_write_json`                          |
-| Read/write YAML    | `aidb_common.io`         | `safe_read_yaml`, `safe_write_yaml`                          |
-| Atomic writes      | `aidb_common.io`         | `atomic_write`                                               |
-| File hashing       | `aidb_common.io`         | `compute_files_hash`, `compute_pattern_hash`                 |
-| Path normalization | `aidb_common.path`       | `normalize_path`                                             |
-| AIDB directories   | `aidb_common.path`       | `get_aidb_home`, `get_aidb_log_dir`, `get_aidb_adapters_dir` |
-| Env vars (typed)   | `aidb_common.env`        | `read_str`, `read_bool`, `read_int`, `read_path`, `read_url` |
-| Env validation     | `aidb_common.validation` | `validate_required_vars`, `validate_mutex_vars`              |
-| Configuration      | `aidb_common.config`     | `ConfigManager`, `VersionManager`                            |
-| Language detection | `aidb_common.discovery`  | `get_language_from_file`, `is_language_supported`            |
+| Need               | Package                        | Key Functions                                                |
+| ------------------ | ------------------------------ | ------------------------------------------------------------ |
+| Read/write JSON    | `aidb_common.io`               | `safe_read_json`, `safe_write_json`                          |
+| Read/write YAML    | `aidb_cli.core.yaml`           | `safe_read_yaml`, `safe_write_yaml` (CLI only)               |
+| Atomic writes      | `aidb_common.io`               | `atomic_write`                                               |
+| File hashing       | `aidb_common.io`               | `compute_files_hash`, `compute_pattern_hash`                 |
+| Path normalization | `aidb_common.path`             | `normalize_path`                                             |
+| AIDB directories   | `aidb_common.path`             | `get_aidb_home`, `get_aidb_log_dir`, `get_aidb_adapters_dir` |
+| Env vars (typed)   | `aidb_common.env`              | `read_str`, `read_bool`, `read_int`, `read_path`, `read_url` |
+| Env validation     | `aidb_common.validation`       | `validate_required_vars`, `validate_mutex_vars`              |
+| Configuration      | `aidb_common.config`           | `ConfigManager`, `VersionManager`                            |
+| Project config     | `aidb_cli.core.project_config` | `load_merged_config` (CLI only)                              |
+| Language detection | `aidb_common.discovery`        | `get_language_from_file`, `is_language_supported`            |
 
 **Detailed documentation:** See docstrings in `src/aidb_common/` modules
 

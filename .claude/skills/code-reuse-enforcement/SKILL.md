@@ -118,12 +118,13 @@ ______________________________________________________________________
 
 ### Utility Packages
 
-| Need       | Package                  |
-| ---------- | ------------------------ |
-| JSON/YAML  | `aidb_common.io`         |
-| Paths      | `aidb_common.path`       |
-| Env vars   | `aidb_common.env`        |
-| Validation | `aidb_common.validation` |
+| Need       | Package                    |
+| ---------- | -------------------------- |
+| JSON       | `aidb_common.io`           |
+| YAML       | `aidb_cli.core.yaml` (CLI) |
+| Paths      | `aidb_common.path`         |
+| Env vars   | `aidb_common.env`          |
+| Validation | `aidb_common.validation`   |
 
 **Full reference:** See docstrings in `src/aidb_common/`
 

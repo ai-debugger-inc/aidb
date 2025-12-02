@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from aidb_cli.core.yaml import YamlOperationError
 from aidb_cli.generators.core.parser import ScenarioParser
 from aidb_cli.generators.core.types import (
     ComplexityLevel,
@@ -13,7 +14,6 @@ from aidb_cli.generators.core.types import (
     ScenarioCategory,
     VariableConstruct,
 )
-from aidb_common.io.files import FileOperationError
 
 
 class TestScenarioParser:
@@ -71,7 +71,7 @@ class TestScenarioParser:
             temp_file = Path(f.name)
 
         try:
-            with pytest.raises(FileOperationError):
+            with pytest.raises(YamlOperationError):
                 parser.parse_file(temp_file)
         finally:
             temp_file.unlink()
