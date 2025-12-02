@@ -61,8 +61,16 @@ runs:
 
         echo "🔍 Checking if $PACKAGE==$VERSION exists on $SOURCE_NAME..."
 
-        # Check if version exists using pip index
-        if pip index versions "$PACKAGE" --index-url "$INDEX_URL" 2>/dev/null | grep -q "$VERSION"; then
+        # Determine API URL based on source
+        if [[ "${{ inputs.source }}" == "testpypi" ]]; then
+          API_URL="https://test.pypi.org/pypi/$PACKAGE/$VERSION/json"
+        else
+          API_URL="https://pypi.org/pypi/$PACKAGE/$VERSION/json"
+        fi
+
+        # Check if version exists using PyPI JSON API (more reliable than pip index)
+        HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL")
+        if [[ "$HTTP_STATUS" == "200" ]]; then
           echo "ℹ️  Version $VERSION already exists on $SOURCE_NAME"
           echo "uploaded=false" >> $GITHUB_OUTPUT
           echo "skipped_reason=version_exists" >> $GITHUB_OUTPUT
