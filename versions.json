@@ -1,6 +1,6 @@
 {
   "_comment": "AIDB Versions Configuration - Single Source of Truth.",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "infrastructure": {
     "python": {
       "version": "3.12",

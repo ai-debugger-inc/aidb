@@ -55,7 +55,7 @@ Performance Logging
 ...     pass
 """
 
-__version__ = "0.0.2"
+__version__ = "0.0.3"
 
 import logging
 

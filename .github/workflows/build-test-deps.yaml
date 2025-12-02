@@ -3,6 +3,7 @@ name: Build Test Dependencies
 on:
   push:
     branches: [main, develop]
+    # Skip release merges checked at job level (already tested by release-pr workflow)
     paths:
       - 'src/aidb/adapters/**'
       - 'src/tests/_docker/**'
@@ -20,18 +21,44 @@ env:
   COMPOSE_DOCKER_CLI_BUILD: 1
 
 jobs:
+  # Check if this is a release merge (already tested by release-pr workflow)
+  check-skip:
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.check.outputs.should_skip }}
+    steps:
+      - name: Check if release merge
+        id: check
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          # Skip if this is a push event and the commit message indicates a release merge
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            if [[ "$COMMIT_MSG" =~ Merge\ pull\ request.*from.*release/ ]]; then
+              echo "⏭️ Skipping: This is a release merge (already tested by release-pr workflow)"
+              echo "should_skip=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          fi
+          echo "should_skip=false" >> $GITHUB_OUTPUT
+
   # Load versions from versions.json
   load-versions:
+    needs: check-skip
+    if: ${{ needs.check-skip.outputs.should_skip != 'true' }}
     uses: ./.github/workflows/load-versions.yaml
 
   build-adapters:
-    needs: load-versions
+    needs: [check-skip, load-versions]
+    if: ${{ needs.check-skip.outputs.should_skip != 'true' }}
     uses: ./.github/workflows/build-adapters.yaml
     with:
       python-version: ${{ inputs.python-version || needs.load-versions.outputs.python-version }}
 
   build-docker-images:
-    needs: load-versions
+    needs: [check-skip, load-versions]
+    if: ${{ needs.check-skip.outputs.should_skip != 'true' }}
     uses: ./.github/workflows/build-docker.yaml
     with:
       python-version: ${{ inputs.python-version || needs.load-versions.outputs.python-version }}

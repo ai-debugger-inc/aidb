@@ -70,10 +70,9 @@ jobs:
           sleep 2
 
           # Verify release is published
-          RELEASE_INFO=$(gh release view "$TAG_NAME" --json isDraft,isLatest,url)
+          RELEASE_INFO=$(gh release view "$TAG_NAME" --json isDraft,url)
 
           IS_DRAFT=$(echo "$RELEASE_INFO" | jq -r '.isDraft')
-          IS_LATEST=$(echo "$RELEASE_INFO" | jq -r '.isLatest')
           RELEASE_URL=$(echo "$RELEASE_INFO" | jq -r '.url')
 
           if [ "$IS_DRAFT" = "true" ]; then
@@ -83,7 +82,6 @@ jobs:
 
           echo "✅ Release verification passed:"
           echo "  - Draft: $IS_DRAFT"
-          echo "  - Latest: $IS_LATEST"
           echo "  - URL: $RELEASE_URL"
 
       - name: Add workflow summary

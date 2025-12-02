@@ -2,8 +2,8 @@
 """Synchronize version numbers across the codebase based on git tags and branches.
 
 Priority order:
-1. Git tag on HEAD (bare X.Y.Z format only, e.g., 1.0.0)
-2. Branch name matching release/X.Y.Z pattern
+1. Release branch name (release/X.Y.Z takes precedence for active development)
+2. Git tag on HEAD (bare X.Y.Z format only, for non-release branches)
 3. Default to 0.0.0 for all non-release branches
 
 Version Strategy:
@@ -314,14 +314,22 @@ def main():
     # Get repository root
     repo_root = Path(__file__).parent.parent.parent.absolute()
 
-    # Priority 1: Git tag on HEAD (highest priority)
-    version, version_source = get_version_from_git_tag()
+    # Get branch name first
+    branch = get_git_branch()
 
-    # Priority 2: Branch name (fallback)
-    if not version:
-        branch = get_git_branch()
+    # Priority 1: Release branch name (takes precedence for active development)
+    # This ensures release/X.Y.Z branches use their version, not a stale tag
+    if branch and branch.startswith("release/"):
         version = extract_version_from_branch(branch)
-        version_source = f"branch ({branch or 'unknown'})"
+        version_source = f"release branch ({branch})"
+    else:
+        # Priority 2: Git tag on HEAD (for tagged commits on non-release branches)
+        version, version_source = get_version_from_git_tag()
+
+        # Priority 3: Branch name fallback (defaults to 0.0.0 for dev branches)
+        if not version:
+            version = extract_version_from_branch(branch)
+            version_source = f"branch ({branch or 'unknown'})"
 
     print(f"Version source: {version_source}")
     print(f"Version: {version}")
