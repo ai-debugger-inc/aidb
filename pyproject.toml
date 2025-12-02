@@ -20,7 +20,7 @@ dependencies = [
 ]
 keywords = ["AI Debugger", "aidb", "debugging"]
 license = {file = "LICENSE"}
-name = "ai-debugger"
+name = "ai-debugger-inc"
 classifiers = [
   "License :: OSI Approved :: Apache Software License",
   "Development Status :: 4 - Beta",
@@ -237,7 +237,7 @@ sphinxcontrib-mermaid = "sphinxcontrib.mermaid"
 
 [tool.deptry.per_rule_ignores]
 DEP004 = [
-  "click", "tomli", "jinja2", "sphinx-click", "sphinx_click"
+  "click", "tomli", "jinja2", "sphinx-click", "sphinx_click", "yaml", "tiktoken"
 ]
 DEP001 = ["src", "sphinx_click"]
 
@@ -381,6 +381,8 @@ where = ["src"]
 exclude = [
   "tests*",
   "tests.*",
+  "aidb_cli",
+  "aidb_cli.*",
 ]
 
 [tool.setuptools.package-data]

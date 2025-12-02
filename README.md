@@ -1,11 +1,11 @@
 # AI Debugger
 
 [![PyPI
-version](https://badge.fury.io/py/ai-debugger.svg)](https://badge.fury.io/py/ai-debugger)
+version](https://badge.fury.io/py/ai-debugger-inc.svg)](https://badge.fury.io/py/ai-debugger-inc)
 [![Python
-versions](https://img.shields.io/pypi/pyversions/ai-debugger.svg)](https://pypi.org/project/ai-debugger/)
+versions](https://img.shields.io/pypi/pyversions/ai-debugger-inc.svg)](https://pypi.org/project/ai-debugger-inc/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/ai-debugger-inc/aidb/blob/main/LICENSE)
-[![Downloads](https://static.pepy.tech/badge/ai-debugger)](https://pepy.tech/project/ai-debugger)
+[![Downloads](https://static.pepy.tech/badge/ai-debugger-inc)](https://pepy.tech/project/ai-debugger-inc)
 [![GitHub
 stars](https://img.shields.io/github/stars/ai-debugger-inc/aidb?style=social)](https://github.com/ai-debugger-inc/aidb)
 
@@ -28,7 +28,7 @@ ______________________________________________________________________
 Get started with Python debugging in under 60 seconds:
 
 ```bash
-pip install ai-debugger
+pip install ai-debugger-inc
 ```
 
 Add to your MCP client settings (Claude Code, Cline, Cursor, etc.):

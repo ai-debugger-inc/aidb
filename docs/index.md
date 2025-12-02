@@ -35,7 +35,7 @@ grid-columns: 1 2 2 3
 Get started with Python debugging in under 60 seconds:
 
 ```bash
-pip install ai-debugger
+pip install ai-debugger-inc
 ```
 
 Add to your MCP client settings (Claude Code, Cline, Cursor, etc.):

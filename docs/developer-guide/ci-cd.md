@@ -66,7 +66,7 @@ git push origin release/X.Y.Z
 
 ### Post-Release
 
-- Verify: `pip install --upgrade ai-debugger==X.Y.Z`
+- Verify: `pip install --upgrade ai-debugger-inc==X.Y.Z`
 - Check GitHub release page
 - Announce in Discord
 

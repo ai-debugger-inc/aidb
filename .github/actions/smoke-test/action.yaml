@@ -8,7 +8,7 @@ inputs:
   package_name:
     description: 'Package name to install'
     required: false
-    default: 'aidb'
+    default: 'ai-debugger-inc'
   version:
     description: 'Package version to install (e.g., 0.1.0)'
     required: true

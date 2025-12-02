@@ -140,7 +140,7 @@ html_theme_options = {
         },
         {
             "name": "PyPI",
-            "url": "https://pypi.org/project/ai-debugger",
+            "url": "https://pypi.org/project/ai-debugger-inc",
             "icon": "fa-solid fa-box",
         },
     ],

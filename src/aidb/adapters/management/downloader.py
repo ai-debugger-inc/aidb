@@ -10,6 +10,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
+from urllib.request import urlopen
 
 from aidb.patterns import Obj
 from aidb.session.adapter_registry import AdapterRegistry
@@ -255,11 +256,10 @@ class AdapterDownloader(Obj):
                         msg = f"Disallowed URL scheme: {parsed.scheme}"
                         raise ValueError(msg)
 
-                    import requests
-
-                    resp = requests.get(download_url, timeout=30)
-                    resp.raise_for_status()
-                    tmp_file.write(resp.content)
+                    # Use stdlib urlopen to avoid external dependency
+                    # URL scheme already validated above (https only)
+                    with urlopen(download_url, timeout=30) as resp:  # nosec B310
+                        tmp_file.write(resp.read())
                     tmp_path = tmp_file.name
                 except HTTPError as e:
                     if e.code == 404:
@@ -477,8 +477,9 @@ class AdapterDownloader(Obj):
 
         # Validate adapter name matches expected language
         if metadata.get("adapter_name") != language:
+            adapter_name = metadata.get("adapter_name")
             self.ctx.warning(
-                f"Adapter name mismatch: metadata has '{metadata.get('adapter_name')}', "
+                f"Adapter name mismatch: metadata has '{adapter_name}', "
                 f"expected '{language}'",
             )
 

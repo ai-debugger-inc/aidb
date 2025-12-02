@@ -284,7 +284,7 @@ jobs:
         if: always()
         run: |
           VERSION="${{ needs.validate-and-extract-version.outputs.version }}"
-          PACKAGE_URL="https://test.pypi.org/project/aidb/$VERSION/"
+          PACKAGE_URL="https://test.pypi.org/project/ai-debugger-inc/$VERSION/"
           SKIPPED="${{ vars.CD_SKIP_PYPI == 'true' }}"
 
           echo "## 📦 TestPyPI Upload" >> $GITHUB_STEP_SUMMARY
@@ -308,7 +308,7 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### Installation:" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-            echo "pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ aidb==$VERSION" >> $GITHUB_STEP_SUMMARY
+            echo "pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ ai-debugger-inc==$VERSION" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           fi
 
@@ -378,7 +378,7 @@ jobs:
         if: always()
         run: |
           VERSION="${{ needs.validate-and-extract-version.outputs.version }}"
-          PACKAGE_URL="https://pypi.org/project/aidb/$VERSION/"
+          PACKAGE_URL="https://pypi.org/project/ai-debugger-inc/$VERSION/"
           SKIPPED="${{ vars.CD_SKIP_PYPI == 'true' }}"
 
           echo "## 📦 Production PyPI Upload" >> $GITHUB_STEP_SUMMARY
@@ -402,7 +402,7 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### Installation:" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-            echo "pip install aidb==$VERSION" >> $GITHUB_STEP_SUMMARY
+            echo "pip install ai-debugger-inc==$VERSION" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           fi
 

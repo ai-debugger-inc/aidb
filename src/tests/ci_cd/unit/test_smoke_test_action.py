@@ -177,17 +177,17 @@ class TestPyPISources:
         ("source", "expected_command_pattern"),
         [
             ("testpypi", "pip install --index-url.*--extra-index-url"),
-            ("pypi", "pip install aidb=="),
+            ("pypi", "pip install ai-debugger-inc=="),
         ],
     )
     def test_install_command_patterns(self, source, expected_command_pattern):
         """Verify install commands follow expected patterns."""
         if source == "testpypi":
             # Complex install with index URLs
-            command = "pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ aidb==0.1.0"
+            command = "pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ ai-debugger-inc==0.1.0"
         else:
             # Simple install
-            command = "pip install aidb==0.1.0"
+            command = "pip install ai-debugger-inc==0.1.0"
 
         assert re.search(expected_command_pattern, command)
 
@@ -245,7 +245,7 @@ class TestActionInputsOutputs:
         # package_name has default
         assert "package_name" in inputs
         assert inputs["package_name"]["required"] is False
-        assert inputs["package_name"]["default"] == "aidb"
+        assert inputs["package_name"]["default"] == "ai-debugger-inc"
 
         # python_version has default
         assert "python_version" in inputs
@@ -466,7 +466,7 @@ class TestPipCommandConstruction:
     def test_testpypi_command_includes_both_indexes(self):
         """Verify TestPyPI command includes both index URLs."""
         source = "testpypi"
-        package_name = "aidb"
+        package_name = "ai-debugger-inc"
         version = "0.1.0"
 
         if source == "testpypi":
@@ -483,12 +483,12 @@ class TestPipCommandConstruction:
 
         assert "--index-url https://test.pypi.org/simple/" in command
         assert "--extra-index-url https://pypi.org/simple/" in command
-        assert "aidb==0.1.0" in command
+        assert "ai-debugger-inc==0.1.0" in command
 
     def test_pypi_command_simple_format(self):
         """Verify PyPI command uses simple format."""
         source = "pypi"
-        package_name = "aidb"
+        package_name = "ai-debugger-inc"
         version = "0.1.0"
 
         if source == "testpypi":
@@ -496,18 +496,18 @@ class TestPipCommandConstruction:
         else:
             command = f"pip install {package_name}=={version}"
 
-        assert command == "pip install aidb==0.1.0"
+        assert command == "pip install ai-debugger-inc==0.1.0"
         assert "--index-url" not in command
 
     def test_version_pinning(self):
         """Verify package version is pinned with ==."""
-        package_name = "aidb"
+        package_name = "ai-debugger-inc"
         version = "0.1.0"
 
         # Action always pins to exact version
         pinned_package = f"{package_name}=={version}"
 
-        assert pinned_package == "aidb==0.1.0"
+        assert pinned_package == "ai-debugger-inc==0.1.0"
         assert "==" in pinned_package
 
 
