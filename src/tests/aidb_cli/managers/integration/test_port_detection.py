@@ -47,51 +47,6 @@ def repo_root():
     return _get_repo_root()
 
 
-@pytest.fixture(scope="session", autouse=True)
-def ensure_docs_docker_image():
-    """Pre-build docs Docker image once per test session.
-
-    This fixture automatically builds the aidb-docs-build image at the start of
-    the test session if Docker is running. This significantly speeds up tests that use
-    --build-first by caching the image build.
-
-    In CI (GITHUB_ACTIONS=true), docs tests are skipped so no image build is needed.
-    """
-    # Skip in CI - docs images aren't pre-pulled and tests are skipped anyway
-    if os.environ.get("GITHUB_ACTIONS") == "true":
-        return
-
-    if not _docker_running():
-        # Docker not running, tests will skip gracefully
-        return
-
-    try:
-        repo_root = _get_repo_root()
-        compose_file = repo_root / "scripts/install/docs/docker-compose.yaml"
-
-        if not compose_file.exists():
-            # Compose file not found, tests will handle this
-            return
-
-        # Build the docs image once for the entire session
-        subprocess.run(
-            [
-                "docker",
-                "compose",
-                "-f",
-                str(compose_file),
-                "build",
-                "aidb-docs-build",
-            ],
-            check=True,
-            capture_output=True,
-            timeout=300,  # 5 minute timeout for image build
-        )
-    except Exception:  # noqa: S110
-        # If build fails, tests will handle it gracefully
-        pass
-
-
 def _is_port_available(port: int, host: str = "localhost") -> bool:
     """Check if a port is available for binding."""
     try:
@@ -133,6 +88,7 @@ class TestPortDetectionBasic:
     """Basic port detection functionality."""
 
     @pytest.mark.integration
+    @pytest.mark.slow
     @pytest.mark.skipif(not _docker_running(), reason="Docker daemon not running")
     @pytest.mark.skipif(
         os.environ.get("GITHUB_ACTIONS") == "true",
@@ -198,6 +154,7 @@ class TestPortConflictHandling:
     """Port conflict detection and resolution."""
 
     @pytest.mark.integration
+    @pytest.mark.slow
     @pytest.mark.skipif(not _docker_running(), reason="Docker daemon not running")
     @pytest.mark.skipif(
         os.environ.get("GITHUB_ACTIONS") == "true",
