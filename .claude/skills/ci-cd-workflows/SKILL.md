@@ -39,10 +39,9 @@ This skill provides practical guidance for working with workflows and configurat
 - `release-pr.yaml` - PR-based release orchestration (validate, test, build, matrix, adapters, upload)
 - `release-publish.yaml` - Publish draft release on PR merge
 
-**Testing Workflows** (`test-*.yaml`, `build-test-deps.yaml`)
+**Testing Workflows** (`test-*.yaml`)
 
-- `test-parallel.yaml` - Main test orchestrator (10-15 min, runs everything including frameworks)
-- `build-test-deps.yaml` - Path-filtered adapter and Docker builds (triggers only on relevant file changes)
+- `test-parallel.yaml` - Main test orchestrator (10-15 min, runs everything including frameworks). Called by `release-pr.yaml` or via manual dispatch. Builds adapters and Docker images as part of its flow.
 
 **Adapter Workflows** (`adapter-*.yaml`)
 
@@ -51,7 +50,7 @@ This skill provides practical guidance for working with workflows and configurat
 
 **Maintenance Workflows** (`maintenance-*.yaml`)
 
-- `maintenance-dependabot-auto-merge.yaml` - Auto-merge Dependabot PRs to staging branch
+- *(Currently none - Dependabot PRs are merged manually)*
 
 **Reusable Workflows** (`*.yaml`)
 
@@ -85,22 +84,10 @@ See `docs/developer-guide/ci-cd.md` for configuration overview.
 AIDB uses Dependabot with a **staging branch strategy**:
 
 1. **Target Branch**: All Dependabot PRs target `dependabot-updates` (not `main`)
-1. **Auto-Merge**: Dependabot PRs are automatically merged after checks pass (only after required status checks pass)
+1. **Manual Merge**: Dependabot PRs are reviewed and merged manually
 1. **Release Creation**: When ready to release, create `release/X.Y.Z` from `dependabot-updates`
 
 **Configuration**: `.github/dependabot.yaml` (pip, github-actions, npm ecosystems)
-
-**Workflows**:
-
-- `.github/workflows/maintenance-dependabot-auto-merge.yaml` - Auto-merge automation
-
-**Branch Flow**:
-
-```
-Dependabot PR (with checks) → dependabot-updates (auto-merge) → release/X.Y.Z → main
-```
-
-For complete details, see `.github/dependabot.yaml`.
 
 ## Common Tasks
 
@@ -108,11 +95,8 @@ For complete details, see `.github/dependabot.yaml`.
 
 **On GitHub:**
 
-- Push to `main`/`develop` or PR to `main` → triggers `test-parallel.yaml`
-  - Runs complete test suite (frameworks, all core tests)
-  - Note: PRs only trigger on `main` branch, not `develop`
-  - Skips runs for doc-only changes (markdown, docs/, .claude/, etc.)
-- Manual dispatch via Actions UI with options:
+- Release PRs to `main` → triggers `release-pr.yaml` which calls `test-parallel.yaml`
+- Manual dispatch via Actions UI (workflow_dispatch) with options:
   - suite: all, cli, shared, common, logging, mcp, core, frameworks, launch, ci_cd
   - `skip_coverage`: Skip coverage reporting for faster execution
   - `debug_logging`: Enable TRACE-level logging (equivalent to `dev-cli -vvv`)
@@ -400,10 +384,10 @@ Complete guides: `docs/developer-guide/ci-cd.md`
 
 ### Workflow Triggers
 
-**Run Tests:** PR/push to `main`/`develop`
+**Run Tests:** Via `release-pr.yaml` (PR to `main`) or manual dispatch
 **Release (draft):** PR to `main` from `release/**` branch
 **Release (publish):** PR merge to `main` from `release/**` branch
-**Build Adapters:** Part of release workflow (pr-release.yaml)
+**Build Adapters:** Part of release workflow (release-pr.yaml)
 
 ### Common Commands
 

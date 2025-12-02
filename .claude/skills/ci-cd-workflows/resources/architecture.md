@@ -8,11 +8,11 @@ Core CI/CD workflow organization, patterns, and reusable components.
 
 **Release** (`release-*.yaml`): `release-pr.yaml` (PR-based pipeline), `release-publish.yaml` (merge publishes)
 
-**Testing** (`test-*.yaml`): `test-parallel.yaml` (main orchestrator, 10-15 min), `build-test-deps.yaml` (path-filtered builds)
+**Testing** (`test-*.yaml`): `test-parallel.yaml` (main orchestrator, 10-15 min, builds adapters + Docker)
 
 **Adapters** (`adapter-*.yaml`): `adapter-build.yaml` (multi-platform), `adapter-build-act.yaml` (local dev)
 
-**Maintenance** (`maintenance-*.yaml`): Version updates (weekly), Dependabot auto-merge
+**Maintenance** (`maintenance-*.yaml`): *(Currently none - Dependabot PRs merged manually)*
 
 **Reusable**: `load-versions.yaml`, `test-suite.yaml`, `test-frameworks.yaml`, `build-adapters.yaml`, `build-docker.yaml`, `pypi-publish.yaml`
 
@@ -44,9 +44,7 @@ integrate:
 
 ### Path Filters
 
-`build-test-deps.yaml` triggers only on: `src/aidb/adapters/**`, `src/tests/_docker/**`, `.github/workflows/build-*.yaml`
-
-Saves 5-10 min by skipping unnecessary builds.
+`test-parallel.yaml` is called by `release-pr.yaml` or via manual dispatch. It builds adapters and Docker images as part of its flow.
 
 ### Dynamic Matrix
 

@@ -1,17 +1,6 @@
 name: Tests (Parallel)
 
 on:
-  push:
-    branches: [main, develop]
-    # Skip if this is a merge commit from a release branch (already tested by release-pr workflow)
-    # This is checked at the job level since GitHub doesn't support commit message filters in triggers
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.github/ISSUE_TEMPLATE/**'
-      - 'LICENSE'
-      - '.gitignore'
-      - '.claude/**'
   workflow_dispatch:
     inputs:
       suite:
@@ -70,32 +59,7 @@ env:
   COMPOSE_DOCKER_CLI_BUILD: 1
 
 jobs:
-  # Check if this is a release merge (already tested by release-pr workflow)
-  check-skip:
-    runs-on: ubuntu-latest
-    outputs:
-      should_skip: ${{ steps.check.outputs.should_skip }}
-    steps:
-      - name: Check if release merge
-        id: check
-        env:
-          COMMIT_MSG: ${{ github.event.head_commit.message }}
-          EVENT_NAME: ${{ github.event_name }}
-        run: |
-          # Skip if this is a push event and the commit message indicates a release merge
-          if [[ "$EVENT_NAME" == "push" ]]; then
-            if [[ "$COMMIT_MSG" =~ Merge\ pull\ request.*from.*release/ ]]; then
-              echo "⏭️ Skipping: This is a release merge (already tested by release-pr workflow)"
-              echo "should_skip=true" >> $GITHUB_OUTPUT
-              exit 0
-            fi
-          fi
-          echo "should_skip=false" >> $GITHUB_OUTPUT
-
-  # Always load versions
   load-versions:
-    needs: check-skip
-    if: ${{ needs.check-skip.outputs.should_skip != 'true' }}
     uses: ./.github/workflows/load-versions.yaml
 
   # Build jobs - using reusable workflows

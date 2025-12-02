@@ -59,16 +59,15 @@ act -W .github/workflows/test-parallel.yaml
 
 ## Workflow Files
 
-| Workflow               | Trigger            | Purpose                       |
-| ---------------------- | ------------------ | ----------------------------- |
-| `test-parallel.yaml`   | push/PR to main    | Main test orchestrator        |
-| `release-pr.yaml`      | PR from release/\* | Release pipeline              |
-| `release-publish.yaml` | PR merge           | Publish draft release         |
-| `adapter-build.yaml`   | release:published  | Multi-platform adapter builds |
-| `build-test-deps.yaml` | path-filtered      | Adapter/Docker builds         |
-| `load-versions.yaml`   | reusable           | Version loading               |
-| `test-suite.yaml`      | reusable           | Generic test runner           |
-| `pypi-publish.yaml`    | reusable           | Idempotent PyPI upload        |
+| Workflow               | Trigger                | Purpose                       |
+| ---------------------- | ---------------------- | ----------------------------- |
+| `test-parallel.yaml`   | workflow_call/dispatch | Main test orchestrator        |
+| `release-pr.yaml`      | PR from release/\*     | Release pipeline              |
+| `release-publish.yaml` | PR merge               | Publish draft release         |
+| `adapter-build.yaml`   | release:published      | Multi-platform adapter builds |
+| `load-versions.yaml`   | reusable               | Version loading               |
+| `test-suite.yaml`      | reusable               | Generic test runner           |
+| `pypi-publish.yaml`    | reusable               | Idempotent PyPI upload        |
 
 ## Composite Actions
 
@@ -103,18 +102,17 @@ Located in `.github/scripts/`:
 **Dependabot branch flow:**
 
 ```
-Dependabot PR → dependabot-updates (auto-merge) → release/X.Y.Z → main
+Dependabot PR → dependabot-updates (manual merge) → release/X.Y.Z → main
 ```
 
 ## Workflow Triggers
 
 | Event                      | Workflow             |
 | -------------------------- | -------------------- |
-| Push to main/develop       | test-parallel.yaml   |
-| PR to main                 | test-parallel.yaml   |
 | PR from release/\* to main | release-pr.yaml      |
 | PR merge from release/\*   | release-publish.yaml |
 | release:published          | adapter-build.yaml   |
+| Manual dispatch            | test-parallel.yaml   |
 
 ## Debug Logging
 
