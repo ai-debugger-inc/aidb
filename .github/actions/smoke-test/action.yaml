@@ -96,25 +96,38 @@ runs:
           echo "📦 Installing from PyPI"
         fi
 
-        # Install package
+        # Install package with retries (TestPyPI propagation can be slow)
         echo "Installing ${{ inputs.package_name }}==${{ inputs.version }}..."
-        if [[ "${{ inputs.source }}" == "testpypi" ]]; then
-          pip install --index-url "$INDEX_URL" --extra-index-url https://pypi.org/simple/ \
-            ${{ inputs.package_name }}==${{ inputs.version }}
-        else
-          pip install ${{ inputs.package_name }}==${{ inputs.version }}
-        fi
+        MAX_INSTALL_ATTEMPTS=5
+        INSTALL_WAIT=30
 
-        INSTALL_EXIT_CODE=$?
-        if [[ $INSTALL_EXIT_CODE -ne 0 ]]; then
-          echo "success=false" >> $GITHUB_OUTPUT
-          echo "error_message=Package installation failed" >> $GITHUB_OUTPUT
-          echo "::error::Failed to install package from ${{ inputs.source }}"
-          deactivate
-          exit 1
-        fi
+        for attempt in $(seq 1 $MAX_INSTALL_ATTEMPTS); do
+          echo "Install attempt $attempt/$MAX_INSTALL_ATTEMPTS..."
 
-        echo "✅ Package installed successfully"
+          if [[ "${{ inputs.source }}" == "testpypi" ]]; then
+            pip install --index-url "$INDEX_URL" --extra-index-url https://pypi.org/simple/ \
+              ${{ inputs.package_name }}==${{ inputs.version }} 2>&1
+          else
+            pip install ${{ inputs.package_name }}==${{ inputs.version }} 2>&1
+          fi
+
+          INSTALL_EXIT_CODE=$?
+          if [[ $INSTALL_EXIT_CODE -eq 0 ]]; then
+            echo "✅ Package installed successfully"
+            break
+          fi
+
+          if [[ $attempt -eq $MAX_INSTALL_ATTEMPTS ]]; then
+            echo "success=false" >> $GITHUB_OUTPUT
+            echo "error_message=Package installation failed after $MAX_INSTALL_ATTEMPTS attempts" >> $GITHUB_OUTPUT
+            echo "::error::Failed to install package from ${{ inputs.source }} after $MAX_INSTALL_ATTEMPTS attempts"
+            deactivate
+            exit 1
+          fi
+
+          echo "⏳ Install failed, waiting ${INSTALL_WAIT}s before retry (TestPyPI propagation delay)..."
+          sleep $INSTALL_WAIT
+        done
 
         # Verify imports
         echo "🔍 Verifying imports..."

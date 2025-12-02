@@ -253,6 +253,15 @@ repos:
         always_run: true
         stages: [pre-commit]
 
+      - id: check-release-notes
+        name: Check release notes exist for release branches
+        entry: python scripts/pre-commit/check_release_notes.py
+        language: python
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+        description: Ensures docs/release-notes/X.Y.Z.md exists on release/X.Y.Z branches
+
       - id: gen-docs-requirements
         name: Generate docs/requirements.txt from pyproject.toml
         entry: python scripts/pre-commit/gen_docs_requirements.py
