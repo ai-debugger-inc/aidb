@@ -1,5 +1,10 @@
 [
   {
+    "version": "0.0.3",
+    "url": "https://ai-debugger.readthedocs.io/en/0.0.3/",
+    "preferred": true
+  },
+  {
     "version": "0.0.2",
     "url": "https://ai-debugger.readthedocs.io/en/0.0.2/",
     "preferred": true

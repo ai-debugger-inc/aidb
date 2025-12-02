@@ -6,7 +6,7 @@ CI/CD infrastructure for AIDB: testing, releases, and adapter builds.
 
 | Task | Command/Action |
 |------|----------------|
-| Run tests | Push PR to `main` (auto-triggers `test-parallel.yaml`) |
+| Run tests | Open PR to `main` (auto-triggers via `release-pr.yaml`) |
 | Cut release | Create `release/X.Y.Z` branch, open PR to `main` |
 | Build adapters locally | `./dev-cli adapters build` |
 | Run local CI | Install `act`, then `./dev-cli adapters build` |
@@ -17,7 +17,7 @@ All workflows in `.github/workflows/`. Configuration in `versions.json` (single 
 
 ### Testing (`test-parallel.yaml`)
 
-- **Triggers**: PRs/pushes to `main`/`develop`
+- **Triggers**: Called by `release-pr.yaml`, or manual via workflow dispatch
 - **Duration**: ~10-15 min (parallel execution)
 - **Jobs**: MCP tests, AIDB core, Infrastructure (CLI/Logging/Common), Adapter frameworks (Python/JS/Java)
 
