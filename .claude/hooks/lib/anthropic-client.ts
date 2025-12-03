@@ -5,21 +5,21 @@
  * Includes prompt template loading, API calls, and response parsing.
  */
 
-import Anthropic from '@anthropic-ai/sdk';
-import { readFileSync } from 'fs';
-import { join } from 'path';
-import type { IntentAnalysis, SkillRule } from './types.js';
+import Anthropic from "@anthropic-ai/sdk";
+import { readFileSync } from "fs";
+import { join } from "path";
+import type { IntentAnalysis, SkillRule } from "./types.js";
 
 // Load intent analysis prompt template
 const INTENT_PROMPT_TEMPLATE = readFileSync(
   join(
     process.env.CLAUDE_PROJECT_DIR || process.cwd(),
-    '.claude',
-    'hooks',
-    'config',
-    'intent-analysis-prompt.txt'
+    ".claude",
+    "hooks",
+    "config",
+    "intent-analysis-prompt.txt"
   ),
-  'utf-8'
+  "utf-8"
 );
 
 /**
@@ -48,20 +48,20 @@ export async function callAnthropicAPI(
 
   if (!apiKey) {
     throw new Error(
-      '\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
-        '❌ ANTHROPIC_API_KEY not found\n' +
-        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
-        'AI-powered skill intent analysis requires an Anthropic API key.\n\n' +
-        'Setup instructions:\n' +
-        '1. Go to https://console.anthropic.com/\n' +
-        '2. Navigate to API Keys section\n' +
-        '3. Create a new API key\n' +
-        '4. Create .claude/hooks/.env file:\n' +
-        '   cp .claude/hooks/.env.example .claude/hooks/.env\n' +
-        '5. Add your key:\n' +
-        '   ANTHROPIC_API_KEY=sk-ant-your-key-here\n\n' +
-        'Cost: ~$0.0003 per analysis (~$1/month at 100 prompts/day)\n' +
-        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'
+      "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+        "❌ ANTHROPIC_API_KEY not found\n" +
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+        "AI-powered skill intent analysis requires an Anthropic API key.\n\n" +
+        "Setup instructions:\n" +
+        "1. Go to https://console.anthropic.com/\n" +
+        "2. Navigate to API Keys section\n" +
+        "3. Create a new API key\n" +
+        "4. Create .claude/hooks/.env file:\n" +
+        "   cp .claude/hooks/.env.example .claude/hooks/.env\n" +
+        "5. Add your key:\n" +
+        "   ANTHROPIC_API_KEY=sk-ant-your-key-here\n\n" +
+        "Cost: ~$0.0003 per analysis (~$1/month at 100 prompts/day)\n" +
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
     );
   }
 
@@ -69,17 +69,19 @@ export async function callAnthropicAPI(
 
   // Build skill descriptions for prompt
   const skillDescriptions = Object.entries(skills)
-    .map(([name, config]) => `- ${name}: ${config.description || 'No description'}`)
-    .join('\n');
+    .map(
+      ([name, config]) => `- ${name}: ${config.description || "No description"}`
+    )
+    .join("\n");
 
   // Apply template substitutions
-  const analysisPrompt = INTENT_PROMPT_TEMPLATE.replace('{{USER_PROMPT}}', prompt).replace(
-    '{{SKILL_DESCRIPTIONS}}',
-    skillDescriptions
-  );
+  const analysisPrompt = INTENT_PROMPT_TEMPLATE.replace(
+    "{{USER_PROMPT}}",
+    prompt
+  ).replace("{{SKILL_DESCRIPTIONS}}", skillDescriptions);
 
   // Get model from env var (defaults to Haiku 4.5 for cost efficiency)
-  const model = process.env.CLAUDE_SKILLS_MODEL || 'claude-haiku-4-5';
+  const model = process.env.CLAUDE_SKILLS_MODEL || "claude-haiku-4-5";
 
   // Call Claude API
   const response = await client.messages.create({
@@ -88,16 +90,16 @@ export async function callAnthropicAPI(
     temperature: 0.1,
     messages: [
       {
-        role: 'user',
-        content: analysisPrompt,
-      },
-    ],
+        role: "user",
+        content: analysisPrompt
+      }
+    ]
   });
 
   // Extract text content
   const content = response.content[0];
-  if (content.type !== 'text') {
-    throw new Error('Unexpected response type from Anthropic API');
+  if (content.type !== "text") {
+    throw new Error("Unexpected response type from Anthropic API");
   }
 
   // Parse JSON response (with markdown fence handling)
@@ -118,11 +120,11 @@ function parseApiResponse(responseText: string): IntentAnalysis {
   let jsonText = responseText.trim();
 
   // Strip markdown code fences if present (```json ... ```)
-  if (jsonText.startsWith('```')) {
+  if (jsonText.startsWith("```")) {
     // Remove opening fence (```json or ```JSON or just ```)
-    jsonText = jsonText.replace(/^```(?:json|JSON)?\s*\n/, '');
+    jsonText = jsonText.replace(/^```(?:json|JSON)?\s*\n/, "");
     // Remove closing fence and anything after it
-    jsonText = jsonText.replace(/\n```.*$/s, '');
+    jsonText = jsonText.replace(/\n```.*$/s, "");
   }
 
   // Find the JSON object boundaries (handles extra text before/after)

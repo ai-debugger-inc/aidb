@@ -9,16 +9,24 @@
  * - Intent scorer for categorization
  */
 
-import { createHash } from 'crypto';
-import { SHORT_PROMPT_WORD_THRESHOLD } from './constants.js';
-import { readCache, writeCache } from './cache-manager.js';
-import { callAnthropicAPI } from './anthropic-client.js';
-import { matchSkillsByKeywords } from './keyword-matcher.js';
-import { categorizeSkills, formatDebugOutput, buildAnalysisResult } from './intent-scorer.js';
-import type { AnalysisResult, SkillRule } from './types.js';
+import { createHash } from "crypto";
+import { SHORT_PROMPT_WORD_THRESHOLD } from "./constants.js";
+import { readCache, writeCache } from "./cache-manager.js";
+import { callAnthropicAPI } from "./anthropic-client.js";
+import { matchSkillsByKeywords } from "./keyword-matcher.js";
+import {
+  categorizeSkills,
+  formatDebugOutput,
+  buildAnalysisResult
+} from "./intent-scorer.js";
+import type { AnalysisResult, SkillRule } from "./types.js";
 
 // Re-export types for backward compatibility
-export type { SkillConfidence, IntentAnalysis, AnalysisResult } from './types.js';
+export type {
+  SkillConfidence,
+  IntentAnalysis,
+  AnalysisResult
+} from "./types.js";
 
 /**
  * Analyzes user intent using AI to determine relevant skills
@@ -47,13 +55,13 @@ export async function analyzeIntent(
   }
 
   // Check cache first - include skills hash to invalidate when definitions change
-  const skillsHash = createHash('md5')
+  const skillsHash = createHash("md5")
     .update(JSON.stringify(availableSkills))
-    .digest('hex')
+    .digest("hex")
     .substring(0, 8);
-  const cacheKey = createHash('md5')
+  const cacheKey = createHash("md5")
     .update(prompt + skillsHash)
-    .digest('hex');
+    .digest("hex");
 
   const cached = readCache(cacheKey);
   if (cached) {
@@ -65,7 +73,7 @@ export async function analyzeIntent(
     const analysis = await callAnthropicAPI(prompt, availableSkills);
 
     // Debug logging
-    if (process.env.AIDB_SKILL_DEBUG === 'true') {
+    if (process.env.AIDB_SKILL_DEBUG === "true") {
       formatDebugOutput(analysis);
     }
 
@@ -76,13 +84,19 @@ export async function analyzeIntent(
     const result = buildAnalysisResult(
       categorized,
       analysis,
-      process.env.AIDB_SKILL_DEBUG === 'true'
+      process.env.AIDB_SKILL_DEBUG === "true"
     );
 
-    writeCache(cacheKey, { required: result.required, suggested: result.suggested });
+    writeCache(cacheKey, {
+      required: result.required,
+      suggested: result.suggested
+    });
     return result;
   } catch (error) {
-    console.warn('Intent analysis failed, falling back to keyword matching:', error);
+    console.warn(
+      "Intent analysis failed, falling back to keyword matching:",
+      error
+    );
     return matchSkillsByKeywords(prompt, availableSkills);
   }
 }

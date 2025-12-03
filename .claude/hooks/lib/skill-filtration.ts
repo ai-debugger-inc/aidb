@@ -5,7 +5,7 @@
  * fill the 2-skill target, and bidirectional affinity-based auto-injection.
  */
 
-import type { SkillRule } from './types.js';
+import type { SkillRule } from "./types.js";
 
 /**
  * Result of skill filtration and promotion
@@ -30,7 +30,8 @@ export function filterUnacknowledgedSkills(
   skillRules: Record<string, SkillRule>
 ): string[] {
   return skills.filter(
-    (skill) => !acknowledged.includes(skill) && skillRules[skill]?.autoInject !== false
+    (skill) =>
+      !acknowledged.includes(skill) && skillRules[skill]?.autoInject !== false
   );
 }
 
@@ -70,12 +71,14 @@ export function applyInjectionLimits(
   }
 
   // Remaining recommended skills (not promoted)
-  const remainingSuggested = recommendedSkills.filter((s) => !promotedRecommended.includes(s));
+  const remainingSuggested = recommendedSkills.filter(
+    (s) => !promotedRecommended.includes(s)
+  );
 
   return {
     toInject,
     promoted: promotedRecommended,
-    remainingSuggested,
+    remainingSuggested
   };
 }
 
@@ -200,7 +203,9 @@ export function filterAndPromoteSkills(
   );
 
   // Calculate how many critical skills are already loaded
-  const acknowledgedCriticalCount = requiredSkills.filter((s) => acknowledged.includes(s)).length;
+  const acknowledgedCriticalCount = requiredSkills.filter((s) =>
+    acknowledged.includes(s)
+  ).length;
 
   // Apply promotion to reach 2-skill target
   return applyInjectionLimits(

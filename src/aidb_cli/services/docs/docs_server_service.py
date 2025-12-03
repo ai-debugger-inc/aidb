@@ -51,7 +51,7 @@ class DocsServerService(BaseService):
             build_first: Whether to build before serving
         """
         if build_first:
-            self.builder_service.build_docs(target)
+            self.builder_service.build_docs(target, rebuild=True)
 
         env = {target.port_env_var: str(port or target.default_port)}
         executor = self.builder_service.get_docs_executor()
@@ -62,6 +62,7 @@ class DocsServerService(BaseService):
             extra_env=env,
             capture_output=True,
             check=True,
+            force_recreate=True,
         )
 
     def stop_docs(self) -> None:

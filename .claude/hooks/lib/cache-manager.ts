@@ -13,17 +13,17 @@ import {
   mkdirSync,
   readdirSync,
   unlinkSync,
-  statSync,
-} from 'fs';
-import { join } from 'path';
-import { CACHE_TTL_MS, CACHE_CLEANUP_AGE_MS } from './constants.js';
-import type { CacheEntry } from './types.js';
+  statSync
+} from "fs";
+import { join } from "path";
+import { CACHE_TTL_MS, CACHE_CLEANUP_AGE_MS } from "./constants.js";
+import type { CacheEntry } from "./types.js";
 
 // Use project root for cache directory, not hooks cwd
 const CACHE_DIR = join(
   process.env.CLAUDE_PROJECT_DIR || process.cwd(),
-  '.cache',
-  'intent-analysis'
+  ".cache",
+  "intent-analysis"
 );
 
 /**
@@ -32,14 +32,16 @@ const CACHE_DIR = join(
  * @param key - MD5 hash of prompt + skills configuration
  * @returns Cached result if found and not expired, null otherwise
  */
-export function readCache(key: string): { required: string[]; suggested: string[] } | null {
+export function readCache(
+  key: string
+): { required: string[]; suggested: string[] } | null {
   const cachePath = join(CACHE_DIR, `${key}.json`);
   if (!existsSync(cachePath)) {
     return null;
   }
 
   try {
-    const data: CacheEntry = JSON.parse(readFileSync(cachePath, 'utf-8'));
+    const data: CacheEntry = JSON.parse(readFileSync(cachePath, "utf-8"));
     const age = Date.now() - data.timestamp;
 
     if (age > CACHE_TTL_MS) {
@@ -60,7 +62,10 @@ export function readCache(key: string): { required: string[]; suggested: string[
  * @param key - MD5 hash of prompt + skills configuration
  * @param result - Analysis result to cache
  */
-export function writeCache(key: string, result: { required: string[]; suggested: string[] }): void {
+export function writeCache(
+  key: string,
+  result: { required: string[]; suggested: string[] }
+): void {
   // Ensure cache directory exists
   if (!existsSync(CACHE_DIR)) {
     mkdirSync(CACHE_DIR, { recursive: true });
@@ -72,7 +77,7 @@ export function writeCache(key: string, result: { required: string[]; suggested:
   const cachePath = join(CACHE_DIR, `${key}.json`);
   const entry: CacheEntry = {
     timestamp: Date.now(),
-    result,
+    result
   };
 
   writeFileSync(cachePath, JSON.stringify(entry));
@@ -104,15 +109,15 @@ function cleanupOldCacheEntries(): void {
         }
       } catch (err) {
         // Log in debug mode for troubleshooting
-        if (process.env.AIDB_SKILL_DEBUG === 'true') {
+        if (process.env.AIDB_SKILL_DEBUG === "true") {
           console.warn(`Cache cleanup: failed to process ${file}:`, err);
         }
       }
     });
   } catch (err) {
     // Log directory-level errors in debug mode
-    if (process.env.AIDB_SKILL_DEBUG === 'true') {
-      console.warn('Cache cleanup failed:', err);
+    if (process.env.AIDB_SKILL_DEBUG === "true") {
+      console.warn("Cache cleanup failed:", err);
     }
   }
 }

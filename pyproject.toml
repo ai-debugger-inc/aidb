@@ -35,11 +35,11 @@ classifiers = [
 ]
 readme = "README.md"
 requires-python = ">=3.10"
-version = "0.0.4"
+version = "0.0.5"
 
 [project.urls]
 Homepage = "https://github.com/ai-debugger-inc/aidb"
-Documentation = "https://ai-debugger.readthedocs.io"
+Documentation = "https://ai-debugger.com"
 "Issue Tracker" = "https://github.com/ai-debugger-inc/aidb/issues"
 
 [project.scripts]
@@ -103,6 +103,7 @@ docs = [
   "sphinx-copybutton>=0.5.2,<1.0.0",
   "sphinx-design>=0.6.1,<1.0.0",
   "sphinx-favicon>=1.0.1,<2.0.0",
+  "sphinxcontrib-mermaid>=1.0.0,<2.0.0",
   "tomli>=2.3.0,<3.0.0; python_version < '3.11'",
 ]
 

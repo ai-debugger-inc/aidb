@@ -43,9 +43,9 @@ export interface PromptTriggers {
  * Skill rule configuration from skill-rules.json
  */
 export interface SkillRule {
-  type: 'guardrail' | 'domain';
-  enforcement: 'block' | 'suggest' | 'warn';
-  priority: 'critical' | 'high' | 'medium' | 'low';
+  type: "guardrail" | "domain";
+  enforcement: "block" | "suggest" | "warn";
+  priority: "critical" | "high" | "medium" | "low";
   description?: string;
   autoInject?: boolean;
   requiredSkills?: string[];

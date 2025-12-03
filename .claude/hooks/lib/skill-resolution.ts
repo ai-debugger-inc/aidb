@@ -5,7 +5,7 @@
  * detects circular dependencies, and sorts by injection order.
  */
 
-import type { SkillRule } from './types.js';
+import type { SkillRule } from "./types.js";
 
 /**
  * Resolve skill dependencies recursively with cycle detection
@@ -36,7 +36,7 @@ export function resolveSkillDependencies(
   function visit(skillName: string, path: string[] = []): void {
     // Cycle detection
     if (visiting.has(skillName)) {
-      errors.push(`Circular dependency: ${[...path, skillName].join(' → ')}`);
+      errors.push(`Circular dependency: ${[...path, skillName].join(" → ")}`);
       return;
     }
 
@@ -67,7 +67,7 @@ export function resolveSkillDependencies(
 
   // Report all errors together
   if (errors.length > 0) {
-    console.error('⚠️ Skill dependency resolution errors:');
+    console.error("⚠️ Skill dependency resolution errors:");
     errors.forEach((err) => console.error(`  - ${err}`));
   }
 

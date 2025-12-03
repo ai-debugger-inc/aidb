@@ -14,181 +14,111 @@ The system centers around the Debug Adapter Protocol (DAP) and a session
 orchestration layer that abstracts language/runtime specifics via pluggable
 adapters.
 
-### Detailed System Architecture
+### System Architecture
 
-The following diagram illustrates the complete data flow from AI agents through the MCP layer, down to the debug adapter backends and target programs:
+The following diagram illustrates the layered architecture from AI agents through the
+MCP layer, down to debug adapter backends and target programs:
 
 ```mermaid
 graph TB
-    subgraph "Client Layer"
-        Agent[AI Agent/Tool]
+    subgraph Clients [" "]
+        Agent[AI Agent]
         PythonClient[Python Client]
     end
 
-    subgraph "MCP Layer (aidb_mcp)"
-        MCPServer[AidbMCPServer<br/>server/app.py]
-        MCPTools[MCP Tools<br/>tools/definitions.py]
-        MCPHandlers[Tool Handlers<br/>handlers/]
-
-        MCPServer -->|list_tools| MCPTools
-        MCPServer -->|call_tool| MCPHandlers
+    subgraph AIDB ["AIDB Stack"]
+        MCP[MCP Layer<br/>aidb_mcp]
+        API[API Layer<br/>aidb/api]
+        Session[Session Layer<br/>aidb/session]
+        Adapters[Adapter Layer<br/>aidb/adapters]
+        DAPClient[DAP Client<br/>aidb/dap/client]
+        Protocol[Protocol Layer<br/>aidb/dap/protocol]
     end
 
-    subgraph "AIDB API Layer (aidb.api)"
-        DebugAPI[DebugAPI<br/>api/api.py]
-        SessionManager[SessionManager<br/>api/session_manager.py]
-        SessionBuilder[SessionBuilder<br/>api/session_builder.py]
-        APIIntrospection[APIIntrospectionOperations]
-        APIOrchestration[APIOrchestrationOperations]
-
-        DebugAPI -->|manages| SessionManager
-        DebugAPI -->|builds| SessionBuilder
-        DebugAPI -->|delegates| APIIntrospection
-        DebugAPI -->|delegates| APIOrchestration
+    subgraph External [" "]
+        Backends[Debug Adapter Backends<br/>debugpy, vscode-js-debug, java-debug]
+        Targets[Target Programs<br/>Python, JavaScript, Java]
     end
 
-    subgraph "Session Layer (aidb.session)"
-        Session[Session<br/>session/session_core.py]
-        SessionState[SessionState<br/>session/state.py]
-        SessionConnector[SessionConnector<br/>session/connector.py]
-        SessionOps[SessionDebugOperations<br/>session/ops/]
-        AdapterRegistry[AdapterRegistry<br/>session/adapter_registry.py]
+    Agent -->|MCP Protocol| MCP
+    PythonClient -->|Direct Import| API
+    MCP --> API
+    API --> Session
+    Session --> Adapters
+    Adapters --> DAPClient
+    DAPClient --> Protocol
+    Protocol -->|DAP over TCP| Backends
+    Backends --> Targets
 
-        Session -->|manages| SessionState
-        Session -->|connects via| SessionConnector
-        Session -->|executes| SessionOps
-        Session -->|selects from| AdapterRegistry
-    end
+    classDef clientStyle fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    classDef aidbStyle fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef extStyle fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
 
-    subgraph "Adapter Layer (aidb.adapters)"
-        BaseAdapter[DebugAdapter<br/>adapters/base/adapter.py]
-        PythonAdapter[PythonAdapter<br/>adapters/lang/python/python.py]
-        JavaAdapter[JavaAdapter<br/>adapters/lang/java/java.py]
-        JSAdapter[JavaScriptAdapter<br/>adapters/lang/javascript/javascript.py]
-
-        AdapterRegistry -->|provides| BaseAdapter
-        BaseAdapter -->|subclass| PythonAdapter
-        BaseAdapter -->|subclass| JavaAdapter
-        BaseAdapter -->|subclass| JSAdapter
-    end
-
-    subgraph "DAP Client Layer (aidb.dap.client)"
-        DAPClient[DAPClient<br/>dap/client/client.py]
-        Transport[DAPTransport<br/>dap/client/transport.py]
-        RequestHandler[RequestHandler<br/>dap/client/request_handler.py]
-        EventProcessor[EventProcessor<br/>dap/client/events.py]
-        MessageRouter[MessageRouter<br/>dap/client/message_router.py]
-
-        DAPClient -->|sends via| Transport
-        DAPClient -->|processes requests| RequestHandler
-        DAPClient -->|handles events| EventProcessor
-        DAPClient -->|routes messages| MessageRouter
-    end
-
-    subgraph "Debug Adapter Backend Layer"
-        Debugpy[debugpy<br/>Python Debug Adapter]
-        JavaDebugServer[java-debug-server<br/>Java Debug Adapter]
-        NodeDebugAdapter[vscode-js-debug<br/>JS/Node Debug Adapter]
-    end
-
-    subgraph "Target Program Layer"
-        PythonDebuggee[Python Script/Module<br/>user_script.py]
-        JavaDebuggee[Java Application<br/>MyApp.java]
-        JSDebuggee[Node.js Application<br/>app.js]
-    end
-
-    %% Client to MCP Layer
-    Agent -->|MCP Protocol| MCPServer
-    PythonClient -->|Direct Import| DebugAPI
-
-    %% MCP to API Layer
-    MCPHandlers -->|calls| DebugAPI
-
-    %% API to Session Layer
-    SessionManager -->|creates/manages| Session
-    SessionBuilder -->|builds| Session
-    APIIntrospection -->|delegates to| SessionOps
-    APIOrchestration -->|delegates to| SessionOps
-
-    %% Session to Adapter Layer
-    Session -->|uses| PythonAdapter
-    Session -->|uses| JavaAdapter
-    Session -->|uses| JSAdapter
-
-    %% Adapter to DAP Client Layer
-    PythonAdapter -->|owns| DAPClient
-    JavaAdapter -->|owns| DAPClient
-    JSAdapter -->|owns| DAPClient
-
-    %% DAP Client to Debug Adapter Backend
-    Transport -->|TCP Socket<br/>DAP Protocol| Debugpy
-    Transport -->|TCP Socket<br/>DAP Protocol| JavaDebugServer
-    Transport -->|TCP Socket<br/>DAP Protocol| NodeDebugAdapter
-
-    %% Debug Adapter Backend to Debuggee
-    Debugpy -->|Python Debugger API| PythonDebuggee
-    JavaDebugServer -->|JDWP| JavaDebuggee
-    NodeDebugAdapter -->|V8 Inspector Protocol| JSDebuggee
-
-    %% Styling
-    classDef mcpLayer fill:#e1f5ff,stroke:#01579b,stroke-width:2px
-    classDef apiLayer fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
-    classDef sessionLayer fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
-    classDef adapterLayer fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    classDef dapLayer fill:#fce4ec,stroke:#880e4f,stroke-width:2px
-    classDef backendLayer fill:#f1f8e9,stroke:#33691e,stroke-width:2px
-    classDef debuggeeLayer fill:#e0f2f1,stroke:#004d40,stroke-width:2px
-
-    class MCPServer,MCPTools,MCPHandlers mcpLayer
-    class DebugAPI,SessionManager,SessionBuilder,APIIntrospection,APIOrchestration apiLayer
-    class Session,SessionState,SessionConnector,SessionOps,AdapterRegistry sessionLayer
-    class BaseAdapter,PythonAdapter,JavaAdapter,JSAdapter adapterLayer
-    class DAPClient,Transport,RequestHandler,EventProcessor,MessageRouter dapLayer
-    class Debugpy,JavaDebugServer,NodeDebugAdapter backendLayer
-    class PythonDebuggee,JavaDebuggee,JSDebuggee debuggeeLayer
+    class Agent,PythonClient clientStyle
+    class MCP,API,Session,Adapters,DAPClient,Protocol aidbStyle
+    class Backends,Targets extStyle
 ```
 
 **Key Architecture Components:**
 
 1. **MCP Layer** (`aidb_mcp/`): Exposes AIDB capabilities via Model Context Protocol
 
-   - `AidbMCPServer`: Main MCP server handling tool calls
-   - Tool definitions and handlers bridge MCP to AIDB API
+   - `AidbMCPServer` (`server/app.py`): Main MCP server handling tool calls
+   - `ToolRegistry` (`registry.py`): Central registry for handler management
+   - `get_all_mcp_tools()` (`tools/definitions.py`): Tool definitions function
+   - Domain-based handlers: `session/`, `inspection/`, `execution/`, `context/`
 
-1. **AIDB API Layer** (`aidb/api/`): High-level Python API for debugging operations
+2. **API Layer** (`aidb/api/`): High-level Python API for debugging operations
 
-   - `DebugAPI`: Main entry point with introspection/orchestration operations
-   - `SessionManager`: Manages session lifecycle and registry
-   - `SessionBuilder`: Constructs sessions with proper configuration
+   - `DebugAPI` (`api.py`): Main entry point with `.introspection` and `.orchestration`
+   - `SessionManager` (`session_manager.py`): Manages session lifecycle
+   - `ResourceTracker` (`session_manager.py`): Tracks resource allocations
+   - `SessionBuilder` (`session_builder.py`): Constructs sessions with configuration
+   - `SessionValidator` (`session_builder.py`): Validates session configuration
 
-1. **Session Layer** (`aidb/session/`): Core session orchestration and state management
+3. **Session Layer** (`aidb/session/`): Core session orchestration and state management
 
-   - `Session`: Central orchestrator coordinating adapters and DAP clients
-   - `SessionConnector`: Manages DAP connection lifecycle
-   - `SessionDebugOperations`: Executes debug operations (breakpoints, stepping, evaluation)
+   - `Session` (`session_core.py`): Central orchestrator coordinating adapters and DAP
+   - `SessionState` (`state.py`): Manages session status and error state
+   - `SessionConnector` (`connector.py`): Manages DAP connection lifecycle
+   - `ResourceManager` (`resource.py`): Manages process and port registries
+   - `SessionDebugOperations` (`ops/`): Executes debug operations via mixins
+   - `SessionRegistry` (`registry.py`): Tracks active sessions with cleanup support
 
-1. **Adapter Layer** (`aidb/adapters/`): Language-specific debug adapter implementations
+4. **Adapter Layer** (`aidb/adapters/`): Language-specific debug adapter implementations
 
-   - `PythonAdapter`: Launches/attaches debugpy, manages Python-specific configuration
-   - `JavaAdapter`: Launches/attaches java-debug-server with JDWP
-   - `JavaScriptAdapter`: Launches/attaches Node.js debug adapter
+   - `DebugAdapter` (`base/adapter.py`): Base class with component delegation
+   - `ProcessManager` (`base/components/`): Manages adapter process lifecycle
+   - `PortManager` (`base/components/`): Manages port allocation and release
+   - `LaunchOrchestrator` (`base/components/`): Orchestrates launch sequence
+   - `PythonAdapter` (`lang/python/`): debugpy integration
+   - `JavaScriptAdapter` (`lang/javascript/`): vscode-js-debug integration
+   - `JavaAdapter` (`lang/java/`): java-debug integration
 
-1. **DAP Client Layer** (`aidb/dap/client/`): Debug Adapter Protocol client implementation
+5. **DAP Client Layer** (`aidb/dap/client/`): Debug Adapter Protocol client implementation
 
-   - `DAPClient`: Single request path for all DAP operations
-   - `DAPTransport`: TCP socket communication with debug adapters
-   - `EventProcessor`: Handles DAP events (stopped, breakpoint, output, etc.)
-   - `RequestHandler`: Manages request/response lifecycle with futures
+   - `DAPClient` (`client.py`): Single request path for all DAP operations
+   - `ConnectionManager` (`connection_manager.py`): Connection lifecycle management
+   - `DAPTransport` (`transport.py`): TCP socket communication with debug adapters
+   - `RequestHandler` (`request_handler.py`): Request/response lifecycle with futures
+   - `EventProcessor` (`events.py`): Handles DAP events (stopped, breakpoint, etc.)
+   - `MessageRouter` (`message_router.py`): Routes messages between components
 
-1. **Debug Adapter Backend Layer**: Language-specific debug servers (external)
+6. **Protocol Layer** (`aidb/dap/protocol/`): Fully-typed DAP specification
 
-   - `debugpy`: Microsoft's Python debug adapter implementing DAP
-   - `java-debug-server`: Java debug adapter using JDWP
-   - `node-debug2`: Node.js/JavaScript debug adapter using V8 Inspector Protocol
+   - `base.py`: `ProtocolMessage`, `Request`, `Response`, `Event` base classes
+   - `types.py`: DAP type definitions
+   - `requests.py`, `responses.py`, `events.py`, `bodies.py`: Complete DAP spec
 
-1. **Target Program Layer**: The actual programs being debugged
+7. **Debug Adapter Backends** (external): Language-specific debug servers
 
-   - User's Python scripts, Java applications, or Node.js programs
+   - `debugpy`: Microsoft's Python debug adapter
+   - `vscode-js-debug`: JavaScript/TypeScript debug adapter (V8 Inspector)
+   - `java-debug`: Java debug adapter (JDWP)
+
+8. **Target Programs**: The actual programs being debugged
+
+   - Python scripts, Node.js applications, Java applications
 
 **Data Flow Example (Setting a Breakpoint):**
 

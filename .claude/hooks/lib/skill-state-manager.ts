@@ -6,9 +6,15 @@
  * per-conversation using conversation_id or session_id.
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'fs';
-import { join } from 'path';
-import type { SessionState } from './types.js';
+import {
+  existsSync,
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  unlinkSync
+} from "fs";
+import { join } from "path";
+import type { SessionState } from "./types.js";
 
 /**
  * Extended session state with metadata
@@ -29,7 +35,10 @@ interface ExtendedSessionState extends SessionState {
  * @param stateId - Conversation or session ID
  * @returns Array of acknowledged skill names
  */
-export function readAcknowledgedSkills(stateDir: string, stateId: string): string[] {
+export function readAcknowledgedSkills(
+  stateDir: string,
+  stateId: string
+): string[] {
   const stateFile = join(stateDir, `${stateId}-skills-suggested.json`);
 
   if (!existsSync(stateFile)) {
@@ -37,7 +46,9 @@ export function readAcknowledgedSkills(stateDir: string, stateId: string): strin
   }
 
   try {
-    const existing: ExtendedSessionState = JSON.parse(readFileSync(stateFile, 'utf-8'));
+    const existing: ExtendedSessionState = JSON.parse(
+      readFileSync(stateFile, "utf-8")
+    );
     return existing.acknowledgedSkills || [];
   } catch {
     // Invalid JSON, start fresh
@@ -73,7 +84,7 @@ export function writeSessionState(
       timestamp: Date.now(),
       acknowledgedSkills,
       injectedSkills,
-      injectionTimestamp: Date.now(),
+      injectionTimestamp: Date.now()
     };
 
     // Atomic write: write to temp file, then rename
@@ -86,10 +97,10 @@ export function writeSessionState(
     }
 
     // Note: renameSync would be better but requires importing from fs
-    writeFileSync(stateFile, readFileSync(tempFile, 'utf-8'));
+    writeFileSync(stateFile, readFileSync(tempFile, "utf-8"));
     unlinkSync(tempFile);
   } catch (err) {
     // Don't fail the hook if state writing fails
-    console.error('Warning: Failed to write session state:', err);
+    console.error("Warning: Failed to write session state:", err);
   }
 }

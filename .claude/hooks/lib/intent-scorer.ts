@@ -9,9 +9,9 @@ import {
   CONFIDENCE_THRESHOLD,
   SUGGESTED_THRESHOLD,
   MAX_REQUIRED_SKILLS,
-  MAX_SUGGESTED_SKILLS,
-} from './constants.js';
-import type { IntentAnalysis, AnalysisResult } from './types.js';
+  MAX_SUGGESTED_SKILLS
+} from "./constants.js";
+import type { IntentAnalysis, AnalysisResult } from "./types.js";
 
 /**
  * Categorize skills by confidence thresholds
@@ -35,7 +35,11 @@ export function categorizeSkills(analysis: IntentAnalysis): AnalysisResult {
     .map((s) => s.name);
 
   const suggested = analysis.skills
-    .filter((s) => s.confidence >= SUGGESTED_THRESHOLD && s.confidence <= CONFIDENCE_THRESHOLD)
+    .filter(
+      (s) =>
+        s.confidence >= SUGGESTED_THRESHOLD &&
+        s.confidence <= CONFIDENCE_THRESHOLD
+    )
     .sort((a, b) => b.confidence - a.confidence)
     .slice(0, MAX_SUGGESTED_SKILLS)
     .map((s) => s.name);
@@ -52,24 +56,26 @@ export function categorizeSkills(analysis: IntentAnalysis): AnalysisResult {
  * @param analysis - Intent analysis result from AI
  */
 export function formatDebugOutput(analysis: IntentAnalysis): void {
-  console.error('\n━━━━━━ AI INTENT ANALYSIS DEBUG ━━━━━━');
+  console.error("\n━━━━━━ AI INTENT ANALYSIS DEBUG ━━━━━━");
   console.error(`Primary Intent: ${analysis.primary_intent}`);
-  console.error('\nAll Skills Scored:');
+  console.error("\nAll Skills Scored:");
 
   analysis.skills
     .sort((a, b) => b.confidence - a.confidence)
     .forEach((skill) => {
       const tier =
         skill.confidence > CONFIDENCE_THRESHOLD
-          ? 'REQUIRED'
+          ? "REQUIRED"
           : skill.confidence >= SUGGESTED_THRESHOLD
-            ? 'SUGGESTED'
-            : 'LOW';
-      console.error(`  ${skill.name.padEnd(25)} ${skill.confidence.toFixed(2)} [${tier}]`);
+            ? "SUGGESTED"
+            : "LOW";
+      console.error(
+        `  ${skill.name.padEnd(25)} ${skill.confidence.toFixed(2)} [${tier}]`
+      );
       console.error(`    → ${skill.reason}`);
     });
 
-  console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+  console.error("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 }
 
 /**
@@ -90,7 +96,7 @@ export function buildAnalysisResult(
 ): AnalysisResult {
   const result: AnalysisResult = {
     required: categorized.required,
-    suggested: categorized.suggested,
+    suggested: categorized.suggested
   };
 
   if (includeScores) {

@@ -24,7 +24,7 @@ class AdapterConfig:
         The DAP server to use
     binary_identifier : str
         Path or glob pattern to locate the adapter binary within the adapter
-        directory (e.g., "dist/dapDebugServer.js" or "*.jar")
+        directory (e.g., ``dist/dapDebugServer.js`` or ``*.jar``)
     fallback_port_ranges : List[int]
         List of fallback port ranges to use if the default port is not available
     file_extensions : List[str]

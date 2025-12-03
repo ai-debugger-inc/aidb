@@ -12,18 +12,14 @@ class OutputStrategyProtocol(Protocol):
     This protocol defines the interface for output handling in the CLI.
     Implementations must respect the verbosity contracts:
 
-    | Method     | NORMAL | VERBOSE | DEBUG |
-    |------------|--------|---------|-------|
-    | error      | Yes    | Yes     | Yes   |
-    | warning    | Yes    | Yes     | Yes   |
-    | success    | Yes    | Yes     | Yes   |
-    | result     | Yes    | Yes     | Yes   |
-    | plain      | Yes    | Yes     | Yes   |
-    | section    | Yes    | Yes     | Yes   |
-    | subsection | Yes    | Yes     | Yes   |
-    | info       | No     | Yes     | Yes   |
-    | detail     | No     | Yes     | Yes   |
-    | debug      | No     | No      | Yes   |
+    **Always visible (NORMAL+):**
+        error, warning, success, result, plain, section, subsection
+
+    **Visible at VERBOSE+:**
+        info, detail
+
+    **Visible at DEBUG only:**
+        debug
     """
 
     @property

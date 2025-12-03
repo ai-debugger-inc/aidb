@@ -56,6 +56,7 @@ extensions = [
     "sphinx_favicon",
     "sphinx_click",  # auto-generate Click CLI documentation
     "autoapi.extension",  # auto-generate Python API documentation
+    "sphinxcontrib.mermaid",  # enable Mermaid diagrams
     # custom extentions - KEEP THE GALLERY GRID
     "_extension.gallery_directive",
 ]
@@ -68,7 +69,11 @@ templates_path = ["_templates"]
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
 
-intersphinx_mapping = {"sphinx": ("https://www.sphinx-doc.org/en/master", None)}
+intersphinx_mapping = {
+    "sphinx": ("https://www.sphinx-doc.org/en/master", None),
+    "python": ("https://docs.python.org/3", None),
+    "click": ("https://click.palletsprojects.com/en/8.1.x/", None),
+}
 
 # -- Sitemap -----------------------------------------------------------------
 # Disabled for now - can be enabled later with sphinx_sitemap
@@ -77,6 +82,7 @@ intersphinx_mapping = {"sphinx": ("https://www.sphinx-doc.org/en/master", None)}
 
 # This allows us to use ::: to denote directives, useful for admonitions
 myst_enable_extensions = ["colon_fence", "linkify", "substitution"]
+myst_fence_as_directive = ["mermaid"]  # Enable mermaid code blocks in markdown
 myst_heading_anchors = 2
 myst_substitutions = {"rtd": "[Read the Docs](https://readthedocs.org/)"}
 
@@ -235,7 +241,10 @@ autoapi_ignore = [
     "**/_*.py",
 ]
 autoapi_template_dir = "_templates/autoapi"
-suppress_warnings = ["autoapi.python_import_resolution"]
+suppress_warnings = [
+    "autoapi.python_import_resolution",
+    "ref.python",  # Suppress "more than one target found" for duplicate class names
+]
 
 
 # -- Warnings / Nitpicky -------------------------------------------------------
@@ -250,13 +259,89 @@ bad_classes = (
     r"matplotlib\.figure\.Figure",
     r"matplotlib\.figure\.FigureBase",
     r"pygments\.formatters\.HtmlFormatter",
+    # Common type aliases that don't resolve in autoapi
+    r"optional",
+    r"any",
+    r"callable",
+    r"T",
+    r"F",
+    r"S",
+    r"Obj",
+    r"Handler",
+    r"Enum",
+    r"Ellipsis",
+    r"Dictionary",
+    # Standard library types without full module path
+    r"Path",
+    r"CompletedProcess",
+    r"Resource",
+    r"Process",
+    # Blanket ignore docstring fragments parsed as types
+    # Matches anything with spaces (real types don't have spaces)
+    r".* .*",
+    # Common single-word fragments and return value names
+    r"default=.*",
+    r"e\.g\.",
+    r"\".*\"",  # Quoted strings
+    # Common variable/parameter names parsed as types
+    r"name",
+    r"is_valid",
+    r"is_running",
+    r"error_messages",
+    r"status_message",
+    r"url_if_running",
+    r"volumes",
+    r"networks",
+    r"port",
+    r"var",
+    r"Name",
+    r"images",
+    r"identifier",
+    r"func",
+    r"flow",
+    r"eval",
+    r"datetime",
+    r"containers",
+    r"category",
+    r"bp",
+    r"action",
+    r"Icon",
+    r"Tool",
+    # Third-party types
+    r"psutil\..*",
+    r"mcp\..*",
+    # Internal types
+    r"CommandExecutor",
+    r"ProfileType",
+    r"LoggingContext",
+    r"MCPResponse",
+    r"TestOrchestrator",
+    r"TestManager",
+    r"SetVariableResponseModel",
+    r"ResourceContents",
+    r"EvaluateResponseModel",
+    r"DAPStopReason",
+    r"BaseConfigManager",
+    r"APIOrchestrationOperations",
+    r"APIIntrospectionOperations",
+    # Internal types that may not cross-reference properly
+    r"aidb\..*",
+    r"aidb_cli\..*",
+    r"aidb_mcp\..*",
+    r"aidb_common\..*",
+    r"aidb_logging\..*",
 )
 nitpick_ignore_regex = [
     *[("py:class", target) for target in bad_classes],
+    *[("py:obj", target) for target in bad_classes],
     # we demo some `urllib` docs on our site; don't care that its xrefs fail to resolve
     ("py:obj", r"urllib\.parse\.(Defrag|Parse|Split)Result(Bytes)?\.(count|index)"),
     # the kitchen sink pages include some intentional errors
     ("token", r"(suite|expression|target)"),
+    # RST reference warnings from docstrings containing underscores
+    ("ref", r"aidb"),
+    ("ref", r"aidb_cli"),
+    ("ref", r"secret"),
 ]
 
 # -- application setup -------------------------------------------------------
