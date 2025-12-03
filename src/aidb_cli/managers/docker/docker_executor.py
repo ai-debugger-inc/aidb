@@ -295,6 +295,7 @@ class DockerComposeExecutor:
         detach: bool = True,
         extra_env: dict[str, str] | None = None,
         capture_output: bool = True,
+        force_recreate: bool = False,
         **kwargs,
     ) -> "subprocess.CompletedProcess":
         """Start Docker Compose services.
@@ -309,6 +310,8 @@ class DockerComposeExecutor:
             Additional environment variables
         capture_output : bool
             Whether to capture output
+        force_recreate : bool
+            Force recreation of containers even if unchanged
         **kwargs
             Additional arguments for self.command_executor.execute
 
@@ -320,6 +323,8 @@ class DockerComposeExecutor:
         args = ["up"]
         if detach:
             args.append("-d")
+        if force_recreate:
+            args.append("--force-recreate")
         if services:
             args.extend(services)
         return self.execute(

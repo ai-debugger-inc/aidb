@@ -411,7 +411,7 @@ act push -j build         # With event
 - `.github/testing-config.yaml` - Framework config
 - `.github/workflows/test-parallel.yaml` - Main orchestrator
 - `.github/workflows/load-versions.yaml` - Version loading
-- `.actrc` - Local CI config
+- `.github/actrc` - Local CI config
 
 ______________________________________________________________________
 

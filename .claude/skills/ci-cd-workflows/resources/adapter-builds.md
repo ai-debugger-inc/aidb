@@ -116,7 +116,7 @@ Host platform override sets: `AIDB_USE_HOST_PLATFORM=1`, `AIDB_BUILD_PLATFORM`, 
 **Local build issues:**
 
 - Use `--use-host-platform` for platform mismatch
-- Verify `.actrc` configuration
+- Verify `.github/actrc` configuration
 - Check container is running (`--reuse` flag for extraction)
 
 **Artifact issues:**

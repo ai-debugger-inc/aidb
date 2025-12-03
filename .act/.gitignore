@@ -1,7 +1,0 @@
-# Local secrets - never commit!
-secrets.local
-*.local
-
-# Act artifacts
-workflow/
-artifacts/

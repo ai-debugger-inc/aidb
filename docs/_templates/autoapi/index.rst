@@ -7,8 +7,7 @@ Core Packages
 -------------
 
 .. toctree::
-   :maxdepth: 1
-   :titlesonly:
+   :maxdepth: 4
 
    aidb/index
    aidb_mcp/index
@@ -17,8 +16,7 @@ CLI & Support Packages
 ----------------------
 
 .. toctree::
-   :maxdepth: 1
-   :titlesonly:
+   :maxdepth: 4
 
    aidb_cli/index
    aidb_common/index

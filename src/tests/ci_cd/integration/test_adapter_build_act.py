@@ -123,7 +123,9 @@ class TestAdapterBuildAct:
     def test_build_act_workflow_uses_versions_json(self, repo_root):
         """Verify build-act.yaml references versions.json for adapter versions.
 
-        The workflow should not hardcode adapter versions.
+        The workflow should not hardcode adapter versions. It can reference
+        versions.json either directly OR via helper scripts that read it
+        (e.g., extract_build_config.py, matrix_generator.py).
 
         Parameters
         ----------
@@ -138,9 +140,20 @@ class TestAdapterBuildAct:
         with workflow_path.open("r") as f:
             workflow_content = f.read()
 
-        # Check that workflow references versions.json
-        assert "versions.json" in workflow_content, (
-            "build-act.yaml should reference versions.json for version management"
+        # Check that workflow references versions.json directly OR uses scripts
+        # that read from versions.json (extract_build_config.py, matrix_generator.py)
+        versions_json_scripts = [
+            "extract_build_config.py",  # Reads adapter build deps from versions.json
+            "matrix_generator.py",  # Reads adapter/platform matrix from versions.json
+        ]
+
+        uses_versions_json = "versions.json" in workflow_content or any(
+            script in workflow_content for script in versions_json_scripts
+        )
+
+        assert uses_versions_json, (
+            "build-act.yaml should reference versions.json for version management "
+            "(directly or via extract_build_config.py/matrix_generator.py scripts)"
         )
 
         # Verify no hardcoded versions (basic check for semver patterns in suspicious places)

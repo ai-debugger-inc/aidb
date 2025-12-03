@@ -15,11 +15,9 @@ class OutputStrategy:
     This class is the single source of truth for all CLI output decisions.
     It provides verbosity-aware output methods that respect the contracts:
 
-    | Level    | Flag      | User Sees                           | Streaming |
-    |----------|-----------|-------------------------------------|-----------|
-    | NORMAL   | (default) | Progress, results, errors, warnings | No        |
-    | VERBOSE  | -v        | + Operation details, step-by-step   | TTY only  |
-    | DEBUG    | -vvv      | + Full subprocess output, traces    | TTY only  |
+    - **NORMAL** (default): Progress, results, errors, warnings. No streaming.
+    - **VERBOSE** (-v): + Operation details, step-by-step. TTY streaming.
+    - **DEBUG** (-vvv): + Full subprocess output, traces. TTY streaming.
 
     Parameters
     ----------
