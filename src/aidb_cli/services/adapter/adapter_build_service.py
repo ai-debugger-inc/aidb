@@ -89,8 +89,6 @@ class AdapterBuildService(BaseService):
 
         cmd = [
             "act",
-            "--actrc",
-            str(self.repo_root / ".github" / "actrc"),
             "workflow_dispatch",
             "-W",
             str(workflow_file),

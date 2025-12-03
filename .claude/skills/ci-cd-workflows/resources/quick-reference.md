@@ -55,7 +55,7 @@ act -W .github/workflows/test-parallel.yaml
 | `versions.json`               | Infrastructure versions (Python, Node, Java), adapter versions |
 | `.github/testing-config.yaml` | Framework test configuration                                   |
 | `.github/dependabot.yaml`     | Dependabot configuration                                       |
-| `.github/actrc`               | Local CI configuration                                         |
+| `.actrc`                      | Local CI configuration                                         |
 
 ## Workflow Files
 
