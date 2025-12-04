@@ -408,7 +408,7 @@ def get_all_mcp_tools() -> list[Tool]:
                 f"- '{BreakpointAction.CLEAR_ALL.value}': Remove all breakpoints"
             ),
             icons=get_tool_icon(ToolName.BREAKPOINT),
-            annotations=ToolAnnotations(idempotentHint=True),
+            annotations=ToolAnnotations(destructiveHint=True, idempotentHint=True),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -719,7 +719,7 @@ def get_all_mcp_tools() -> list[Tool]:
                 "**Usage:** Install missing adapters when encountering AdapterNotFoundError messages."
             ),
             icons=get_tool_icon(ToolName.ADAPTER),
-            annotations=ToolAnnotations(idempotentHint=True),
+            annotations=ToolAnnotations(destructiveHint=True, idempotentHint=True),
             inputSchema={
                 "type": "object",
                 "properties": {

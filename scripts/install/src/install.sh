@@ -3,7 +3,7 @@
 # Deactivate any active virtual environment
 if [[ -n "${VIRTUAL_ENV:-}" ]]; then
     echo "Deactivating currently active virtual environment: ${VIRTUAL_ENV}"
-    if declare -f deactivate >/dev/null 2>&1; then
+    if type deactivate >/dev/null 2>&1; then
         deactivate || true
     else
         echo "(Skipping deactivate — not defined in this shell)"
@@ -16,7 +16,7 @@ set -eu
 if command -v realpath >/dev/null 2>&1; then
     SCRIPT_PATH="$(realpath "${0}")"
 else
-    SCRIPT_PATH="$(python -c "import os; print(os.path.realpath('${0}'))")"
+    SCRIPT_PATH="$(python3 -c "import os; print(os.path.realpath('${0}'))")"
 fi
 
 REPO_ROOT=$(dirname "$(dirname "$(dirname "$(dirname "${SCRIPT_PATH}")")")")
@@ -48,30 +48,26 @@ for arg in "${@}"; do
 done
 
 find_python() {
+    candidates=""
+
     # Dynamically find all python3.1* binaries in PATH (deduped)
-    mapfile -t dynamic_candidates < <(command -v -a python3.1* 2>/dev/null | awk '!seen[$0]++')
+    for py in $(command -v -a python3.1* 2>/dev/null | awk '!seen[$0]++'); do
+        candidates="${candidates} ${py}"
+    done
 
     # Find all python3.1* in common Homebrew and local bin dirs, even if not in PATH
-    mapfile -t homebrew_candidates < <(ls /opt/homebrew/bin/python3.1* 2>/dev/null || true)
-    mapfile -t usr_local_candidates < <(ls /usr/local/bin/python3.1* 2>/dev/null || true)
+    for py in /opt/homebrew/bin/python3.1* /usr/local/bin/python3.1*; do
+        [[ -x "${py}" ]] && candidates="${candidates} ${py}"
+    done
 
     # Add generic candidates for robustness
-    static_candidates=(
-        python3
-        python
-    )
-
-    candidates=(
-        "${dynamic_candidates[@]}"
-        "${homebrew_candidates[@]}"
-        "${usr_local_candidates[@]}"
-        "${static_candidates[@]}"
-    )
+    candidates="${candidates} python3"
 
     best_py=""
     best_major=0
     best_minor=0
-    for py in "${candidates[@]}"; do
+    # shellcheck disable=SC2086
+    for py in ${candidates}; do
         echo "Checking candidate: ${py}"
         if ! [[ -x "${py}" ]] && ! command -v "${py}" >/dev/null 2>&1; then
             continue

@@ -113,7 +113,6 @@ class PythonAdapter(DebugAdapter):
             self.module = kwargs["module"]
             self.ctx.debug(f"Set module flag to {self.module} from launch config")
         self._debugpy_log_manager: PythonTraceManager | None = None
-        self._target_env: dict[str, str] = {}
         self._target_cwd: str | None = None
 
         # Register Python-specific hooks

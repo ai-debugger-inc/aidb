@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 # Post-tool-use hook that tracks edited files for AIDB project

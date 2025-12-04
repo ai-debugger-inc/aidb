@@ -161,7 +161,6 @@ class JavaScriptAdapter(DebugAdapter):
         self._ts_node_available: bool | None = None
         self._target_file: str | None = None
         self._target_args: list[str] = []
-        self._target_env: dict[str, str] = {}
         self._target_cwd: str | None = None
         self._project_config: dict | None = None
 

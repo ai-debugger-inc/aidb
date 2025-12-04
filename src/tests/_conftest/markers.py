@@ -5,9 +5,47 @@ to test items based on location, parametrization, and patterns.
 """
 
 import contextlib
+import subprocess
 from pathlib import Path
 
 import pytest
+
+
+def _is_docker_daemon_running() -> bool:
+    """Check if Docker daemon is running and accessible.
+
+    Returns
+    -------
+    bool
+        True if Docker daemon is running, False otherwise.
+    """
+    try:
+        result = subprocess.run(
+            ["docker", "info"],
+            capture_output=True,
+            timeout=5,
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
+# Cache the Docker daemon check result (checked once per test session)
+_docker_daemon_available: bool | None = None
+
+
+def is_docker_available() -> bool:
+    """Check if Docker daemon is available (cached).
+
+    Returns
+    -------
+    bool
+        True if Docker daemon is running, False otherwise.
+    """
+    global _docker_daemon_available
+    if _docker_daemon_available is None:
+        _docker_daemon_available = _is_docker_daemon_running()
+    return _docker_daemon_available
 
 
 def register_custom_markers(config) -> None:
@@ -135,6 +173,10 @@ def check_marker_requirements(item) -> None:
         Pytest test item
     """
     marker_names = [marker.name for marker in item.iter_markers()]
+
+    # Skip tests requiring Docker if daemon is not running
+    if "requires_docker" in marker_names and not is_docker_available():
+        item.add_marker(pytest.mark.skip(reason="Docker daemon is not running"))
 
     # Ensure serial tests run on single xdist worker
     with contextlib.suppress(Exception):

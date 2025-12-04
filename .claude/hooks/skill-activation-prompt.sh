@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 cd "${CLAUDE_PROJECT_DIR}/.claude/hooks"
