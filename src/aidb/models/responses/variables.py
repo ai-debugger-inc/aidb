@@ -91,6 +91,17 @@ class AidbVariablesResponse(OperationResponse, SamplingMixin):
         """
         return self._filter_dict(self.variables, lambda v: v.has_children)
 
+    def to_compact(self) -> dict[str, dict[str, Any]]:
+        """Return compact representation of all variables.
+
+        Returns
+        -------
+        dict[str, dict[str, Any]]
+            Dict keyed by variable name, values are compact variable dicts
+            with keys: v (value), t (type), varRef (if has children)
+        """
+        return {name: var.to_compact() for name, var in self.variables.items()}
+
     @classmethod
     def from_dap(cls, dap_response: "VariablesResponse") -> "AidbVariablesResponse":
         """Create AidbVariablesResponse from DAP VariablesResponse.

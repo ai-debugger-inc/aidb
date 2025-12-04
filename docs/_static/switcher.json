@@ -1,15 +1,19 @@
 [
   {
-    "version": "0.0.5",
-    "url": "https://ai-debugger.com/en/0.0.5/",
-    "preferred": true
+    "version": "latest",
+    "url": "https://ai-debugger.com/en/latest/"
   },
   {
     "version": "main",
     "url": "https://ai-debugger.com/en/main/"
   },
   {
-    "version": "latest",
-    "url": "https://ai-debugger.com/en/latest/"
+    "version": "0.0.6",
+    "url": "https://ai-debugger.com/en/0.0.6/",
+    "preferred": true
+  },
+  {
+    "version": "0.0.5",
+    "url": "https://ai-debugger.com/en/0.0.5/"
   }
 ]

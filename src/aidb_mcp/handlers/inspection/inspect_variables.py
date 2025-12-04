@@ -2,55 +2,41 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from aidb_common.config.runtime import ConfigManager
 from aidb_logging import get_mcp_logger as get_logger
 
 from ...core import InspectTarget
 from ...core.performance import timed
-from ...core.response_limiter import ResponseLimiter
 from ...core.serialization import to_jsonable
+
+if TYPE_CHECKING:
+    from aidb.models import AidbVariablesResponse
 
 logger = get_logger(__name__)
 
 
-def _format_variables_compact(
-    variables: list[dict[str, Any]],
-) -> dict[str, Any] | list[dict[str, Any]]:
-    """Format variables in compact mode for agent consumption.
-
-    Transforms list of DAP Variable dicts into a compact name->value mapping.
-    In verbose mode, returns original list unchanged.
+def _format_variables_response(
+    result: AidbVariablesResponse,
+) -> dict[str, Any]:
+    """Format variables response based on verbosity mode.
 
     Parameters
     ----------
-    variables : list[dict[str, Any]]
-        List of DAP Variable dicts with name, value, type, variablesReference, etc.
+    result : AidbVariablesResponse
+        The variables response from the API
 
     Returns
     -------
-    dict[str, Any] | list[dict[str, Any]]
+    dict[str, Any]
         In compact mode: {"varName": {"v": "value", "t": "type", "varRef": N}, ...}
-        In verbose mode: original list unchanged
+        In verbose mode: full serialized AidbVariablesResponse
     """
     if ConfigManager().is_mcp_verbose():
-        return variables
+        return to_jsonable(result.variables)
 
-    result = {}
-    for var in variables:
-        name = var.get("name", "unknown")
-        compact_var: dict[str, Any] = {
-            "v": var.get("value", ""),
-            "t": var.get("type", ""),
-        }
-        # Include varRef only when > 0 (has children for drill-down)
-        var_ref = var.get("variablesReference", 0)
-        if var_ref:
-            compact_var["varRef"] = var_ref
-        result[name] = compact_var
-
-    return result
+    return result.to_compact()
 
 
 @timed
@@ -62,43 +48,16 @@ async def inspect_locals(api) -> Any:
     )
     try:
         result = await api.introspection.locals()
-        variables_data = result.variables if hasattr(result, "variables") else result
 
-        if hasattr(variables_data, "__len__"):
-            var_count = len(variables_data) if variables_data else 0
-            logger.info(
-                "Retrieved %d local variables",
-                var_count,
-                extra={"variable_count": var_count, "target": "locals"},
-            )
-        else:
-            logger.debug("Local variables result: %s", type(variables_data).__name__)
+        var_count = len(result.variables) if result.variables else 0
+        logger.info(
+            "Retrieved %d local variables",
+            var_count,
+            extra={"variable_count": var_count, "target": "locals"},
+        )
 
-        jsonable_vars = to_jsonable(variables_data)
-
-        if isinstance(jsonable_vars, list):
-            limited_vars, was_truncated = ResponseLimiter.limit_variables(jsonable_vars)
-
-            if was_truncated:
-                logger.info(
-                    "Truncated variables from %d to %d",
-                    len(jsonable_vars),
-                    len(limited_vars),
-                    extra={
-                        "total_variables": len(jsonable_vars),
-                        "showing_variables": len(limited_vars),
-                    },
-                )
-                return {
-                    "variables": _format_variables_compact(limited_vars),
-                    "truncated": True,
-                    "total_variables": len(jsonable_vars),
-                    "showing_variables": len(limited_vars),
-                }
-
-            return _format_variables_compact(limited_vars)
-
-        return jsonable_vars
+        # Use model's to_compact() for clean formatting
+        return _format_variables_response(result)
     except Exception as e:
         logger.warning(
             "Failed to inspect local variables: %s",
@@ -117,43 +76,16 @@ async def inspect_globals(api) -> Any:
     )
     try:
         result = await api.introspection.globals()
-        variables_data = result.variables if hasattr(result, "variables") else result
 
-        if hasattr(variables_data, "__len__"):
-            var_count = len(variables_data) if variables_data else 0
-            logger.info(
-                "Retrieved %d global variables",
-                var_count,
-                extra={"variable_count": var_count, "target": "globals"},
-            )
-        else:
-            logger.debug("Global variables result: %s", type(variables_data).__name__)
+        var_count = len(result.variables) if result.variables else 0
+        logger.info(
+            "Retrieved %d global variables",
+            var_count,
+            extra={"variable_count": var_count, "target": "globals"},
+        )
 
-        jsonable_vars = to_jsonable(variables_data)
-
-        if isinstance(jsonable_vars, list):
-            limited_vars, was_truncated = ResponseLimiter.limit_variables(jsonable_vars)
-
-            if was_truncated:
-                logger.info(
-                    "Truncated global variables from %d to %d",
-                    len(jsonable_vars),
-                    len(limited_vars),
-                    extra={
-                        "total_variables": len(jsonable_vars),
-                        "showing_variables": len(limited_vars),
-                    },
-                )
-                return {
-                    "variables": _format_variables_compact(limited_vars),
-                    "truncated": True,
-                    "total_variables": len(jsonable_vars),
-                    "showing_variables": len(limited_vars),
-                }
-
-            return _format_variables_compact(limited_vars)
-
-        return jsonable_vars
+        # Use model's to_compact() for clean formatting
+        return _format_variables_response(result)
     except Exception as e:
         logger.warning(
             "Failed to inspect global variables: %s",

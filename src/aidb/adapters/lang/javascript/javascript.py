@@ -747,7 +747,11 @@ class JavaScriptAdapter(DebugAdapter):
         is_typescript = target_path.suffix.lower() in [".ts", ".tsx", ".mts", ".cts"]
 
         # Use provided cwd or default to target's parent directory
-        cwd = self._target_cwd or str(target_path.parent)
+        # Normalize cwd to match program path (important for vscode-js-debug)
+        if self._target_cwd:
+            cwd = normalize_path(self._target_cwd)
+        else:
+            cwd = str(target_path.parent)
 
         config = {
             "type": self.config.adapter_type,

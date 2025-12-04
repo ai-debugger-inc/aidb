@@ -238,7 +238,7 @@ autoapi_ignore = [
     "**/test*",
     "**/conftest.py",
     "**/__pycache__/*",
-    "**/_*.py",
+    "**/_[!_]*.py",  # Ignore _private.py but not __init__.py or __dunder__.py
 ]
 autoapi_template_dir = "_templates/autoapi"
 suppress_warnings = [

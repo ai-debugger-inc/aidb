@@ -23,5 +23,11 @@ Releases](https://github.com/ai-debugger-inc/aidb/releases) page.
 
 ## Version History
 
-Version-specific release notes will be added here as the project reaches major
-milestones.
+```{toctree}
+---
+maxdepth: 1
+caption: Releases
+---
+0.0.6
+0.0.5
+```

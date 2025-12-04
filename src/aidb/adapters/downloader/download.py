@@ -4,6 +4,7 @@ This module provides the core adapter download and installation functionality th
 be used by both CLI and MCP interfaces.
 """
 
+import json
 import platform
 import tarfile
 import tempfile
@@ -19,105 +20,8 @@ from aidb_common.io import safe_read_json
 from aidb_common.io.files import FileOperationError
 from aidb_common.path import get_aidb_adapters_dir
 
-
-def find_project_root() -> Path:
-    """Find the project root directory containing versions.json.
-
-    Returns
-    -------
-    Path
-        Path to the project root directory
-
-    Raises
-    ------
-    FileNotFoundError
-        If versions.json cannot be found
-    """
-    current = Path(__file__)
-
-    # Walk up the directory tree looking for versions.json
-    for parent in current.parents:
-        versions_file = parent / "versions.json"
-        if versions_file.exists():
-            return parent
-
-    # Fallback: check some common locations relative to this file
-    common_locations = [
-        Path(
-            __file__,
-        ).parent.parent.parent.parent.parent,  # From src/aidb/adapters/management/
-        Path(__file__).parent.parent.parent.parent,  # One level up
-    ]
-
-    for location in common_locations:
-        versions_file = location / "versions.json"
-        if versions_file.exists():
-            return location
-
-    msg = "Could not locate project root with versions.json"
-    raise FileNotFoundError(msg)
-
-
-def get_project_version() -> str:
-    """Get the current project version from versions.json.
-
-    Returns
-    -------
-    str
-        Project version string
-    """
-    try:
-        project_root = find_project_root()
-        versions_file = project_root / "versions.json"
-
-        versions = safe_read_json(versions_file)
-        return versions.get("version", "latest")
-    except (FileOperationError, FileNotFoundError):
-        return "latest"
-
-
-class AdapterDownloaderResult:
-    """Result container for adapter download operations."""
-
-    def __init__(
-        self,
-        success: bool,
-        message: str,
-        language: str | None = None,
-        path: str | None = None,
-        status: str | None = None,
-        instructions: str | None = None,
-        error: str | None = None,
-        **kwargs,
-    ):
-        self.success = success
-        self.message = message
-        self.language = language
-        self.path = path
-        self.status = status or ("success" if success else "error")
-        self.instructions = instructions
-        self.error = error
-        self.extra = kwargs
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary format."""
-        result = {
-            "success": self.success,
-            "status": self.status,
-            "message": self.message,
-        }
-
-        if self.language:
-            result["language"] = self.language
-        if self.path:
-            result["path"] = self.path
-        if self.instructions:
-            result["instructions"] = self.instructions
-        if self.error:
-            result["error"] = self.error
-
-        result.update(self.extra)
-        return result
+from .result import AdapterDownloaderResult
+from .version import find_project_root, get_project_version
 
 
 class AdapterDownloader(Obj):
@@ -168,6 +72,209 @@ class AdapterDownloader(Obj):
 
         return self._versions_cache
 
+    def _fetch_release_manifest(self, release_tag: str) -> dict[str, Any] | None:
+        """Fetch the manifest.json from a GitHub release.
+
+        Parameters
+        ----------
+        release_tag : str
+            The release tag (e.g., "0.0.5")
+
+        Returns
+        -------
+        dict or None
+            Manifest data if successfully fetched, None otherwise
+        """
+        manifest_url = (
+            f"https://github.com/{self.GITHUB_REPO}/releases/download/"
+            f"{release_tag}/manifest.json"
+        )
+
+        try:
+            from urllib.parse import urlparse
+
+            parsed = urlparse(manifest_url)
+            if parsed.scheme not in {"https"}:
+                return None
+
+            with urlopen(manifest_url, timeout=30) as resp:  # noqa: S310  # nosec B310
+                return json.loads(resp.read().decode("utf-8"))
+        except (HTTPError, URLError, json.JSONDecodeError) as e:
+            self.ctx.debug(f"Failed to fetch manifest from {manifest_url}: {e}")
+            return None
+
+    def _get_platform_info(self) -> tuple[str, str]:
+        """Get platform and architecture names for current system.
+
+        Returns
+        -------
+        tuple[str, str]
+            (platform_name, arch_name)
+        """
+        from aidb.adapters.constants import get_arch_name, get_platform_name
+
+        system = platform.system().lower()
+        machine = platform.machine().lower()
+        return get_platform_name(system), get_arch_name(machine)
+
+    def _resolve_adapter_version(
+        self,
+        adapter_name: str,
+        release_tag: str,
+        adapter_config: dict[str, Any],
+    ) -> str | None:
+        """Resolve adapter version from manifest or local config.
+
+        Parameters
+        ----------
+        adapter_name : str
+            Name of the adapter
+        release_tag : str
+            Release tag to fetch manifest from
+        adapter_config : dict
+            Local adapter configuration from versions.json
+
+        Returns
+        -------
+        str or None
+            Adapter version if found
+        """
+        # Try manifest first (for released versions)
+        manifest = self._fetch_release_manifest(release_tag)
+        if manifest:
+            adapter_info = manifest.get("adapters", {}).get(adapter_name, {})
+            version = adapter_info.get("version")
+            if version:
+                self.ctx.debug(f"Got adapter version {version} from release manifest")
+                return version
+
+        # Fall back to local versions.json
+        version = adapter_config.get("version")
+        if version:
+            self.ctx.debug(f"Using local versions.json adapter version: {version}")
+        return version
+
+    def _build_artifact_url(
+        self,
+        adapter_name: str,
+        adapter_version: str | None,
+        release_tag: str,
+        platform_name: str,
+        arch_name: str,
+        is_universal: bool,
+    ) -> tuple[str, str]:
+        """Build artifact name and download URL.
+
+        Parameters
+        ----------
+        adapter_name : str
+            Name of the adapter
+        adapter_version : str or None
+            Version to include in artifact name
+        release_tag : str
+            Release tag for download URL
+        platform_name : str
+            Platform name (darwin, linux, windows)
+        arch_name : str
+            Architecture name (arm64, x64)
+        is_universal : bool
+            Whether this is a universal (platform-agnostic) adapter
+
+        Returns
+        -------
+        tuple[str, str]
+            (artifact_name, download_url)
+        """
+        if is_universal:
+            if adapter_version:
+                artifact_name = f"{adapter_name}-{adapter_version}-universal.tar.gz"
+            else:
+                artifact_name = f"{adapter_name}-universal.tar.gz"
+        else:
+            if adapter_version:
+                artifact_name = (
+                    f"{adapter_name}-{adapter_version}-"
+                    f"{platform_name}-{arch_name}.tar.gz"
+                )
+            else:
+                artifact_name = f"{adapter_name}-{platform_name}-{arch_name}.tar.gz"
+
+        download_url = (
+            f"https://github.com/{self.GITHUB_REPO}/releases/download/"
+            f"{release_tag}/{artifact_name}"
+        )
+        return artifact_name, download_url
+
+    def _download_to_temp(self, download_url: str) -> str:
+        """Download URL content to a temporary file.
+
+        Parameters
+        ----------
+        download_url : str
+            URL to download from
+
+        Returns
+        -------
+        str
+            Path to temporary file
+
+        Raises
+        ------
+        HTTPError
+            If download fails with HTTP error
+        URLError
+            If network error occurs
+        ValueError
+            If URL scheme is not HTTPS
+        """
+        from urllib.parse import urlparse
+
+        parsed = urlparse(download_url)
+        if parsed.scheme not in {"https"}:
+            msg = f"Disallowed URL scheme: {parsed.scheme}"
+            raise ValueError(msg)
+
+        with tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False) as tmp_file:
+            with urlopen(download_url, timeout=30) as resp:  # noqa: S310  # nosec B310
+                tmp_file.write(resp.read())
+            return tmp_file.name
+
+    def _safe_extract_tarball(self, tar_path: str, target_dir: Path) -> None:
+        """Safely extract tarball with path traversal protection.
+
+        Parameters
+        ----------
+        tar_path : str
+            Path to the tarball file
+        target_dir : Path
+            Directory to extract to
+
+        Raises
+        ------
+        ValueError
+            If archive contains unsafe paths
+        """
+
+        def is_within_directory(directory: Path, target: Path) -> bool:
+            try:
+                return str(target.resolve()).startswith(str(directory.resolve()))
+            except Exception:
+                return False
+
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        with tarfile.open(tar_path, "r:gz") as tar:
+            # Validate all paths first
+            for member in tar.getmembers():
+                member_path = target_dir / member.name
+                if not is_within_directory(target_dir, member_path):
+                    msg = f"Unsafe path in tar archive: {member.name}"
+                    raise ValueError(msg)
+
+            # Extract after validation
+            for member in tar.getmembers():
+                tar.extract(member, path=target_dir)
+
     def download_adapter(
         self,
         language: str,
@@ -191,12 +298,12 @@ class AdapterDownloader(Obj):
             Result with status and installation details
         """
         try:
-            # Get adapter name from registry
+            # Resolve adapter info from registry
             adapter_class = self.registry.get_adapter_class(language)
             adapter_name = adapter_class.__name__.replace("Adapter", "").lower()
+            adapter_dir = self.install_dir / adapter_name
 
             # Check if already installed
-            adapter_dir = self.install_dir / adapter_name
             if adapter_dir.exists() and not force:
                 return AdapterDownloaderResult(
                     success=True,
@@ -206,118 +313,73 @@ class AdapterDownloader(Obj):
                     path=str(adapter_dir),
                 )
 
-            # Get platform info
-            system = platform.system().lower()
-            machine = platform.machine().lower()
-
-            from aidb.adapters.constants import get_arch_name, get_platform_name
-
-            platform_name = get_platform_name(system)
-            arch_name = get_arch_name(machine)
-
-            # Determine if adapter is universal
+            # Get platform and version info
+            platform_name, arch_name = self._get_platform_info()
             versions_config = self.get_versions_config()
             adapter_config = versions_config.get("adapters", {}).get(adapter_name, {})
             is_universal = adapter_config.get("universal", False)
+            release_tag = get_project_version() if version is None else version
 
-            # Get version to download
-            if version is None:
-                # Try to get version from versions.json, fallback to project version
-                adapter_version = adapter_config.get("version")
-                if adapter_version:
-                    version = str(adapter_version)
-                else:
-                    version = get_project_version()
+            # Resolve adapter version from manifest or local config
+            adapter_version = self._resolve_adapter_version(
+                adapter_name,
+                release_tag,
+                adapter_config,
+            )
 
             # Build download URL
-            if is_universal:
-                artifact_name = f"{adapter_name}-universal.tar.gz"
-            else:
-                artifact_name = f"{adapter_name}-{platform_name}-{arch_name}.tar.gz"
-
-            download_url = (
-                f"https://github.com/{self.GITHUB_REPO}/releases/download/"
-                f"{version}/{artifact_name}"
+            _, download_url = self._build_artifact_url(
+                adapter_name,
+                adapter_version,
+                release_tag,
+                platform_name,
+                arch_name,
+                is_universal,
             )
 
             self.ctx.info(f"Downloading {language} adapter from {download_url}")
 
             # Download to temp file
-            with tempfile.NamedTemporaryFile(
-                suffix=".tar.gz",
-                delete=False,
-            ) as tmp_file:
-                try:
-                    # Bandit: validate URL scheme before opening
-                    from urllib.parse import urlparse
-
-                    parsed = urlparse(download_url)
-                    if parsed.scheme not in {"https"}:
-                        msg = f"Disallowed URL scheme: {parsed.scheme}"
-                        raise ValueError(msg)
-
-                    # Use stdlib urlopen to avoid external dependency
-                    # URL scheme already validated above (https only)
-                    with urlopen(download_url, timeout=30) as resp:  # nosec B310
-                        tmp_file.write(resp.read())
-                    tmp_path = tmp_file.name
-                except HTTPError as e:
-                    if e.code == 404:
-                        return AdapterDownloaderResult(
-                            success=False,
-                            message=f"Adapter not found at {download_url}",
-                            language=language,
-                            instructions=self._get_manual_instructions(
-                                language,
-                                adapter_name,
-                                platform_name,
-                                arch_name,
-                            ),
-                        )
-                    raise
-                except URLError as e:
+            try:
+                tmp_path = self._download_to_temp(download_url)
+            except HTTPError as e:
+                if e.code == 404:
                     return AdapterDownloaderResult(
                         success=False,
-                        message=f"Network error: {e}",
+                        message=f"Adapter not found at {download_url}",
                         language=language,
-                        instructions=self._get_offline_instructions(
+                        instructions=self._get_manual_instructions(
                             language,
                             adapter_name,
                             platform_name,
                             arch_name,
-                            version,
                         ),
                     )
+                raise
+            except URLError as e:
+                return AdapterDownloaderResult(
+                    success=False,
+                    message=f"Network error: {e}",
+                    language=language,
+                    instructions=self._get_offline_instructions(
+                        language,
+                        adapter_name,
+                        platform_name,
+                        arch_name,
+                        version,
+                    ),
+                )
 
-            # Extract to install directory
-            adapter_dir.mkdir(parents=True, exist_ok=True)
-
-            with tarfile.open(tmp_path, "r:gz") as tar:
-                # Bandit: safe extraction to prevent path traversal
-                def _is_within_directory(directory: Path, target: Path) -> bool:
-                    try:
-                        directory_resolved = directory.resolve()
-                        target_resolved = target.resolve()
-                        return str(target_resolved).startswith(str(directory_resolved))
-                    except Exception:
-                        return False
-
-                for member in tar.getmembers():
-                    member_path = adapter_dir / member.name
-                    if not _is_within_directory(adapter_dir, member_path):
-                        msg = f"Unsafe path in tar archive: {member.name}"
-                        raise ValueError(msg)
-                for member in tar.getmembers():
-                    tar.extract(member, path=adapter_dir)
-
-            # Clean up temp file
-            Path(tmp_path).unlink()
+            # Extract and clean up temp file
+            try:
+                self._safe_extract_tarball(tmp_path, adapter_dir)
+            finally:
+                Path(tmp_path).unlink(missing_ok=True)
 
             # Validate extracted metadata
             try:
                 self._validate_extracted_metadata(adapter_dir, language)
             except Exception as e:
-                # If metadata is invalid, clean up and return error
                 import shutil
 
                 shutil.rmtree(adapter_dir, ignore_errors=True)
@@ -330,14 +392,17 @@ class AdapterDownloader(Obj):
 
             # Write version file
             version_file = adapter_dir / ".version"
-            version_file.write_text(version if version != "latest" else "unknown")
+            version_to_write = adapter_version or release_tag
+            version_file.write_text(
+                version_to_write if version_to_write != "latest" else "unknown",
+            )
 
             return AdapterDownloaderResult(
                 success=True,
                 message=f"Successfully installed {language} adapter",
                 language=language,
                 path=str(adapter_dir),
-                version=version,
+                version=adapter_version or release_tag,
             )
 
         except Exception as e:
@@ -413,6 +478,37 @@ class AdapterDownloader(Obj):
 
         return installed
 
+    def _flatten_nested_extraction(self, adapter_dir: Path) -> None:
+        """Move contents from nested subdirectory up to adapter_dir if needed.
+
+        Some tarballs extract with an extra directory level. This flattens
+        the structure by moving contents up one level.
+
+        Parameters
+        ----------
+        adapter_dir : Path
+            Directory where adapter was extracted
+        """
+        import shutil
+
+        subdirs = [d for d in adapter_dir.iterdir() if d.is_dir()]
+        if not subdirs:
+            return
+
+        # Check first subdirectory for metadata.json
+        subdir = subdirs[0]
+        if not (subdir / "metadata.json").exists():
+            return
+
+        # Move contents up one level
+        for item in subdir.iterdir():
+            target = adapter_dir / item.name
+            if item.is_file():
+                item.rename(target)
+            elif item.is_dir():
+                shutil.move(str(item), str(target))
+        subdir.rmdir()
+
     def _validate_extracted_metadata(self, adapter_dir: Path, language: str) -> None:
         """Validate extracted adapter metadata.
 
@@ -428,29 +524,15 @@ class AdapterDownloader(Obj):
         ValueError
             If metadata is missing or invalid
         """
-        # Check if metadata.json exists
         metadata_file = adapter_dir / "metadata.json"
+
+        # Handle nested extraction structure
         if not metadata_file.exists():
-            # Look for extracted subdirectory that might contain metadata
-            subdirs = [d for d in adapter_dir.iterdir() if d.is_dir()]
-            if subdirs:
-                # Check first subdirectory for metadata
-                metadata_file = subdirs[0] / "metadata.json"
-                if metadata_file.exists():
-                    # Move contents up one level
-                    for item in subdirs[0].iterdir():
-                        if item.is_file():
-                            item.rename(adapter_dir / item.name)
-                        elif item.is_dir():
-                            import shutil
+            self._flatten_nested_extraction(adapter_dir)
 
-                            shutil.move(str(item), str(adapter_dir / item.name))
-                    subdirs[0].rmdir()
-                    metadata_file = adapter_dir / "metadata.json"
-
-            if not metadata_file.exists():
-                msg = "metadata.json file not found in adapter archive"
-                raise ValueError(msg)
+        if not metadata_file.exists():
+            msg = "metadata.json file not found in adapter archive"
+            raise ValueError(msg)
 
         # Load and validate metadata content
         try:
@@ -533,7 +615,7 @@ Example commands:
         adapter_name: str,
         platform_name: str,
         arch_name: str,
-        version: str,
+        version: str | None,
     ) -> str:
         """Get offline installation instructions.
 
@@ -547,7 +629,7 @@ Example commands:
             Platform name
         arch_name : str
             Architecture name
-        version : str
+        version : str or None
             Version to download
 
         Returns
@@ -556,7 +638,7 @@ Example commands:
             Offline installation instructions
         """
         base_url = f"https://github.com/{self.GITHUB_REPO}/releases"
-        if version == "latest":
+        if version is None or version == "latest":
             url = f"{base_url}/latest"
         else:
             url = f"{base_url}/tag/{version}"
@@ -567,13 +649,14 @@ Offline installation instructions for {language} adapter:
 You appear to be offline or unable to reach GitHub.
 
 To install manually:
-1. On another machine with internet, download:
+1. Visit the AIDB releases page:
    {url}
-   File: {adapter_name}-{platform_name}-{arch_name}.tar.gz
 
-2. Transfer the file to this machine
+2. Download: {adapter_name}-{platform_name}-{arch_name}.tar.gz
 
-3. Extract it:
+3. Transfer the file to this machine
+
+4. Extract it:
    mkdir -p ~/.aidb/adapters/{adapter_name}
    tar -xzf {adapter_name}-{platform_name}-{arch_name}.tar.gz \\
      -C ~/.aidb/adapters/{adapter_name}/

@@ -34,6 +34,22 @@ class AidbVariable:
         """Return a string representation of the variable."""
         return f"{self.name} = {self.value} ({self.type_name})"
 
+    def to_compact(self) -> dict[str, Any]:
+        """Return compact representation for token-efficient serialization.
+
+        Returns
+        -------
+        dict[str, Any]
+            Compact dict with keys: v (value), t (type), varRef (if has children)
+        """
+        result: dict[str, Any] = {
+            "v": self.value,
+            "t": self.type_name,
+        }
+        if self.has_children and self.id:
+            result["varRef"] = self.id
+        return result
+
 
 @dataclass(frozen=True)
 class EvaluationResult:

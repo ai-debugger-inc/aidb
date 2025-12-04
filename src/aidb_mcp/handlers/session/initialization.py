@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from aidb.adapters.management import AdapterDownloader
+from aidb.adapters.downloader import AdapterDownloader
 from aidb_common.config.runtime import ConfigManager
 from aidb_logging import get_mcp_logger as get_logger
 
