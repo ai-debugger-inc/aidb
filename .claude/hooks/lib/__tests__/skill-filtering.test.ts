@@ -19,9 +19,9 @@ describe("Skill Filtering", () => {
       const skills = ["skill-a", "skill-b", "skill-c"];
       const acknowledged = ["skill-a", "skill-b"];
       const skillRules: Record<string, SkillRule> = {
-        "skill-a": { type: "domain", enforcement: "suggest", priority: "high" },
-        "skill-b": { type: "domain", enforcement: "suggest", priority: "high" },
-        "skill-c": { type: "domain", enforcement: "suggest", priority: "high" }
+        "skill-a": { type: "domain" },
+        "skill-b": { type: "domain" },
+        "skill-c": { type: "domain" }
       };
 
       const unacknowledged = filterUnacknowledgedSkills(
@@ -37,14 +37,12 @@ describe("Skill Filtering", () => {
       const skills = ["skill-a", "skill-b", "skill-c"];
       const acknowledged: string[] = [];
       const skillRules: Record<string, SkillRule> = {
-        "skill-a": { type: "domain", enforcement: "suggest", priority: "high" },
+        "skill-a": { type: "domain" },
         "skill-b": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           autoInject: false
         },
-        "skill-c": { type: "domain", enforcement: "suggest", priority: "high" }
+        "skill-c": { type: "domain" }
       };
 
       const unacknowledged = filterUnacknowledgedSkills(
@@ -165,24 +163,16 @@ describe("Skill Filtering", () => {
       const acknowledged = ["critical-b"];
       const skillRules: Record<string, SkillRule> = {
         "critical-a": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         },
         "critical-b": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         },
         "suggested-a": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         },
         "suggested-b": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         }
       };
 
@@ -206,29 +196,19 @@ describe("Skill Filtering", () => {
       const acknowledged = ["critical-a", "critical-b"];
       const skillRules: Record<string, SkillRule> = {
         "critical-a": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         },
         "critical-b": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         },
         "suggested-a": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         },
         "suggested-b": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         },
         "suggested-c": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         }
       };
 
@@ -256,19 +236,13 @@ describe("Skill Filtering", () => {
       const acknowledged: string[] = [];
       const skillRules: Record<string, SkillRule> = {
         "suggested-a": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         },
         "suggested-b": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         },
         "suggested-c": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         }
       };
 
@@ -291,20 +265,14 @@ describe("Skill Filtering", () => {
       const acknowledged: string[] = [];
       const skillRules: Record<string, SkillRule> = {
         "critical-a": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         },
         "suggested-a": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           autoInject: false // Manual load only
         },
         "suggested-b": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         }
       };
 

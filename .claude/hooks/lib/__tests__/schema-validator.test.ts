@@ -8,10 +8,23 @@ describe("validateSkillRules", () => {
       skills: {
         "test-skill": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           autoInject: true,
           requiredSkills: []
+        }
+      }
+    };
+
+    const result = validateSkillRules(validRules);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("should accept skill without autoInject (optional field)", () => {
+    const validRules = {
+      version: "1.0",
+      skills: {
+        "test-skill": {
+          type: "domain"
         }
       }
     };
@@ -47,8 +60,6 @@ describe("validateSkillRules", () => {
       skills: {
         "bad-skill": {
           type: "invalid",
-          enforcement: "suggest",
-          priority: "high",
           autoInject: true
         }
       }
@@ -60,32 +71,13 @@ describe("validateSkillRules", () => {
     expect(result.errors.some((e) => e.includes("type"))).toBe(true);
   });
 
-  it("should reject invalid enforcement level", () => {
+  it("should reject invalid autoInject type", () => {
     const invalid = {
       version: "1.0",
       skills: {
         "test-skill": {
           type: "domain",
-          enforcement: "invalid",
-          priority: "high",
-          autoInject: true
-        }
-      }
-    };
-
-    const result = validateSkillRules(invalid);
-    expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.includes("enforcement"))).toBe(true);
-  });
-
-  it("should reject missing autoInject field", () => {
-    const invalid = {
-      version: "1.0",
-      skills: {
-        "test-skill": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          autoInject: "yes" // Should be boolean
         }
       }
     };
@@ -101,8 +93,6 @@ describe("validateSkillRules", () => {
       skills: {
         "skill-with-affinity": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           autoInject: true,
           affinity: ["other-skill"]
         }
@@ -119,8 +109,6 @@ describe("validateSkillRules", () => {
       skills: {
         "test-skill": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           autoInject: true,
           affinity: "not-an-array"
         }
@@ -140,8 +128,6 @@ describe("validateSkillRules", () => {
       skills: {
         "test-skill": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           autoInject: true,
           affinity: ["skill-1", "skill-2", "skill-3"]
         }
