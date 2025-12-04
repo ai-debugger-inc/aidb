@@ -1,6 +1,0 @@
-{
-  "action": "workflow_dispatch",
-  "inputs": {
-    "version": "0.0.0"
-  }
-}
