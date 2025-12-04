@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Optional
 
 import click
 
-from aidb.adapters.management import AdapterDownloader
+from aidb.adapters.downloader import AdapterDownloader
 from aidb_cli.core.utils import CliOutput
 from aidb_cli.managers.base.service import BaseService
 from aidb_common.constants import Language

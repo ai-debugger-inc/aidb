@@ -87,6 +87,14 @@ Already have complex debug configurations in `launch.json`? AIDB can use them
 directly—making sophisticated debugging setups portable and shareable across
 teams without requiring VS Code installations.
 
+### Advanced Debugging Features
+
+- **Framework detection**: Auto-detects pytest, jest, django, spring, flask, and
+  more
+- **Conditional breakpoints**: Break on `user.role == "admin"` or after N hits
+- **Logpoints**: Log values without pausing execution
+- **Live code patching**: Modify functions at runtime during debugging
+
 ### Future-Ready Architecture
 
 AIDB is built for where AI-assisted development is heading:
@@ -148,7 +156,7 @@ ______________________________________________________________________
 | Language          | Python       | JavaScript/TypeScript | Java         |
 | ----------------- | ------------ | --------------------- | ------------ |
 | **Status**        | ✅ Available | ✅ Available          | ✅ Available |
-| **Versions**      | 3.10+.       | Node 18+              | JDK 17+      |
+| **Versions**      | 3.10+        | Node 18+              | JDK 17+      |
 | **Platforms**     | All          | All                   | All          |
 | **Debug Adapter** | debugpy      | vscode-js-debug       | java-debug   |
 

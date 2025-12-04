@@ -263,7 +263,7 @@ ______________________________________________________________________
 
 ## variable - Variable Operations
 
-The `variable` tool provides get/set operations for runtime variables.
+The `variable` tool provides enhanced variable operations with live patching capabilities.
 
 ### Overview
 
@@ -271,6 +271,7 @@ Variable operations require a **paused** debugging session. You can:
 
 - Get: Evaluate and retrieve variable values
 - Set: Modify variable values during execution
+- Patch: Live code patching for rapid iteration
 
 ### Actions
 
@@ -377,6 +378,46 @@ Change a variable's value during debugging to test different scenarios.
 }
 ```
 
+#### patch - Live Code Patching
+
+Modify function code during debugging for rapid iteration without restarting the session.
+
+```python
+# Patch a function to fix a bug on the fly
+{
+  "tool": "variable",
+  "arguments": {
+    "action": "patch",
+    "name": "calculate_tax",
+    "code": "return amount * 0.08"
+  }
+}
+```
+
+**Response:**
+
+```json
+{
+  "action": "patch",
+  "name": "calculate_tax",
+  "frame": 0,
+  "message": "Function patched successfully"
+}
+```
+
+**Patch with multi-line code:**
+
+```python
+{
+  "tool": "variable",
+  "arguments": {
+    "action": "patch",
+    "name": "validate_input",
+    "code": "if value < 0:\n    return False\nreturn True"
+  }
+}
+```
+
 ### Frame Context
 
 Variable operations can target different stack frames:
@@ -457,6 +498,20 @@ Variable operations can target different stack frames:
   "arguments": {
     "action": "get",
     "expression": "config['database']['connection_pool']['max_size']"
+  }
+}
+```
+
+**Example 5: Patch function for testing**
+
+```python
+# Fix a calculation bug without restarting
+{
+  "tool": "variable",
+  "arguments": {
+    "action": "patch",
+    "name": "calculate_discount",
+    "code": "return price * 0.20 if quantity > 10 else price * 0.10"
   }
 }
 ```

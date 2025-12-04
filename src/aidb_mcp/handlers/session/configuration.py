@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from aidb.adapters.management import AdapterDownloader
+from aidb.adapters.downloader import AdapterDownloader
 from aidb_common.config import config
 from aidb_logging import get_mcp_logger as get_logger
 

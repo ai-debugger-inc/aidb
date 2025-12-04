@@ -16,7 +16,7 @@ Systematic diagnosis and resolution of CI/CD workflow issues.
 
 ```bash
 git log --oneline --follow .github/workflows/
-git log --oneline versions.json .github/testing-config.yaml
+git log --oneline versions.json
 gh run view <run-id>
 ```
 

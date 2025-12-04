@@ -3,11 +3,13 @@
 This module provides a unified output abstraction for the CLI with explicit
 verbosity contracts:
 
-| Level    | Flag      | User Sees                           | Streaming |
-|----------|-----------|-------------------------------------|-----------|
-| NORMAL   | (default) | Progress, results, errors, warnings | No        |
-| VERBOSE  | -v        | + Operation details, step-by-step   | TTY only  |
-| DEBUG    | -vvv      | + Full subprocess output, traces    | TTY only  |
+========  =========  =====================================  =========
+Level     Flag       User Sees                              Streaming
+========  =========  =====================================  =========
+NORMAL    (default)  Progress, results, errors, warnings    No
+VERBOSE   -v         + Operation details, step-by-step      TTY only
+DEBUG     -vvv       + Full subprocess output, traces       TTY only
+========  =========  =====================================  =========
 
 Usage
 -----

@@ -145,13 +145,20 @@ class TestOrchestrator(TestManager):
         """
         return self.discovery_service.get_suite_metadata(suite)
 
-    def validate_prerequisites(self, suite: str) -> bool:
+    def validate_prerequisites(
+        self,
+        suite: str,
+        languages: list[str] | None = None,
+    ) -> bool:
         """Validate prerequisites for running a test suite.
 
         Parameters
         ----------
         suite : str
             Name of the test suite
+        languages : list[str] | None
+            Specific languages to validate adapters for.
+            If None or ["all"], checks all supported languages.
 
         Returns
         -------
@@ -169,7 +176,14 @@ class TestOrchestrator(TestManager):
             return False
 
         if metadata.adapters_required:
-            built_adapters, missing_adapters = self.build_manager.check_adapters_built()
+            # Resolve "all" to None (checks all languages in check_adapters_built)
+            langs_to_check = None
+            if languages and languages != ["all"]:
+                langs_to_check = languages
+
+            built_adapters, missing_adapters = self.build_manager.check_adapters_built(
+                languages=langs_to_check,
+            )
             if missing_adapters:
                 adapter_list = ", ".join(missing_adapters)
                 CliOutput.error(
@@ -485,15 +499,17 @@ class TestOrchestrator(TestManager):
 
         return metadata.requires_docker
 
-    def _start_log_streaming_if_verbose(self, verbose: bool, suite: str) -> None:
+    def _start_log_streaming_if_verbose(self, verbose: bool) -> None:
         """Start streaming compose logs if verbose mode is enabled.
 
         Parameters
         ----------
         verbose : bool
             Whether verbose mode is enabled
-        suite : str
-            Test suite name
+
+        Notes
+        -----
+        Logs are streamed via per-container tee used for test-runners.
         """
         if not verbose:
             return
@@ -501,11 +517,7 @@ class TestOrchestrator(TestManager):
         try:
             from aidb_cli.services.docker import DockerLoggingService
 
-            logging_service = self.docker_orchestrator.get_service(
-                DockerLoggingService,
-            )
-            # Stream compose logs for infrastructure services if needed
-            # Note: Avoid duplicate streams with the per-container tee used for test-runners
+            self.docker_orchestrator.get_service(DockerLoggingService)
         except Exception as e:
             logger.debug("Failed to start log streaming: %s", e)
 
@@ -753,7 +765,7 @@ class TestOrchestrator(TestManager):
             Aggregated exit code (0 if all pass, else first non-zero)
         """
         # Start log streaming if verbose
-        self._start_log_streaming_if_verbose(verbose, suite)
+        self._start_log_streaming_if_verbose(verbose)
 
         # Get or create parallel execution service
         parallel_service = ParallelTestExecutionService(
@@ -899,7 +911,7 @@ class TestOrchestrator(TestManager):
 
         try:
             self.get_service(TestExecutionService)
-            self._start_log_streaming_if_verbose(verbose, suite)
+            self._start_log_streaming_if_verbose(verbose)
 
             pytest_args, env_vars = self._build_docker_test_environment(
                 suite,

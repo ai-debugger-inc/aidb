@@ -75,8 +75,6 @@ git push origin release/X.Y.Z
 | File | Purpose |
 |------|---------|
 | `versions.json` | Adapter versions, platforms, infrastructure versions |
-| `.github/testing-config.yaml` | Framework testing, suite configuration |
-| `.github/config/adapter-sources.yaml` | Upstream adapter repos for watchdog |
 
 ## Required Secrets
 

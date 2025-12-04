@@ -29,7 +29,7 @@ If automatic download fails or you're in an air-gapped environment:
 ```bash
 # Example for Python (replace {platform} with your OS/arch, e.g., linux-x64, darwin-arm64)
 mkdir -p ~/.aidb/adapters/python
-tar -xzf debugpy-1.8.0-{platform}.tar.gz -C ~/.aidb/adapters/python/
+tar -xzf debugpy-1.8.16-{platform}.tar.gz -C ~/.aidb/adapters/python/
 ```
 
 Or set a custom adapter path:

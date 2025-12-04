@@ -72,7 +72,6 @@ graph TB
 
    - `DebugAPI` (`api.py`): Main entry point with `.introspection` and `.orchestration`
    - `SessionManager` (`session_manager.py`): Manages session lifecycle
-   - `ResourceTracker` (`session_manager.py`): Tracks resource allocations
    - `SessionBuilder` (`session_builder.py`): Constructs sessions with configuration
    - `SessionValidator` (`session_builder.py`): Validates session configuration
 

@@ -230,7 +230,7 @@ def run(
     logger.debug("Test environment updates: %s", test_env_updates)
 
     # Validate prerequisites
-    if not coordinator.validate_prerequisites(suite):
+    if not coordinator.validate_prerequisites(suite, languages):
         ctx.exit(1)
 
     # Execute tests

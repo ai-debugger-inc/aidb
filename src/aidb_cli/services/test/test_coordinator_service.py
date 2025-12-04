@@ -180,20 +180,31 @@ class TestCoordinatorService(BaseService):
             return [f"--cov=aidb_{suite}", "--cov-report=term-missing"]
         return ["--cov=aidb", "--cov-report=term-missing"]
 
-    def validate_prerequisites(self, suite: str) -> bool:
+    def validate_prerequisites(
+        self,
+        suite: str,
+        languages: list[str] | None = None,
+    ) -> bool:
         """Validate prerequisites for running a test suite.
 
-        Args:
-            suite: Test suite name
+        Parameters
+        ----------
+        suite : str
+            Test suite name
+        languages : list[str] | None
+            Specific languages to validate adapters for.
+            If None or ["all"], checks all supported languages.
 
-        Returns:
+        Returns
+        -------
+        bool
             True if prerequisites are met, False otherwise
         """
         if not self.test_orchestrator:
             # Without orchestrator, assume prerequisites are met
             return True
 
-        return self.test_orchestrator.validate_prerequisites(suite)
+        return self.test_orchestrator.validate_prerequisites(suite, languages)
 
     def execute_tests(
         self,

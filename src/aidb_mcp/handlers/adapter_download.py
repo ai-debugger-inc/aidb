@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from aidb.adapters.management import AdapterDownloader
+from aidb.adapters.downloader import AdapterDownloader
 from aidb.session.adapter_registry import AdapterRegistry
 from aidb_logging import get_mcp_logger as get_logger
 

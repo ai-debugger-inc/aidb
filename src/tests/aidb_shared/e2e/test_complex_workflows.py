@@ -102,9 +102,8 @@ class TestComplexWorkflows(BaseE2ETest):
         variables = await debug_interface.get_variables()
         self.verify_vars.verify_variable_exists(variables, "i")
 
-        # Extract value using helper method to handle both dict and AidbVariable
-        i_info = variables["i"]
-        i_value = i_info.value if hasattr(i_info, "value") else i_info.get("value")
+        # Extract value using verifier's helper (handles AidbVariable, verbose, and compact formats)
+        i_value = self.verify_vars._extract_value(variables["i"])
 
         # i should be 3 or greater (skipped 0, 1, 2)
         assert int(i_value) > 2, f"Expected i > 2, got i={i_value}"

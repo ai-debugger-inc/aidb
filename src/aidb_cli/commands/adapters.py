@@ -7,7 +7,7 @@ from builtins import list as builtin_list
 
 import click
 
-from aidb.adapters.management import AdapterDownloader
+from aidb.adapters.downloader import AdapterDownloader
 from aidb.session.adapter_registry import AdapterRegistry
 from aidb_cli.core.constants import Icons
 from aidb_cli.core.decorators import handle_exceptions
