@@ -79,8 +79,6 @@ describe("Anthropic API Client", () => {
     const skills: Record<string, SkillRule> = {
       "adapter-development": {
         type: "domain",
-        enforcement: "suggest",
-        priority: "high",
         description: "Adapter development guide"
       }
     };
@@ -101,9 +99,7 @@ describe("Anthropic API Client", () => {
 
     const skills: Record<string, SkillRule> = {
       "test-skill": {
-        type: "domain",
-        enforcement: "suggest",
-        priority: "medium"
+        type: "domain"
       }
     };
 
@@ -145,7 +141,7 @@ describe("Anthropic API Client", () => {
     mockAnthropicClient.messages.create.mockResolvedValue(mockResponse);
 
     const skills: Record<string, SkillRule> = {
-      "test-skill": { type: "domain", enforcement: "suggest", priority: "low" }
+      "test-skill": { type: "domain" }
     };
 
     const { callAnthropicAPI } = await import("../anthropic-client.js");
@@ -203,7 +199,7 @@ describe("Anthropic API Client", () => {
     mockAnthropicClient.messages.create.mockResolvedValue(mockResponse);
 
     const skills: Record<string, SkillRule> = {
-      "skill-1": { type: "domain", enforcement: "suggest", priority: "high" }
+      "skill-1": { type: "domain" }
     };
 
     const { callAnthropicAPI } = await import("../anthropic-client.js");
@@ -242,9 +238,7 @@ describe("Anthropic API Client", () => {
 
     const skills: Record<string, SkillRule> = {
       "test-skill": {
-        type: "domain",
-        enforcement: "suggest",
-        priority: "medium"
+        type: "domain"
       }
     };
 
@@ -277,9 +271,7 @@ describe("Anthropic API Client", () => {
 
     const skills: Record<string, SkillRule> = {
       "test-skill": {
-        type: "domain",
-        enforcement: "suggest",
-        priority: "medium"
+        type: "domain"
       }
     };
 

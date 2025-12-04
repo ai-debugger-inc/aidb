@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 FRAMEWORK_ROOT="${FRAMEWORK_ROOT:-/workspace/src/tests/_assets/framework_apps}"

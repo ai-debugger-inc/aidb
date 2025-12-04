@@ -201,6 +201,7 @@ class TestTestRunnerOrchestration:
         assert result.exit_code == 0, f"Test cleanup failed: {result.output}"
 
     @pytest.mark.integration
+    @pytest.mark.requires_docker
     def test_test_cleanup_command_with_all_flag(self):
         """Test cleanup command with --all flag."""
         runner = CliRunner()
@@ -214,6 +215,7 @@ class TestTestRunnerOrchestration:
         assert "cleanup" in result.output.lower()
 
     @pytest.mark.integration
+    @pytest.mark.requires_docker
     def test_test_cleanup_command_with_individual_flags(self):
         """Test cleanup command with individual flags."""
         runner = CliRunner()

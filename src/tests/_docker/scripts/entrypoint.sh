@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 # This entrypoint wraps commands to ensure framework dependencies are installed

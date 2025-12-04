@@ -45,23 +45,13 @@ export function validateSkillRules(skillRules: any): ValidationResult {
       );
     }
 
+    // autoInject is optional (defaults to true), but if present must be boolean
     if (
-      !skill.enforcement ||
-      !["block", "suggest", "warn"].includes(skill.enforcement)
+      skill.autoInject !== undefined &&
+      typeof skill.autoInject !== "boolean"
     ) {
-      errors.push(`${skillName}: Invalid or missing 'enforcement'`);
-    }
-
-    if (
-      !skill.priority ||
-      !["critical", "high", "medium", "low"].includes(skill.priority)
-    ) {
-      errors.push(`${skillName}: Invalid or missing 'priority'`);
-    }
-
-    if (typeof skill.autoInject !== "boolean") {
       errors.push(
-        `${skillName}: Missing or invalid 'autoInject' (must be boolean)`
+        `${skillName}: Invalid 'autoInject' (must be boolean if provided)`
       );
     }
 

@@ -62,7 +62,7 @@ def get_all_mcp_tools() -> list[Tool]:
                 "- Clear usage examples with exact syntax\n\n"
             ),
             icons=get_tool_icon(ToolName.INIT),
-            annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True),
+            annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=False),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -134,7 +134,10 @@ def get_all_mcp_tools() -> list[Tool]:
                 "Supports launch/attach modes for debugging.\n"
             ),
             icons=get_tool_icon(ToolName.SESSION_START),
-            annotations=ToolAnnotations(destructiveHint=True),
+            annotations=ToolAnnotations(
+                destructiveHint=False,
+                openWorldHint=False,
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -266,7 +269,10 @@ def get_all_mcp_tools() -> list[Tool]:
                 "- Automatic breakpoint management"
             ),
             icons=get_tool_icon(ToolName.EXECUTE),
-            annotations=ToolAnnotations(destructiveHint=True),
+            annotations=ToolAnnotations(
+                destructiveHint=False,
+                openWorldHint=False,
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -321,7 +327,10 @@ def get_all_mcp_tools() -> list[Tool]:
                 f"- '{StepAction.OUT.value}': Complete current function"
             ),
             icons=get_tool_icon(ToolName.STEP),
-            annotations=ToolAnnotations(destructiveHint=True),
+            annotations=ToolAnnotations(
+                destructiveHint=False,
+                openWorldHint=False,
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -361,7 +370,7 @@ def get_all_mcp_tools() -> list[Tool]:
                 f"- '{InspectTarget.ALL.value}': Complete state snapshot"
             ),
             icons=get_tool_icon(ToolName.INSPECT),
-            annotations=ToolAnnotations(readOnlyHint=True),
+            annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=False),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -408,7 +417,11 @@ def get_all_mcp_tools() -> list[Tool]:
                 f"- '{BreakpointAction.CLEAR_ALL.value}': Remove all breakpoints"
             ),
             icons=get_tool_icon(ToolName.BREAKPOINT),
-            annotations=ToolAnnotations(idempotentHint=True),
+            annotations=ToolAnnotations(
+                destructiveHint=False,
+                idempotentHint=True,
+                openWorldHint=False,
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -477,7 +490,11 @@ def get_all_mcp_tools() -> list[Tool]:
                 )
             ),
             icons=get_tool_icon(ToolName.VARIABLE),
-            annotations=ToolAnnotations(destructiveHint=True),
+            annotations=ToolAnnotations(
+                destructiveHint=False,
+                idempotentHint=True,
+                openWorldHint=False,
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -534,7 +551,10 @@ def get_all_mcp_tools() -> list[Tool]:
                 f"• `{SessionAction.SWITCH.value}`: Switch to different session"
             ),
             icons=get_tool_icon(ToolName.SESSION),
-            annotations=ToolAnnotations(destructiveHint=True),
+            annotations=ToolAnnotations(
+                destructiveHint=True,
+                openWorldHint=False,
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -578,7 +598,7 @@ def get_all_mcp_tools() -> list[Tool]:
                 f"• config('{ConfigAction.CAPABILITIES.value}', language='python') - Python debugging features"
             ),
             icons=get_tool_icon(ToolName.CONFIG),
-            annotations=ToolAnnotations(readOnlyHint=True, idempotentHint=True),
+            annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=False),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -624,7 +644,7 @@ def get_all_mcp_tools() -> list[Tool]:
                 "- Debugging history and patterns"
             ),
             icons=get_tool_icon(ToolName.CONTEXT),
-            annotations=ToolAnnotations(readOnlyHint=True),
+            annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=False),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -669,7 +689,10 @@ def get_all_mcp_tools() -> list[Tool]:
                 "- Automatic cleanup"
             ),
             icons=get_tool_icon(ToolName.RUN_UNTIL),
-            annotations=ToolAnnotations(destructiveHint=True),
+            annotations=ToolAnnotations(
+                destructiveHint=False,
+                openWorldHint=False,
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {
@@ -719,7 +742,11 @@ def get_all_mcp_tools() -> list[Tool]:
                 "**Usage:** Install missing adapters when encountering AdapterNotFoundError messages."
             ),
             icons=get_tool_icon(ToolName.ADAPTER),
-            annotations=ToolAnnotations(idempotentHint=True),
+            annotations=ToolAnnotations(
+                destructiveHint=True,
+                idempotentHint=True,
+                openWorldHint=True,
+            ),
             inputSchema={
                 "type": "object",
                 "properties": {

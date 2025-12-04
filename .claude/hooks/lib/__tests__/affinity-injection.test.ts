@@ -15,19 +15,13 @@ describe("Affinity Injection System", () => {
       const skillRules: Record<string, SkillRule> = {
         "adapter-development": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           affinity: ["aidb-architecture", "dap-protocol-guide"]
         },
         "aidb-architecture": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         },
         "dap-protocol-guide": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         }
       };
 
@@ -47,19 +41,13 @@ describe("Affinity Injection System", () => {
       const skillRules: Record<string, SkillRule> = {
         "adapter-development": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           affinity: ["aidb-architecture", "dap-protocol-guide"]
         },
         "aidb-architecture": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         },
         "dap-protocol-guide": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         }
       };
 
@@ -77,14 +65,10 @@ describe("Affinity Injection System", () => {
       const skillRules: Record<string, SkillRule> = {
         "adapter-development": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           affinity: ["aidb-architecture"]
         },
         "aidb-architecture": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         }
       };
 
@@ -102,19 +86,13 @@ describe("Affinity Injection System", () => {
       const skillRules: Record<string, SkillRule> = {
         "adapter-development": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           affinity: ["aidb-architecture", "dap-protocol-guide"]
         },
         "aidb-architecture": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         },
         "dap-protocol-guide": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         }
       };
 
@@ -134,20 +112,14 @@ describe("Affinity Injection System", () => {
       const skillRules: Record<string, SkillRule> = {
         "dap-protocol-guide": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           affinity: ["aidb-architecture"] // dap lists architecture
         },
         "mcp-tools-development": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           affinity: ["aidb-architecture"] // mcp lists architecture
         },
         "aidb-architecture": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
           // architecture lists NO affinities (root skill)
         }
       };
@@ -169,26 +141,18 @@ describe("Affinity Injection System", () => {
       const skillRules: Record<string, SkillRule> = {
         "adapter-development": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           affinity: ["aidb-architecture", "dap-protocol-guide"] // adapter lists arch + dap
         },
         "aidb-architecture": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
           // architecture lists nothing
         },
         "dap-protocol-guide": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           affinity: ["aidb-architecture"] // dap lists architecture
         },
         "mcp-tools-development": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           affinity: ["aidb-architecture"] // mcp lists architecture
         }
       };
@@ -215,7 +179,7 @@ describe("Affinity Injection System", () => {
   describe("Edge Cases", () => {
     it("should handle empty toInject array", () => {
       const skillRules: Record<string, SkillRule> = {
-        skill1: { type: "domain", enforcement: "suggest", priority: "high" }
+        skill1: { type: "domain" }
       };
 
       const affinities = findAffinityInjections([], [], skillRules);
@@ -226,9 +190,7 @@ describe("Affinity Injection System", () => {
     it("should handle skills with no affinity configured", () => {
       const skillRules: Record<string, SkillRule> = {
         "skill-no-affinity": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
           // No affinity field
         }
       };
@@ -246,8 +208,6 @@ describe("Affinity Injection System", () => {
       const skillRules: Record<string, SkillRule> = {
         "skill-empty-affinity": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           affinity: [] // Empty array
         }
       };
@@ -265,14 +225,10 @@ describe("Affinity Injection System", () => {
       const skillRules: Record<string, SkillRule> = {
         "parent-skill": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           affinity: ["manual-skill"]
         },
         "manual-skill": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           autoInject: false // Manual load required
         }
       };
@@ -291,20 +247,14 @@ describe("Affinity Injection System", () => {
       const skillRules: Record<string, SkillRule> = {
         "skill-a": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           affinity: ["common-skill"]
         },
         "skill-b": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           affinity: ["common-skill"]
         },
         "common-skill": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         }
       };
 
@@ -322,14 +272,10 @@ describe("Affinity Injection System", () => {
       const skillRules: Record<string, SkillRule> = {
         "skill-a": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           affinity: ["skill-b"]
         },
         "skill-b": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           affinity: ["skill-a"]
         }
       };
@@ -347,19 +293,13 @@ describe("Affinity Injection System", () => {
       const skillRules: Record<string, SkillRule> = {
         "adapter-development": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           affinity: ["aidb-architecture", "dap-protocol-guide"]
         },
         "aidb-architecture": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         },
         "dap-protocol-guide": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           affinity: ["aidb-architecture"]
         }
       };
@@ -380,14 +320,10 @@ describe("Affinity Injection System", () => {
       const skillRules: Record<string, SkillRule> = {
         "mcp-tools-development": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           affinity: ["aidb-architecture"]
         },
         "aidb-architecture": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         }
       };
 
@@ -404,19 +340,13 @@ describe("Affinity Injection System", () => {
       const skillRules: Record<string, SkillRule> = {
         "adapter-development": {
           type: "domain",
-          enforcement: "suggest",
-          priority: "high",
           affinity: ["aidb-architecture", "dap-protocol-guide"]
         },
         "aidb-architecture": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         },
         "dap-protocol-guide": {
-          type: "domain",
-          enforcement: "suggest",
-          priority: "high"
+          type: "domain"
         }
       };
 

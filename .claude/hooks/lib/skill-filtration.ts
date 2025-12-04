@@ -128,7 +128,8 @@ export function findAffinityInjections(
 
     // Direction 1: This skill lists affinities (parent → child)
     // Example: adapter-development → ["aidb-architecture", "dap-protocol-guide"]
-    const affinities = config?.affinity || [];
+    // Enforce max 2 items at runtime (matches schema constraint)
+    const affinities = (config?.affinity || []).slice(0, 2);
     for (const affinity of affinities) {
       // Only inject if:
       // 1. Not already acknowledged (loaded in session)

@@ -221,11 +221,25 @@ repos:
   # 7. Docker & Container Files
   # --------------------------------------
 
-  - repo: https://github.com/hadolint/hadolint
-    rev: v2.14.0
+  - repo: local
     hooks:
-      - id: hadolint-docker
-        args: [--ignore, DL3008, --ignore, DL3009]
+      - id: hadolint
+        name: Lint Dockerfiles
+        entry: |
+          bash -c '
+            # Skip if Docker is not available
+            if ! docker info >/dev/null 2>&1; then
+              echo "⚠️  Docker not available, skipping hadolint"
+              exit 0
+            fi
+            # Run hadolint via Docker
+            for file in "$@"; do
+              docker run --rm -i hadolint/hadolint hadolint \
+                --ignore DL3008 --ignore DL3009 - < "$file"
+            done
+          '
+        language: system
+        types: [dockerfile]
 
   # --------------------------------------
   # 8. TypeScript/JavaScript Hooks

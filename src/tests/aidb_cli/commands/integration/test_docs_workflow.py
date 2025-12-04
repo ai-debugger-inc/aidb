@@ -123,6 +123,7 @@ class TestDocsErrorHandling:
     """Test error handling and edge cases in docs commands."""
 
     @pytest.mark.integration
+    @pytest.mark.requires_docker
     def test_docs_stop_when_not_running(self):
         """Test stopping docs when they're not running."""
         runner = CliRunner()

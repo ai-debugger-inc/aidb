@@ -100,7 +100,6 @@ class JavaAdapter(DebugAdapter):
         self._lsp_dap_bridge: JavaLSPDAPBridge | None = None
         self._compilation_manager: JavaCompilationManager | None = None
         self._dummy_process: asyncio.subprocess.Process | None = None  # type: ignore[name-defined]
-        self._target_env: dict[str, str] = {}
         self._target_cwd: str | None = None
         self._launch_config: dict[str, Any] | None = (
             None  # Stored during launch for DAP request

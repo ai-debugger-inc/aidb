@@ -165,6 +165,9 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
         self._output_capture: AdapterOutputCapture | None = None
         self._adapter_locator: AdapterBinaryLocator | None = None
 
+        # Target env vars provided by the user
+        self._target_env: dict[str, str] = {}
+
         # Register default lifecycle hooks
         self._register_default_hooks()
 
@@ -748,10 +751,13 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
         # Step 1: Load base environment
         env = self._load_base_environment()
 
-        # Step 2: Add trace configuration if enabled
+        # Step 2: Merge user-provided target environment variables
+        env = self._merge_target_env(env)
+
+        # Step 3: Add trace configuration if enabled
         env = self._add_trace_configuration(env)
 
-        # Step 3: Add adapter-specific variables
+        # Step 4: Add adapter-specific variables
         return self._add_adapter_specific_vars(env)
 
     def _load_base_environment(self) -> dict[str, str]:
@@ -763,6 +769,31 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
             Copy of current environment variables
         """
         return os.environ.copy()
+
+    def _merge_target_env(self, env: dict[str, str]) -> dict[str, str]:
+        """Merge user-provided target environment variables.
+
+        This ensures user's environment variables (e.g., PYTHONPATH, NODE_PATH)
+        are included in the subprocess environment. This is done early in the
+        pipeline so adapter-specific logic can further modify these values
+        (e.g., prepending adapter paths to PYTHONPATH).
+
+        Parameters
+        ----------
+        env : Dict[str, str]
+            Current environment variables
+
+        Returns
+        -------
+        Dict[str, str]
+            Updated environment with user's target env vars merged
+        """
+        if self._target_env:
+            env.update(self._target_env)
+            self.ctx.debug(
+                f"Merged {len(self._target_env)} user env vars into subprocess env",
+            )
+        return env
 
     def _add_trace_configuration(self, env: dict[str, str]) -> dict[str, str]:
         """Add trace-related environment variables if tracing is enabled.
