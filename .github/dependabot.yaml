@@ -7,9 +7,13 @@ updates:
       interval: "daily"
     target-branch: "dependabot-updates"
     open-pull-requests-limit: 10
+    commit-message:
+      prefix: "deps(python)"
     labels:
       - "dependencies"
       - "python"
+    # Note: debugpy gets its own PR (critical adapter dependency - needs manual review)
+    # Note: aiofiles, mcp, psutil - core deps get individual PRs
     groups:
       # Group development tools together
       dev-dependencies:
@@ -20,15 +24,35 @@ updates:
           - "pre-commit"
           - "deptry"
           - "vulture"
+          - "docformatter"
+          - "mdformat"
+          - "pydocstyle"
+          - "safety"
+          - "yamllint"
       # Group test dependencies together
       test-dependencies:
         patterns:
           - "pytest*"
           - "coverage"
           - "docker"
-          - "pytest-asyncio"
-          # debugpy gets its own PR (critical adapter dependency - needs manual review)
-          # All other dependencies get individual PRs for better control
+          - "responses"
+      # Group documentation dependencies
+      docs-dependencies:
+        patterns:
+          - "sphinx*"
+          - "myst*"
+          - "pydata-sphinx-theme"
+          - "linkify-it-py"
+      # Group type stubs
+      type-stubs:
+        patterns:
+          - "types-*"
+      # Group build tools
+      build-tools:
+        patterns:
+          - "setuptools"
+          - "wheel"
+          - "build"
 
   # GitHub Actions versions and pre-commit hooks
   # Note: Dependabot treats .pre-commit-config.yaml like github-actions
@@ -37,9 +61,16 @@ updates:
     schedule:
       interval: "weekly"
     target-branch: "dependabot-updates"
+    commit-message:
+      prefix: "deps(actions)"
     labels:
       - "dependencies"
       - "github-actions"
+    groups:
+      # Group all GitHub Actions together
+      actions:
+        patterns:
+          - "*"
 
   # npm dependencies (Claude hooks TypeScript)
   - package-ecosystem: "npm"
@@ -47,6 +78,8 @@ updates:
     schedule:
       interval: "weekly"
     target-branch: "dependabot-updates"
+    commit-message:
+      prefix: "deps(npm)"
     labels:
       - "dependencies"
       - "npm"
@@ -59,6 +92,14 @@ updates:
           - "typescript"
           - "eslint"
           - "prettier"
+      # Group Anthropic SDK and related
+      anthropic:
+        patterns:
+          - "@anthropic-ai/*"
+      # Group type definitions
+      types:
+        patterns:
+          - "@types/*"
 
   # npm dependencies (VS Code extension)
   - package-ecosystem: "npm"
@@ -66,7 +107,20 @@ updates:
     schedule:
       interval: "weekly"
     target-branch: "dependabot-updates"
+    commit-message:
+      prefix: "deps(vscode)"
     labels:
       - "dependencies"
       - "npm"
       - "vscode-extension"
+    groups:
+      # Group VS Code related packages
+      vscode-tooling:
+        patterns:
+          - "@vscode/*"
+          - "@types/vscode"
+      # Group build tools
+      build-tools:
+        patterns:
+          - "typescript"
+          - "esbuild"

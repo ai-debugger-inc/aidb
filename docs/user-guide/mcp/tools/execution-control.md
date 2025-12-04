@@ -44,11 +44,13 @@ The `execute` tool starts or continues program execution. It intelligently handl
 
 ### Parameters
 
-| Parameter     | Type    | Required | Default    | Description                                                         |
-| ------------- | ------- | -------- | ---------- | ------------------------------------------------------------------- |
-| action        | string  | No       | "continue" | Action to perform: "run" or "continue"                              |
-| wait_for_stop | boolean | No       | auto       | Wait for breakpoint/stop event. Auto-enabled when breakpoints exist |
-| session_id    | string  | No       | current    | Session to execute                                                  |
+| Parameter      | Type    | Required | Default    | Description                                                         |
+| -------------- | ------- | -------- | ---------- | ------------------------------------------------------------------- |
+| action         | string  | No       | "continue" | Action to perform: "run" or "continue"                              |
+| until          | string  | No       | -          | Execute until this location (`file:line`)                           |
+| collect_output | boolean | No       | true       | Collect program output                                              |
+| wait_for_stop  | boolean | No       | auto       | Wait for breakpoint/stop event. Auto-enabled when breakpoints exist |
+| session_id     | string  | No       | current    | Session to execute                                                  |
 
 ### Execution State Response
 

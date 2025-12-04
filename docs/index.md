@@ -211,17 +211,6 @@ maxdepth: 2
 community/index
 ```
 
-## Support
-
-Get help with AI Debugger.
-
-```{toctree}
----
-maxdepth: 2
----
-support/index
-```
-
 ```{toctree}
 ---
 maxdepth: 2

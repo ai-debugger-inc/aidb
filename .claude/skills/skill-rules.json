@@ -178,14 +178,13 @@
       "priority": "high",
       "autoInject": true,
       "requiredSkills": [],
-      "description": "Guide for GitHub Actions workflows, adapter builds, releases, and CI/CD configuration. Includes GitHub CLI for CI observability, test artifacts, job summaries, and log analysis. Use when working with .github/workflows/ files, versions.json, testing-config.yaml, troubleshooting CI pipeline issues, or analyzing CI test failures. For general testing, use testing-strategy instead.",
+      "description": "Guide for GitHub Actions workflows, adapter builds, releases, and CI/CD configuration. Includes GitHub CLI for CI observability, test artifacts, job summaries, and log analysis. Use when working with .github/workflows/ files, versions.json, troubleshooting CI pipeline issues, or analyzing CI test failures. For general testing, use testing-strategy instead.",
       "promptTriggers": {
         "keywords": [
           "GitHub Actions workflow",
           "GitHub Actions CI",
           ".github/workflows/",
           "versions.json",
-          "testing-config.yaml",
           "workflow dispatch",
           "workflow matrix",
           "composite action",

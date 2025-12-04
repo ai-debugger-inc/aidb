@@ -62,7 +62,7 @@ class <Language>Adapter(DebugAdapter):
     ) -> list[str]:
         """Build the command to launch the debug adapter.
 
-        Example from Python (src/aidb/adapters/lang/python/python.py:288):
+        Example from PythonAdapter._build_launch_command():
             return [python_executable, "-m", "debugpy", "--listen",
                     f"{adapter_host}:{adapter_port}", "--wait-for-client", target]
         """
@@ -72,7 +72,7 @@ class <Language>Adapter(DebugAdapter):
     def _add_adapter_specific_vars(self, env: dict[str, str]) -> dict[str, str]:
         """Add language-specific environment variables.
 
-        Example from Python (src/aidb/adapters/lang/python/python.py:421):
+        Example from PythonAdapter._add_adapter_specific_vars():
             env["DEBUGPY_LOG_DIR"] = str(trace_dir)
             env["PYTHONDONTWRITEBYTECODE"] = "1"
         """
@@ -82,7 +82,7 @@ class <Language>Adapter(DebugAdapter):
     def _get_process_name_pattern(self) -> str:
         """Get the process name pattern for cleanup operations.
 
-        Example from Python (src/aidb/adapters/lang/python/python.py:463):
+        Example from PythonAdapter._get_process_name_pattern():
             return "debugpy"
         """
         # Return a string pattern to match adapter processes
@@ -155,7 +155,7 @@ class <Language>LaunchConfig(BaseLaunchConfig):
     """VS Code launch configuration for <Language>."""
 
     # Define any launch.json specific fields
-    # See JavaScriptLaunchConfig (src/aidb/adapters/lang/javascript/config.py:115)
+    # See JavaScriptLaunchConfig in src/aidb/adapters/lang/javascript/config.py
 
     LAUNCH_TYPE_ALIASES = ["<language>", "type1", "type2"]  # VS Code request types
 ```
@@ -188,7 +188,7 @@ class <Language>SyntaxValidator(LanguageSyntaxValidator):
         pass
 ```
 
-**Registration**: Update `src/aidb/adapters/base/syntax_validator.py` in the `for_language()` method (around line 87-96) to register your validator:
+**Registration**: Update `src/aidb/adapters/base/syntax_validator.py` in the `for_language()` method to register your validator:
 
 ```python
 @classmethod
@@ -493,7 +493,7 @@ adapters:
 The workflow is **generic** and should work for most adapters. You may need to add language-specific setup steps:
 
 ```yaml
-# Add around line 105-116 if your adapter needs special setup
+# Add in the language-specific setup section if your adapter needs special setup
 - name: Setup <Language> (for <Language> adapter)
   if: matrix.adapter == '<language>'
   uses: actions/setup-<language>@v4
@@ -501,13 +501,13 @@ The workflow is **generic** and should work for most adapters. You may need to a
     <language>-version: ${{ steps.adapter-config.outputs.<language>_version }}
 ```
 
-Also update the adapter config extraction logic (lines 70-103) if your adapter has unique build dependencies.
+Also update the adapter config extraction logic in the workflow if your adapter has unique build dependencies.
 
 ### 4.5 Update Build Environment Validator
 
 **File**: `.github/scripts/validation/build_env.py`
 
-Add validation logic for your adapter's build dependencies (around lines 116-143):
+Add validation logic for your adapter's build dependencies:
 
 ```python
 def validate_adapter_dependencies(self, adapter: str) -> List[str]:
@@ -902,7 +902,7 @@ Use this as a quick checklist of all files that require updates:
 
 - `src/tests/_helpers/constants.py` - Language-specific constants
 - `src/tests/_helpers/mocks.py` - Mock configurations (if needed)
-- `src/tests/_docker/Dockerfile.runtime` - Runtime installation (for Docker tests)
+- `src/tests/_docker/dockerfiles/Dockerfile.test.<language>` - Docker test image for the language
 - `src/tests/frameworks/<language>/` - Framework-specific tests
 
 **Documentation:**

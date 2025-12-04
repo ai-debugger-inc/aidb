@@ -1,2 +1,0 @@
-- **Discord**: [Join our Discord](https://discord.com/invite/UGS92b6KgR) for help, discussions, and community support
-- **GitHub**: [github.com/ai-debugger-inc/aidb](https://github.com/ai-debugger-inc/aidb) for issues, contributions, and source code

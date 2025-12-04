@@ -46,12 +46,13 @@ class ExecutionStateBuilder:
         Returns
         -------
         dict
-            Standardized execution_state dict with fields:
-            {
-                "status": "stopped_at_breakpoint",
-                "breakpoints_active": true,
-                "stop_reason": "breakpoint"
-            }
+            Standardized execution_state dict with fields::
+
+                {
+                    "status": "stopped_at_breakpoint",
+                    "breakpoints_active": true,
+                    "stop_reason": "breakpoint"
+                }
         """
         return {
             ResponseFieldName.STATUS: detailed_status.value,
@@ -90,10 +91,12 @@ class CodeSnapshotBuilder:
         Returns
         -------
         dict or None
-            Standardized code_snapshot dict with fields:
-            {
-                "formatted": "..."
-            }
+            Standardized code_snapshot dict with fields::
+
+                {
+                    "formatted": "..."
+                }
+
             Returns None if no code_context available.
 
         Notes

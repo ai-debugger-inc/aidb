@@ -5,7 +5,6 @@ import sys
 from pathlib import Path
 
 import pytest
-import yaml
 
 # Add paths for importing CI scripts (must be at module level for import resolution)
 sys.path.insert(0, str(Path(__file__).parent / "unit"))
@@ -44,11 +43,3 @@ def versions_json(repo_root):
     versions_path = repo_root / "versions.json"
     with versions_path.open() as f:
         return json.load(f)
-
-
-@pytest.fixture
-def testing_config_yaml(github_dir):
-    """Load testing-config.yaml configuration."""
-    config_path = github_dir / "testing-config.yaml"
-    with config_path.open() as f:
-        return yaml.safe_load(f)

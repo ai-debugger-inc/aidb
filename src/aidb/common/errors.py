@@ -14,29 +14,30 @@ exception hierarchy uses a hybrid approach:
    - Common failure modes (FileNotFoundError, PermissionError)
    - Well-understood semantics matching Python idioms
 
-Exception Hierarchy:
+Exception Hierarchy::
+
     AidbError (base)
-    ├── Configuration & Setup
-    │   ├── ConfigurationError - Debug config issues
-    │   ├── AdapterNotFoundError - Adapter binary not located
-    │   └── VSCodeVariableError - Unresolvable VS Code variables
-    ├── Connection & Protocol
-    │   ├── DebugConnectionError - Connection failures
-    │   ├── DAPProtocolError - DAP protocol violations
-    │   └── DebugTimeoutError - Operation timeouts
-    ├── Adapter & Capabilities
-    │   ├── DebugAdapterError - Adapter operational errors
-    │   ├── AdapterCapabilityNotSupportedError - Missing features
-    │   └── UnsupportedOperationError - Unsupported operations
-    ├── Session Management
-    │   └── DebugSessionLostError - Lost session recovery
-    ├── Resource Management
-    │   ├── ResourceError (base)
-    │   └── ResourceExhaustedError - Resource pool exhausted
-    ├── Batch Operations
-    │   └── BatchOperationError - Multiple errors aggregated
-    └── Compilation
-        └── CompilationError - Source compilation failed
+    +-- Configuration & Setup
+    |   +-- ConfigurationError - Debug config issues
+    |   +-- AdapterNotFoundError - Adapter binary not located
+    |   +-- VSCodeVariableError - Unresolvable VS Code variables
+    +-- Connection & Protocol
+    |   +-- DebugConnectionError - Connection failures
+    |   +-- DAPProtocolError - DAP protocol violations
+    |   +-- DebugTimeoutError - Operation timeouts
+    +-- Adapter & Capabilities
+    |   +-- DebugAdapterError - Adapter operational errors
+    |   +-- AdapterCapabilityNotSupportedError - Missing features
+    |   +-- UnsupportedOperationError - Unsupported operations
+    +-- Session Management
+    |   +-- DebugSessionLostError - Lost session recovery
+    +-- Resource Management
+    |   +-- ResourceError (base)
+    |   +-- ResourceExhaustedError - Resource pool exhausted
+    +-- Batch Operations
+    |   +-- BatchOperationError - Multiple errors aggregated
+    +-- Compilation
+        +-- CompilationError - Source compilation failed
 """
 
 from typing import Any

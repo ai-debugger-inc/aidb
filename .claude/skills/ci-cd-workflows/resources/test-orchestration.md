@@ -101,5 +101,4 @@ Script `.github/scripts/format_job_summary.py` parses `${{ toJson(needs) }}` to 
 - `.github/workflows/test-parallel.yaml` - Main orchestrator
 - `.github/workflows/test-suite.yaml` - Reusable test runner
 - `.github/workflows/test-frameworks.yaml` - Framework tests
-- `.github/testing-config.yaml` - Framework configuration
 - `docs/developer-guide/ci-cd.md` - Complete CI/CD reference

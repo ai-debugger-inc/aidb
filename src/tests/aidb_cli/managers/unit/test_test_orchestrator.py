@@ -190,6 +190,95 @@ class TestTestOrchestrator:
 
         assert result is True
 
+    @patch("aidb_cli.managers.test.test_orchestrator.CliOutput")
+    def test_validate_prerequisites_with_specific_languages(
+        self,
+        mock_output,
+        orchestrator,
+    ):
+        """Test prerequisite validation checks only specified languages."""
+        mock_metadata = Mock()
+        mock_metadata.requires_docker = False
+        mock_metadata.adapters_required = True
+
+        mock_discovery = Mock()
+        mock_discovery.get_suite_metadata.return_value = mock_metadata
+        orchestrator._discovery_service = mock_discovery
+
+        orchestrator.build_manager = Mock()
+        orchestrator.build_manager.check_adapters_built.return_value = (
+            ["python"],
+            [],
+        )
+
+        result = orchestrator.validate_prerequisites("test_suite", languages=["python"])
+
+        assert result is True
+        # Verify check_adapters_built was called with specific languages
+        orchestrator.build_manager.check_adapters_built.assert_called_once_with(
+            languages=["python"],
+        )
+
+    @patch("aidb_cli.managers.test.test_orchestrator.CliOutput")
+    def test_validate_prerequisites_with_all_languages(
+        self,
+        mock_output,
+        orchestrator,
+    ):
+        """Test prerequisite validation with 'all' checks all languages."""
+        mock_metadata = Mock()
+        mock_metadata.requires_docker = False
+        mock_metadata.adapters_required = True
+
+        mock_discovery = Mock()
+        mock_discovery.get_suite_metadata.return_value = mock_metadata
+        orchestrator._discovery_service = mock_discovery
+
+        orchestrator.build_manager = Mock()
+        orchestrator.build_manager.check_adapters_built.return_value = (
+            ["python", "javascript", "java"],
+            [],
+        )
+
+        result = orchestrator.validate_prerequisites("test_suite", languages=["all"])
+
+        assert result is True
+        # Verify check_adapters_built was called with None (all languages)
+        orchestrator.build_manager.check_adapters_built.assert_called_once_with(
+            languages=None,
+        )
+
+    @patch("aidb_cli.managers.test.test_orchestrator.CliOutput")
+    def test_validate_prerequisites_specific_language_missing(
+        self,
+        mock_output,
+        orchestrator,
+    ):
+        """Test prerequisite validation fails when specific language adapter missing."""
+        mock_metadata = Mock()
+        mock_metadata.requires_docker = False
+        mock_metadata.adapters_required = True
+
+        mock_discovery = Mock()
+        mock_discovery.get_suite_metadata.return_value = mock_metadata
+        orchestrator._discovery_service = mock_discovery
+
+        orchestrator.build_manager = Mock()
+        orchestrator.build_manager.check_adapters_built.return_value = (
+            [],
+            ["javascript"],
+        )
+
+        result = orchestrator.validate_prerequisites(
+            "test_suite",
+            languages=["javascript"],
+        )
+
+        assert result is False
+        orchestrator.build_manager.check_adapters_built.assert_called_once_with(
+            languages=["javascript"],
+        )
+
     def test_should_use_docker_no_metadata(self, orchestrator):
         """Test Docker usage decision with no metadata."""
         mock_discovery = Mock()

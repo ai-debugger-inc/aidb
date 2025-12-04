@@ -21,7 +21,7 @@ class VariableStateVerifier:
         Parameters
         ----------
         var_info : Any
-            Variable info (dict with 'value' key, AidbVariable object, or raw value)
+            Variable info (dict with 'value'/'v' key, AidbVariable object, or raw value)
 
         Returns
         -------
@@ -31,9 +31,12 @@ class VariableStateVerifier:
         # Handle AidbVariable dataclass or any object with .value attribute
         if hasattr(var_info, "value"):
             return var_info.value
-        # Handle dict format
-        if isinstance(var_info, dict) and "value" in var_info:
-            return var_info["value"]
+        # Handle dict format (verbose 'value' or compact 'v')
+        if isinstance(var_info, dict):
+            if "value" in var_info:
+                return var_info["value"]
+            if "v" in var_info:
+                return var_info["v"]
         return var_info
 
     @staticmethod
@@ -121,7 +124,10 @@ class VariableStateVerifier:
 
         var_info = variables[name]
         actual_value = VariableStateVerifier._extract_value(var_info)
-        type_info = var_info.get("type") if isinstance(var_info, dict) else None
+        # Handle verbose 'type' or compact 't' key
+        type_info = None
+        if isinstance(var_info, dict):
+            type_info = var_info.get("type") or var_info.get("t")
 
         # Get expected type name
         if isinstance(expected_type, type):

@@ -2,7 +2,7 @@
 name: ci-cd-workflows
 description: Guide for GitHub Actions workflows, test orchestration, parallel testing,
   adapter builds, releases, and CI/CD configuration. Use when working with .github/workflows/,
-  versions.json, testing-config.yaml, or troubleshooting CI issues.
+  versions.json, or troubleshooting CI issues.
 version: 1.0.0
 tags:
   - ci-cd
@@ -206,15 +206,6 @@ For complete pipeline breakdown, CD_SKIP_PYPI details, and examples, see [Releas
 ### Adding Frameworks
 
 1. Create app in `src/tests/_assets/framework_apps/{lang}/{framework}/`
-1. Add to `.github/testing-config.yaml`:
-   ```yaml
-   frameworks:
-     - name: django
-       language: python
-       enabled: true
-       type: web
-       description: Django web framework debugging tests
-   ```
 1. Add deps to `src/tests/_docker/scripts/install-framework-deps.sh`
 1. Create test file in `src/tests/frameworks/{lang}/{framework}/e2e/`
 
@@ -270,7 +261,7 @@ Framework dependencies auto-managed via checksum services.
 
 ### Dynamic Matrix
 
-Frameworks use dynamic matrix from `testing-config.yaml`:
+Frameworks use dynamic matrix from `versions.json`:
 
 - Single source of truth
 - Easy enable/disable
@@ -326,7 +317,6 @@ See [architecture.md](resources/architecture.md) for job dependencies, condition
 ## Configuration Files
 
 - **versions.json** - Infrastructure, adapters, platforms (see `docs/developer-guide/ci-cd.md`)
-- **testing-config.yaml** - Framework test configuration
 
 **Secrets:** See `docs/developer-guide/ci-cd.md` for complete list.
 
@@ -378,7 +368,6 @@ Complete guides: `docs/developer-guide/ci-cd.md`
 - `.github/actions/` - Composite actions
 - `.github/scripts/` - CI/CD scripts
 - `versions.json` - Infrastructure & adapter versions
-- `.github/testing-config.yaml` - Framework config
 
 ## Quick Reference
 
@@ -408,7 +397,6 @@ act push -j build         # With event
 ### Key Files
 
 - `versions.json` - Single source of truth
-- `.github/testing-config.yaml` - Framework config
 - `.github/workflows/test-parallel.yaml` - Main orchestrator
 - `.github/workflows/load-versions.yaml` - Version loading
 - `.actrc` - Local CI config
