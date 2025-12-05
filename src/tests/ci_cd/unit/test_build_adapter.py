@@ -8,6 +8,8 @@ import pytest
 from _script_loader import load_script_module
 from _test_helpers import create_mock_versions_config, mock_script_environment
 
+from aidb_common.constants import SUPPORTED_LANGUAGES
+
 
 @pytest.fixture
 def build_adapter_module():
@@ -325,7 +327,7 @@ class TestCommandLineArguments:
     def test_list_flag_shows_available_adapters(self, build_adapter_module, capsys):
         """Verify --list flag shows available adapters."""
         config = create_mock_versions_config()
-        mock_builders = {"javascript": Mock(), "java": Mock(), "python": Mock()}
+        mock_builders = {lang: Mock() for lang in SUPPORTED_LANGUAGES}
 
         with patch.dict(
             build_adapter_module.__dict__,

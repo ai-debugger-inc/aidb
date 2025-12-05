@@ -11,6 +11,7 @@ import logging
 import os
 from pathlib import Path
 
+from aidb_common.constants import SUPPORTED_LANGUAGES
 from aidb_common.env.reader import (
     read_bool,
     read_float,
@@ -724,7 +725,7 @@ class ConfigManager(Singleton["ConfigManager"]):
             "adapter_overrides": {},
         }
 
-        for adapter in ["python", "java", "javascript"]:
+        for adapter in SUPPORTED_LANGUAGES:
             env_var = self.ADAPTER_PATH_TEMPLATE.format(adapter.upper())
             value = os.environ.get(env_var)
             if value:
@@ -766,7 +767,7 @@ class ConfigManager(Singleton["ConfigManager"]):
     def validate_settings(self) -> list[str]:
         """Validate configuration settings and return warning messages."""
         warnings: list[str] = []
-        for adapter in ["python", "java", "javascript"]:
+        for adapter in SUPPORTED_LANGUAGES:
             override = self.get_binary_override(adapter)
             if override and not override.exists():
                 warnings.append(

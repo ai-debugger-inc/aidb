@@ -17,6 +17,7 @@ from aidb_cli.services.docker import (
     ServiceDependencyService,
 )
 from aidb_common.config import VersionManager
+from aidb_common.constants import SUPPORTED_LANGUAGES
 from aidb_logging import get_cli_logger
 
 if TYPE_CHECKING:
@@ -308,7 +309,7 @@ class DockerOrchestrator(BaseOrchestrator):
         dep_service = self.get_service(ServiceDependencyService)
 
         # Handle language-specific framework tests dynamically
-        if test_suite in ("python", "javascript", "java"):
+        if test_suite in SUPPORTED_LANGUAGES:
             # Get services in this profile and filter for test-runner pattern
             profile_services = dep_service.get_services_by_profile(test_suite)
             services_to_start.extend(

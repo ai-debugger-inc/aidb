@@ -1,12 +1,12 @@
 """Tests for adapter management commands."""
 
-from pathlib import Path
 from unittest.mock import ANY, Mock, PropertyMock, patch
 
 import pytest
 from click.testing import CliRunner
 
 from aidb_cli.cli import cli
+from aidb_common.constants import SUPPORTED_LANGUAGES
 
 
 class TestAdapterCommands:
@@ -78,7 +78,7 @@ class TestAdapterCommands:
         )
         assert result.exit_code == 0
         mock_adapter_service.build_locally.assert_called_once_with(
-            languages=["javascript", "java", "python"],
+            languages=SUPPORTED_LANGUAGES,
             verbose=False,
             resolved_env=ANY,
         )

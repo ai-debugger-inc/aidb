@@ -8,6 +8,7 @@ import pytest
 
 from aidb.common.errors import AidbError
 from aidb_cli.managers.test.test_manager import TestManager
+from aidb_common.constants import SUPPORTED_LANGUAGES
 
 
 class TestTestManager:
@@ -26,7 +27,7 @@ class TestTestManager:
     def mock_build_manager(self):
         """Create a mock BuildManager."""
         manager = Mock()
-        manager.get_supported_languages.return_value = ["python", "javascript", "java"]
+        manager.get_supported_languages.return_value = SUPPORTED_LANGUAGES
         manager.find_adapter_source.return_value = Path("/fake/adapter")
         manager.check_adapters_built.return_value = (
             ["python", "javascript"],
@@ -549,7 +550,4 @@ class TestTestManager:
             result = manager.get_test_status()
 
             assert "adapters_built" in result
-            assert all(
-                lang in result["adapters_built"]
-                for lang in ["python", "javascript", "java"]
-            )
+            assert all(lang in result["adapters_built"] for lang in SUPPORTED_LANGUAGES)

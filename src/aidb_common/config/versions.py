@@ -10,6 +10,7 @@ import json
 import logging
 from typing import TYPE_CHECKING, Any
 
+from aidb_common.constants import SUPPORTED_LANGUAGES
 from aidb_common.io.files import FileOperationError
 from aidb_common.repo import detect_repo_root
 
@@ -236,7 +237,7 @@ class VersionManager:
             "runtimes": {},
         }
 
-        for lang in ["javascript", "java", "python"]:
+        for lang in SUPPORTED_LANGUAGES:
             version = self.get_adapter_version(lang)
             if version:
                 result["adapters"][lang] = version

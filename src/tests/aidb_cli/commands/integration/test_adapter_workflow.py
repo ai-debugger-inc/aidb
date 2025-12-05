@@ -13,6 +13,7 @@ import pytest
 from click.testing import CliRunner
 
 from aidb_cli.cli import cli
+from aidb_common.constants import SUPPORTED_LANGUAGES
 
 
 def _get_repo_root() -> Path:
@@ -58,7 +59,7 @@ class TestAdapterListingAndStatus:
 
         # Should mention supported languages
         output_lower = result.output.lower()
-        expected_languages = ["python", "javascript", "java"]
+        expected_languages = SUPPORTED_LANGUAGES
         languages_found = sum(1 for lang in expected_languages if lang in output_lower)
         assert languages_found >= 1, (
             f"Expected to find at least one language in output: {result.output}"
