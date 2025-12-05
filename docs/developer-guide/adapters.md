@@ -87,6 +87,18 @@ class <Language>Adapter(DebugAdapter):
         """
         # Return a string pattern to match adapter processes
         pass
+
+    def _create_target_resolver(self) -> TargetResolver:
+        """Create language-specific target resolver.
+
+        Handles detection of target type (file vs module vs class) and
+        normalization (e.g., "-m pytest" -> "pytest" with module flag).
+
+        Example from PythonAdapter._create_target_resolver():
+            return PythonTargetResolver(adapter=self, ctx=self.ctx)
+        """
+        # Return a TargetResolver subclass instance
+        pass
 ```
 
 **Optional methods to override:**

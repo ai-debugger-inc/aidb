@@ -9,9 +9,11 @@ from aidb_common.env import reader
 
 from ...base import DebugAdapter
 from ...base.hooks import LifecycleHook
+from ...base.target_resolver import TargetResolver
 from .compilation import JavaCompilationManager
 from .config import JavaAdapterConfig
 from .lsp import JavaLSPDAPBridge
+from .target_resolver import JavaTargetResolver
 from .tooling import JavaClasspathBuilder, JavaToolchain
 
 if TYPE_CHECKING:
@@ -203,6 +205,16 @@ class JavaAdapter(DebugAdapter):
 
         # Register Java-specific hooks
         self._register_java_hooks()
+
+    def _create_target_resolver(self) -> TargetResolver:
+        """Create Java-specific target resolver.
+
+        Returns
+        -------
+        TargetResolver
+            JavaTargetResolver instance for .java/.class/.jar detection
+        """
+        return JavaTargetResolver(adapter=self, ctx=self.ctx)
 
     def _build_classpath(self, target: str) -> list[str]:
         """Build classpath for the debug session.

@@ -22,6 +22,7 @@ DebugAdapter (base class)
 ├── ProcessManager     - Process lifecycle (launch, monitor, stop, cleanup)
 ├── PortManager        - Port acquisition, verification, release
 ├── LaunchOrchestrator - Launch sequence coordination
+├── TargetResolver     - Target type detection and normalization
 └── AdapterHooksMixin  - Lifecycle hooks for extension points
 ```
 
@@ -99,6 +100,10 @@ class MyLanguageAdapter(DebugAdapter):
         """Add language-specific environment variables."""
         env["MY_LANG_DEBUG"] = "1"
         return env
+
+    def _create_target_resolver(self) -> "TargetResolver":
+        """Create language-specific target resolver."""
+        return MyLanguageTargetResolver(adapter=self, ctx=self.ctx)
 
     def _get_process_name_pattern(self) -> str:
         """Get process name pattern for cleanup."""

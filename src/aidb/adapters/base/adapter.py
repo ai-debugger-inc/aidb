@@ -24,6 +24,7 @@ from .components.process_manager import ProcessManager
 from .config import AdapterConfig
 from .hooks import AdapterHooksMixin, HookContext, LifecycleHook
 from .launch import BaseLaunchConfig
+from .target_resolver import TargetResolver
 from .vslaunch import resolve_launch_configuration
 
 if TYPE_CHECKING:
@@ -91,6 +92,7 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
     _process_manager: "IProcessManager"
     _port_manager: "IPortManager"
     _launch_orchestrator: "ILaunchOrchestrator"
+    _target_resolver: TargetResolver
 
     # ----------------------
     # Public API / Lifecycle
@@ -160,6 +162,9 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
             port_manager=self._port_manager,
             ctx=self.ctx,
         )
+
+        # Target resolver - language-specific target normalization
+        self._target_resolver = self._create_target_resolver()
 
         self._trace_manager: AdapterTraceLogManager | None = None
         self._output_capture: AdapterOutputCapture | None = None
@@ -452,6 +457,11 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
                     workspace_root,
                 )
 
+        # Resolve target FIRST, before any hooks or DAP operations
+        # This handles module detection, -m syntax, etc.
+        resolved = self._target_resolver.resolve(target)
+        target = resolved.target
+
         # Proceed with regular launch
         context = await self.execute_hook(
             LifecycleHook.PRE_LAUNCH,
@@ -461,6 +471,7 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
                 "args": args,
                 "env": env or {},
                 "cwd": cwd,
+                "resolved_target": resolved,  # Pass resolution info to hooks
             },
         )
 
@@ -468,6 +479,9 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
             # Use the result message if available, otherwise generic message
             error_msg = context.result if context.result else "Launch cancelled by hook"
             raise RuntimeError(error_msg)
+
+        # Hooks may further modify target
+        target = context.data.get("target", target)
 
         proc, port = await self._launch_orchestrator.launch(target, port, args)
 
@@ -711,6 +725,22 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
     # ----------------------
 
     @abstractmethod
+    def _create_target_resolver(self) -> TargetResolver:
+        """Create language-specific target resolver.
+
+        Each adapter MUST implement this to provide language-specific
+        target resolution (file vs module vs class detection).
+
+        Target resolution happens at the start of launch(), before any
+        hooks or DAP operations.
+
+        Returns
+        -------
+        TargetResolver
+            Language-specific target resolver instance
+        """
+
+    @abstractmethod
     async def _build_launch_command(
         self,
         target: str,
@@ -894,7 +924,7 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
         if not target:
             return
 
-        # Determine if target is a file path or identifier using same heuristic as Session
+        # Determine if target is a file path or identifier (same heuristic as Session)
         from aidb.session.adapter_registry import get_all_cached_file_extensions
 
         known_extensions = get_all_cached_file_extensions()
@@ -908,7 +938,7 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
         if not is_file_path:
             # Target is an identifier (class name, module, etc.) - skip file validation
             self.ctx.debug(
-                f"Target '{target}' identified as identifier - skipping file validation",
+                f"Target '{target}' is identifier - skipping file validation",
             )
             return
 

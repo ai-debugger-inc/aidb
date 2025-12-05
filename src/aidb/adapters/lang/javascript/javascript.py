@@ -17,7 +17,9 @@ from aidb_common.path import normalize_path
 from ...base import DebugAdapter
 from ...base.config_mapper import ConfigurationMapper
 from ...base.hooks import HookContext, LifecycleHook
+from ...base.target_resolver import TargetResolver
 from .config import JavaScriptAdapterConfig
+from .target_resolver import JavaScriptTargetResolver
 
 if TYPE_CHECKING:
     from aidb.interfaces import ISession
@@ -175,6 +177,16 @@ class JavaScriptAdapter(DebugAdapter):
 
         # Register JavaScript-specific hooks
         self._register_javascript_hooks()
+
+    def _create_target_resolver(self) -> TargetResolver:
+        """Create JavaScript-specific target resolver.
+
+        Returns
+        -------
+        TargetResolver
+            JavaScriptTargetResolver instance for file type detection
+        """
+        return JavaScriptTargetResolver(adapter=self, ctx=self.ctx)
 
     async def attach(self, pid: int, session_id: str) -> None:
         """Attach to a running Node.js process.

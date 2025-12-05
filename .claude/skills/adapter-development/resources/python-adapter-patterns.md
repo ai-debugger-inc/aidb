@@ -16,10 +16,11 @@ The Python adapter (`PythonAdapter`) uses **debugpy** as the DAP server. Debugpy
 
 ```
 PythonAdapter (extends DebugAdapter)
-├── ProcessManager      - Launch debugpy subprocess
-├── PortManager         - Acquire debug port
-├── LaunchOrchestrator  - Coordinate launch sequence
-└── PythonTraceManager  - Manage debugpy log files
+├── ProcessManager         - Launch debugpy subprocess
+├── PortManager            - Acquire debug port
+├── LaunchOrchestrator     - Coordinate launch sequence
+├── PythonTargetResolver   - Detect file vs module targets
+└── PythonTraceManager     - Manage debugpy log files
 ```
 
 ## Key Configuration Options
@@ -45,14 +46,27 @@ class PythonAdapterConfig(AdapterConfig):
 
 ## Module vs Script Debugging
 
-Python supports two launch modes via the `module` flag:
+Python supports two launch modes via the `module` flag. The `PythonTargetResolver` automatically detects the correct mode based on the target:
+
+### Automatic Detection via TargetResolver
+
+```python
+# File paths → Script mode (module=False)
+target = "script.py"           # → FILE, module=False
+target = "/path/to/script.py"  # → FILE, module=False
+
+# Module names → Module mode (module=True, set automatically)
+target = "pytest"              # → MODULE, module=True
+target = "-m pytest"           # → MODULE (extracts "pytest"), module=True
+target = "http.server"         # → MODULE (dotted name), module=True
+```
 
 ### Script Mode (module=False)
 
 ```python
 adapter = PythonAdapter(
     session=session,
-    module=False  # Default
+    module=False  # Default, or auto-detected from file path
 )
 # Launches: python -m debugpy --listen 5678 script.py
 ```
@@ -62,7 +76,7 @@ adapter = PythonAdapter(
 ```python
 adapter = PythonAdapter(
     session=session,
-    module=True
+    module=True  # Can be set explicitly or auto-detected
 )
 # Launches: python -m debugpy --listen 5678 -m pytest tests/
 ```
@@ -117,25 +131,14 @@ def _add_adapter_specific_vars(self, env: dict) -> dict:
     return env
 ```
 
-## Target Validation Hook
+## Target Resolution
 
-Python adapter overrides target validation to support modules:
+Target type detection is handled by `PythonTargetResolver` (runs in `adapter.launch()` before hooks):
 
-```python
-def _validate_target_hook(self, context: HookContext) -> None:
-    """Override target validation to handle Python modules."""
-    target = context.data.get("target")
-    if not target:
-        return
+- **File paths**: Detected by extension (`.py`) or path separators → `TargetType.FILE`
+- **Module names**: Bare identifiers or `-m module` syntax → `TargetType.MODULE`, sets `adapter.module=True`
 
-    # If module mode, skip file validation
-    if self.module:
-        self.ctx.debug(f"Module mode: skipping file validation for '{target}'")
-        return
-
-    # For file mode, use base validation
-    super()._validate_target_hook(context)
-```
+**File**: `src/aidb/adapters/lang/python/target_resolver.py`
 
 ## Lifecycle Hooks Registration
 
@@ -149,10 +152,10 @@ def _register_python_hooks(self) -> None:
         priority=90  # Very high priority
     )
 
-    # Pre-launch: Validate Python target
+    # Pre-launch: Extract environment/cwd from target
     self.register_hook(
         LifecycleHook.PRE_LAUNCH,
-        self._validate_python_target,
+        self._extract_launch_context,
         priority=80
     )
 
@@ -369,12 +372,13 @@ Example launch.json for Python:
 
 ### Python-Specific
 
+- `PythonTargetResolver` - `src/aidb/adapters/lang/python/target_resolver.py`
 - `PythonTraceManager` - `src/aidb/adapters/lang/python/trace.py`
 - `PythonSyntaxValidator` - `src/aidb/adapters/lang/python/syntax_validator.py`
 
 ## Common Pitfalls
 
-1. **Forgetting module flag** - Use `module=True` for pytest, unittest, etc.
+1. **Module detection edge cases** - TargetResolver auto-detects modules, but explicit `module=True` can be used for disambiguation
 1. **Wrong Python path** - Verify virtual environment activation
 1. **Missing wait-for-client** - Debugpy requires `--wait-for-client` flag
 1. **Log consolidation** - Always register POST_STOP hook for log cleanup

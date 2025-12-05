@@ -7,6 +7,7 @@ detection, and breakpoint parsing.
 from __future__ import annotations
 
 import uuid
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from aidb_common.path import normalize_path
@@ -47,7 +48,19 @@ def _validate_and_detect_mode(
         mode = LaunchMode.LAUNCH
         # Skip path normalization for module mode - target is a module name
         if not module:
-            target = normalize_path(target, strict=True, return_path=False)
+            # Use same heuristic as SyntaxValidator to detect file vs identifier
+            # Identifiers (module names, class names) pass through unchanged
+            from aidb.session.adapter_registry import get_all_cached_file_extensions
+
+            known_extensions = get_all_cached_file_extensions()
+            suffix_lower = Path(target).suffix.lower()
+            has_known_extension = suffix_lower in known_extensions
+            has_path_separator = ("/" in target) or ("\\" in target)
+            is_file_path = has_known_extension or has_path_separator
+
+            if is_file_path:
+                target = normalize_path(target, strict=True, return_path=False)
+            # else: pass target through as-is (module/class identifier)
         return mode, target, None, None, None
     if pid:
         return LaunchMode.ATTACH, None, pid, None, None
