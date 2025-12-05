@@ -6,4 +6,4 @@ location for shared functionality without creating coupling between unrelated
 packages.
 """
 
-__version__ = "0.0.7"
+__version__ = "0.0.8"

@@ -148,8 +148,8 @@ class MCPConfig:
     performance: PerformanceConfig
 
     # Server configuration
-    server_name: str = "aidb-debug-v2"
-    server_version: str = "0.0.7"
+    server_name: str = "ai-debugger"
+    server_version: str = "0.0.8"
 
     @classmethod
     def from_env(cls) -> MCPConfig:
