@@ -555,9 +555,9 @@ MCP clients add prefixes to prevent naming conflicts between different MCP serve
 **Claude Code**:
 
 ```
-mcp__aidb-debug__init
-mcp__aidb-debug__session_start
-mcp__aidb-debug__execute
+mcp__ai-debugger__init
+mcp__ai-debugger__session_start
+mcp__ai-debugger__execute
 ...
 ```
 
@@ -566,8 +566,8 @@ mcp__aidb-debug__execute
 **Other Clients** (Cline, Cursor, Windsurf, etc.) may use different prefixing schemes:
 
 ```
-aidb-debug:init
-aidb_debug__init
+ai-debugger:init
+ai_debugger__init
 ...
 ```
 
@@ -577,7 +577,7 @@ aidb_debug__init
 
 1. **Client Adds Prefix**: When you use a tool, your client adds its prefix automatically
 
-1. **Examples Are Portable**: Examples showing `session_start(...)` work across all clients, even though the actual invocation might be `mcp__aidb-debug__session_start(...)`
+1. **Examples Are Portable**: Examples showing `session_start(...)` work across all clients, even though the actual invocation might be `mcp__ai-debugger__session_start(...)`
 
 1. **No Need to Memorize Prefixes**: Focus on learning the canonical tool names. Your client handles the prefix.
 
@@ -587,7 +587,7 @@ Most MCP clients display available tools in their interface:
 
 **Claude Code**:
 
-- Tools appear with `mcp__aidb-debug__` prefix
+- Tools appear with `mcp__ai-debugger__` prefix
 - Auto-completion shows full names
 
 **VS Code (Cline)**:
@@ -616,10 +616,10 @@ Throughout all AI Debugger documentation:
 init(language="python")
 
 # Claude Code invokes:
-mcp__aidb-debug__init(language="python")
+mcp__ai-debugger__init(language="python")
 
 # Another client might invoke:
-aidb-debug:init(language="python")
+ai-debugger:init(language="python")
 
 # But you write the same code in both cases
 ```

@@ -10,7 +10,7 @@ Claude Code has built-in MCP support.
 ```json
 {
   "mcpServers": {
-    "aidb-debug": {
+    "ai-debugger": {
       "command": "python",
       "args": ["-m", "aidb_mcp"]
     }
@@ -27,7 +27,7 @@ Add to `~/.config/claude/claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "aidb-debug": {
+    "ai-debugger": {
       "command": "python",
       "args": ["-m", "aidb_mcp"]
     }

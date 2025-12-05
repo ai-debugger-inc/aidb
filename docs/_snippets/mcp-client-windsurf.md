@@ -4,7 +4,7 @@ Add to your Windsurf MCP settings:
 {
   "mcp": {
     "servers": {
-      "aidb-debug": {
+      "ai-debugger": {
         "command": "python",
         "args": ["-m", "aidb_mcp"]
       }

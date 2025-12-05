@@ -181,7 +181,7 @@ class TestMCPCommands:
             "projects": {
                 str(mock_repo_root): {
                     "mcpServers": {
-                        "aidb-debug": {
+                        "ai-debugger": {
                             "command": "python",
                             "args": ["-m", "aidb_mcp"],
                         },
@@ -203,4 +203,4 @@ class TestMCPCommands:
 
                 assert result.exit_code == 0
                 assert "Registration Status:" in result.output
-                assert "aidb-debug" in result.output
+                assert "ai-debugger" in result.output

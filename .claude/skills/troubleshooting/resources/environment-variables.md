@@ -211,7 +211,7 @@ Default timeout for MCP operations (seconds).
 
 MCP server name.
 
-**Default:** `aidb-debug`
+**Default:** `ai-debugger`
 
 ### AIDB_MCP_EVENT_MONITORING
 

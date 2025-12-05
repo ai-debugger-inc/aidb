@@ -471,8 +471,8 @@ class ConfigManager(Singleton["ConfigManager"]):
     # ========== MCP Server Configuration Methods ==========
 
     def get_mcp_server_name(self) -> str:
-        """Get MCP server name (default: aidb-debug-v2)."""
-        return read_str(self.AIDB_MCP_SERVER_NAME, "aidb-debug-v2")
+        """Get MCP server name (default: ai-debugger)."""
+        return read_str(self.AIDB_MCP_SERVER_NAME, "ai-debugger")
 
     def get_mcp_server_version(self) -> str:
         """Get MCP server version (default: 0.1.0)."""

@@ -6,7 +6,7 @@
 ```json
 {
   "cline.mcpServers": {
-    "aidb-debug": {
+    "ai-debugger": {
       "command": "python",
       "args": ["-m", "aidb_mcp"]
     }

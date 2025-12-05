@@ -138,7 +138,7 @@ class PreCommitHooks:
 class ProjectNames:
     """Project and service names used in AIDB CLI."""
 
-    MCP_SERVER = "aidb-debug"
+    MCP_SERVER = "ai-debugger"
     TEST_PROJECT = "aidb-test"
 
 

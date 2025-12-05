@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "aidb-debug": {
+    "ai-debugger": {
       "command": "$CLAUDE_PROJECT_DIR/venv/bin/python",
       "args": ["-m", "aidb_mcp.cli"],
       "env": {
