@@ -26,6 +26,14 @@ class AdapterDiscoveryService(BaseService):
     - Getting adapter information
     """
 
+    # Binary files that indicate a built adapter (matches Docker healthcheck paths)
+    # See: src/tests/_docker/docker-compose.base.yaml healthcheck
+    ADAPTER_BINARY_FILES: dict[str, str] = {
+        "python": "debugpy/__init__.py",
+        "javascript": "src/dapDebugServer.js",
+        "java": "java-debug.jar",
+    }
+
     def __init__(
         self,
         repo_root: Path,
@@ -221,6 +229,54 @@ class AdapterDiscoveryService(BaseService):
                 CliOutput.warning(
                     f"{Icons.WARNING} Missing adapters: {', '.join(missing)}",
                 )
+
+        return built, missing
+
+    def check_adapters_in_cache(
+        self,
+        languages: list[str] | None = None,
+        verbose: bool = False,
+    ) -> tuple[list[str], list[str]]:
+        """Check for built adapters in repo cache (.cache/adapters/).
+
+        Unlike check_adapters_built(), this does NOT fall back to source paths.
+        Use for Docker suites that mount .cache/adapters/ into containers.
+
+        Parameters
+        ----------
+        languages : list[str] | None, optional
+            Specific languages to check, or None for all
+        verbose : bool, optional
+            Whether to show verbose output
+
+        Returns
+        -------
+        tuple[list[str], list[str]]
+            Tuple of (built_adapters, missing_adapters)
+        """
+        if languages is None:
+            languages = self.get_supported_languages()
+
+        if not self._cache_dir:
+            return [], list(languages)
+
+        built = []
+        missing = []
+
+        for lang in languages:
+            cache_path = self._cache_dir / lang
+            binary_file = self.ADAPTER_BINARY_FILES.get(lang)
+
+            if binary_file and (cache_path / binary_file).exists():
+                built.append(lang)
+            else:
+                missing.append(lang)
+
+        if verbose:
+            if built:
+                CliOutput.success(f"Adapters in cache: {', '.join(built)}")
+            if missing:
+                CliOutput.warning(f"Missing from cache: {', '.join(missing)}")
 
         return built, missing
 

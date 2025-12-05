@@ -176,14 +176,27 @@ class TestOrchestrator(TestManager):
             return False
 
         if metadata.adapters_required:
-            # Resolve "all" to None (checks all languages in check_adapters_built)
+            # Resolve "all" to None (checks all languages in check_adapters_* methods)
             langs_to_check = None
             if languages and languages != ["all"]:
                 langs_to_check = languages
 
-            built_adapters, missing_adapters = self.build_manager.check_adapters_built(
-                languages=langs_to_check,
-            )
+            # For Docker suites, check cache only (no source fallback).
+            # Docker mounts .cache/adapters/ into containers.
+            if metadata.requires_docker:
+                built_adapters, missing_adapters = (
+                    self.build_manager.check_adapters_in_cache(
+                        languages=langs_to_check,
+                    )
+                )
+            else:
+                # Local suites can use installed adapters from ~/.aidb/adapters/
+                built_adapters, missing_adapters = (
+                    self.build_manager.check_adapters_built(
+                        languages=langs_to_check,
+                    )
+                )
+
             if missing_adapters:
                 adapter_list = ", ".join(missing_adapters)
                 CliOutput.error(

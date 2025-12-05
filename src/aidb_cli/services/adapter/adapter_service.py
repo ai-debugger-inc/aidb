@@ -98,6 +98,18 @@ class AdapterService(BaseService):
         """Check which adapters are built and which need building."""
         return self.discovery.check_adapters_built(languages, verbose)
 
+    def check_adapters_in_cache(
+        self,
+        languages: list[str] | None = None,
+        verbose: bool = False,
+    ) -> tuple[list[str], list[str]]:
+        """Check for built adapters in repo cache (.cache/adapters/).
+
+        Unlike check_adapters_built(), this does NOT fall back to source paths. Use for
+        Docker suites that mount .cache/adapters/ into containers.
+        """
+        return self.discovery.check_adapters_in_cache(languages, verbose)
+
     def get_adapter_info(self, language: str) -> dict[str, str]:
         """Get information about a specific adapter."""
         return self.discovery.get_adapter_info(language)

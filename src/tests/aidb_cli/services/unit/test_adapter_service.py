@@ -11,6 +11,7 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 
 from aidb_cli.services.adapter.adapter_service import AdapterService
+from aidb_common.constants import SUPPORTED_LANGUAGES
 
 
 class TestAdapterServiceFacade:
@@ -79,16 +80,12 @@ class TestAdapterServiceFacade:
     ):
         """Test get_supported_languages delegates to discovery service."""
         mock_discovery = Mock()
-        mock_discovery.get_supported_languages.return_value = [
-            "python",
-            "javascript",
-            "java",
-        ]
+        mock_discovery.get_supported_languages.return_value = SUPPORTED_LANGUAGES
         mock_discovery_class.return_value = mock_discovery
 
         languages = service.get_supported_languages()
 
-        assert languages == ["python", "javascript", "java"]
+        assert languages == SUPPORTED_LANGUAGES
         mock_discovery.get_supported_languages.assert_called_once()
 
     @patch("aidb_cli.services.adapter.adapter_service.AdapterDiscoveryService")
@@ -147,6 +144,29 @@ class TestAdapterServiceFacade:
         assert built == ["python"]
         assert missing == ["java"]
         mock_discovery.check_adapters_built.assert_called_once_with(
+            ["python", "java"],
+            True,
+        )
+
+    @patch("aidb_cli.services.adapter.adapter_service.AdapterDiscoveryService")
+    def test_check_adapters_in_cache_delegates(
+        self,
+        mock_discovery_class,
+        service,
+    ):
+        """Test check_adapters_in_cache delegates to discovery service."""
+        mock_discovery = Mock()
+        mock_discovery.check_adapters_in_cache.return_value = (["python"], ["java"])
+        mock_discovery_class.return_value = mock_discovery
+
+        built, missing = service.check_adapters_in_cache(
+            ["python", "java"],
+            verbose=True,
+        )
+
+        assert built == ["python"]
+        assert missing == ["java"]
+        mock_discovery.check_adapters_in_cache.assert_called_once_with(
             ["python", "java"],
             True,
         )
