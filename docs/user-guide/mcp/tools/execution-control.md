@@ -66,9 +66,17 @@ Every execution operation returns detailed state information:
   "code_snapshot": {
     "formatted": "  41   def calculate_tax(amount):\n  42 >     result = calculate_tax(amount)\n  43       return result"
   },
-  "location": "src/app.py:42"
+  "location": "src/app.py:42",
+  "output": [
+    {"category": "stdout", "output": "Processing started"},
+    {"category": "console", "output": "User ID: 123, Amount: 500.00"}
+  ]
 }
 ```
+
+The `output` field captures program output collected during execution, including:
+- **stdout/stderr**: Regular program output
+- **console**: Logpoint messages (breakpoints with `log_message` parameter)
 
 ### Examples
 
