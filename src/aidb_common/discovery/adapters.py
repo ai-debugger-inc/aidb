@@ -298,7 +298,21 @@ def get_hit_condition_examples(language: str) -> list[str]:
 
 
 def get_adapter_capabilities(language: str) -> dict:
-    """Get comprehensive capability information for a language adapter."""
+    """Get comprehensive capability information for a language adapter.
+
+    Uses static capabilities from the adapter config (extracted from upstream
+    adapter source code). This is instant with no runtime overhead.
+
+    Parameters
+    ----------
+    language : str
+        The language to get capabilities for
+
+    Returns
+    -------
+    dict
+        Capability information including support flags and hit condition modes
+    """
     logger.debug(
         "Getting adapter capabilities %s",
         language,
@@ -309,6 +323,7 @@ def get_adapter_capabilities(language: str) -> dict:
 
         registry = AdapterRegistry()
         config = registry.get_adapter_config(language.lower())
+
         if not config:
             logger.warning(
                 "No adapter config found for language",
@@ -316,33 +331,24 @@ def get_adapter_capabilities(language: str) -> dict:
             )
             return {"supported": False, "language": language}
 
+        # Get capabilities from static config
+        caps = config.capabilities
         supported_hit_conditions = list(get_supported_hit_conditions(language))
         file_extensions = list(getattr(config, "file_extensions", []))
+
         capabilities = {
             "supported": True,
             "language": language,
-            "supports_conditional_breakpoints": getattr(
-                config,
-                "supports_conditional_breakpoints",
-                False,
-            ),
-            "supports_logpoints": getattr(config, "supports_logpoints", False),
-            "supports_data_breakpoints": getattr(
-                config,
-                "supports_data_breakpoints",
-                False,
-            ),
-            "supports_function_breakpoints": getattr(
-                config,
-                "supports_function_breakpoints",
-                False,
-            ),
+            "supports_conditional_breakpoints": caps.conditional_breakpoints,
+            "supports_logpoints": caps.logpoints,
+            "supports_data_breakpoints": caps.data_breakpoints,
+            "supports_function_breakpoints": caps.function_breakpoints,
             "supported_hit_conditions": supported_hit_conditions,
             "hit_condition_examples": get_hit_condition_examples(language),
             "file_extensions": file_extensions,
         }
         logger.info(
-            "Retrieved adapter capabilities",
+            "Retrieved adapter capabilities from config",
             extra={
                 "language": language,
                 "supports_conditional": capabilities[
@@ -358,6 +364,7 @@ def get_adapter_capabilities(language: str) -> dict:
             },
         )
         return capabilities
+
     except Exception as e:
         logger.exception(
             "Failed to get adapter capabilities",
