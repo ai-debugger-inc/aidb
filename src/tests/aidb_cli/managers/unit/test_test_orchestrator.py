@@ -174,7 +174,8 @@ class TestTestOrchestrator:
         mock_output,
         orchestrator,
     ):
-        """Test Docker suite uses check_adapters_in_cache instead of check_adapters_built."""
+        """Test Docker suite uses check_adapters_in_cache instead of
+        check_adapters_built."""
         mock_metadata = Mock()
         mock_metadata.requires_docker = True
         mock_metadata.adapters_required = True

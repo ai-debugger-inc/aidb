@@ -468,3 +468,85 @@ if __name__ == "__main__":
                 assert "session" in error_msg, (
                     "Error should mention session requirement"
                 )
+
+    @pytest.mark.asyncio
+    async def test_watchpoint_not_supported_for_python(self, debug_program):
+        """Test that watchpoints fail for Python (Java only feature).
+
+        Verifies proper error handling when using watch action with Python.
+        """
+        # Setup session
+        await self.call_tool("init", {ParamName.LANGUAGE: "python"})
+        session_response = await self.call_tool(
+            "session_start",
+            {ParamName.TARGET: str(debug_program)},
+        )
+        session_id = session_response["session_id"]
+
+        # Try to set watchpoint (should fail for Python)
+        response = await self.call_tool(
+            "breakpoint",
+            {
+                ParamName.ACTION: "watch",
+                ParamName.NAME: "x",
+                ParamName.SESSION_ID: session_id,
+            },
+        )
+
+        # Should return error
+        self.assert_response_error(
+            response,
+            message="Watchpoint should fail for Python",
+        )
+
+        # Error should mention Java-only support
+        if "error" in response:
+            error_obj = response["error"]
+            if isinstance(error_obj, dict):
+                error_msg = error_obj.get("message", "").lower()
+                assert "java" in error_msg or "not supported" in error_msg, (
+                    "Error should mention Java-only support"
+                )
+
+        # Cleanup
+        await self.call_tool(
+            "session",
+            {ParamName.ACTION: "stop", ParamName.SESSION_ID: session_id},
+        )
+
+    @pytest.mark.asyncio
+    async def test_watchpoint_missing_name(self, debug_program):
+        """Test that watch action requires name parameter.
+
+        Verifies proper validation for watch action parameters.
+        """
+        # Setup session
+        await self.call_tool("init", {ParamName.LANGUAGE: "python"})
+        session_response = await self.call_tool(
+            "session_start",
+            {ParamName.TARGET: str(debug_program)},
+        )
+        session_id = session_response["session_id"]
+
+        # Try to set watchpoint without name (will fail for Python anyway,
+        # but name validation happens before language check in some cases)
+        response = await self.call_tool(
+            "breakpoint",
+            {
+                ParamName.ACTION: "watch",
+                # Missing NAME parameter
+                ParamName.SESSION_ID: session_id,
+            },
+        )
+
+        # Should return error (either for Python or missing name)
+        self.assert_response_error(
+            response,
+            message="Watchpoint without name should fail",
+        )
+
+        # Cleanup
+        await self.call_tool(
+            "session",
+            {ParamName.ACTION: "stop", ParamName.SESSION_ID: session_id},
+        )

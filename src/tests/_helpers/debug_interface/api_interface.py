@@ -315,6 +315,10 @@ class APIInterface(DebugInterface):
     ) -> dict[str, Any]:
         """Set a breakpoint via the API.
 
+        DAP's setBreakpoints replaces ALL breakpoints for a file, so this method
+        gathers existing breakpoints for the file and includes them when setting
+        a new one to preserve them.
+
         Parameters
         ----------
         file : Union[str, Path]
@@ -338,39 +342,60 @@ class APIInterface(DebugInterface):
         # Import DAP types
         from aidb.dap.protocol.types import Source, SourceBreakpoint
 
-        # Create DAP Source and SourceBreakpoint objects
-        source = Source(path=str(file))
-        source_bp = SourceBreakpoint(
+        file_str = str(file)
+        source = Source(path=file_str)
+
+        # Gather existing breakpoints for this file to preserve them
+        # DAP setBreakpoints replaces ALL breakpoints for a source file
+        existing_bps: list[SourceBreakpoint] = []
+        for bp_data in self._breakpoints.values():
+            if bp_data.get("file") == file_str and bp_data.get("line") != line:
+                existing_bps.append(
+                    SourceBreakpoint(
+                        line=bp_data["line"],
+                        condition=bp_data.get("condition"),
+                        hitCondition=bp_data.get("hit_condition"),
+                        logMessage=bp_data.get("log_message"),
+                    )
+                )
+
+        # Add the new breakpoint
+        new_bp = SourceBreakpoint(
             line=line,
             condition=condition,
             hitCondition=hit_condition,
             logMessage=log_message,
         )
+        all_bps = existing_bps + [new_bp]
 
         assert self.session is not None
-        result = await self.session.debug.set_breakpoints(source, [source_bp])
+        result = await self.session.debug.set_breakpoints(source, all_bps)
 
-        # Extract first breakpoint from response
-        # Note: result.breakpoints is dict[int, AidbBreakpoint], not list
-        if result.breakpoints:
-            bp = next(iter(result.breakpoints.values()))
-            bp_id = str(bp.id) if bp.id is not None else f"{file}:{line}"
-            self._breakpoints[bp_id] = {
+        # Update tracking dict with all breakpoints from response
+        new_bp_data = None
+        for bp in result.breakpoints.values():
+            bp_id = str(bp.id) if bp.id is not None else f"{file_str}:{bp.line}"
+            bp_data = {
                 "id": bp_id,
-                "file": str(file),
-                "line": bp.line or line,
+                "file": file_str,
+                "line": bp.line,
                 "verified": bp.verified or False,
-                "condition": condition,
-                "hit_condition": hit_condition,
-                "log_message": log_message,
+                "condition": bp.condition or None,
+                "hit_condition": bp.hit_condition or None,
+                "log_message": bp.log_message or None,
             }
-            return self._breakpoints[bp_id]
+            self._breakpoints[bp_id] = bp_data
+            if bp.line == line:
+                new_bp_data = bp_data
 
-        # Fallback if no breakpoints returned
-        bp_id = f"{file}:{line}"
+        if new_bp_data:
+            return new_bp_data
+
+        # Fallback if new breakpoint not found in response
+        bp_id = f"{file_str}:{line}"
         self._breakpoints[bp_id] = {
             "id": bp_id,
-            "file": str(file),
+            "file": file_str,
             "line": line,
             "verified": False,
             "condition": condition,
@@ -650,6 +675,27 @@ class APIInterface(DebugInterface):
 
         # Return the result value from the EvaluationResult dataclass
         return result.result if hasattr(result, "result") else result
+
+    async def get_output(self, clear: bool = True) -> list[dict[str, Any]]:
+        """Get collected program output (logpoints, stdout, stderr).
+
+        Output is collected from DAP output events during program execution.
+        Logpoint messages appear with category "console".
+
+        Parameters
+        ----------
+        clear : bool
+            If True (default), clears the buffer after retrieval.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            List of output entries with category, output, and timestamp fields.
+        """
+        self._validate_session_active()
+
+        assert self.api is not None
+        return await self.api.introspection.get_output(clear=clear)
 
     async def cleanup(self) -> None:
         """Clean up the API interface resources.

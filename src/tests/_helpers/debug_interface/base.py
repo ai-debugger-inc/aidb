@@ -333,6 +333,28 @@ class DebugInterface(ABC):
         """
 
     @abstractmethod
+    async def get_output(self, clear: bool = True) -> list[dict[str, Any]]:
+        """Get collected program output (logpoints, stdout, stderr).
+
+        Output is collected from DAP output events during program execution.
+        Logpoint messages appear with category "console".
+
+        Parameters
+        ----------
+        clear : bool
+            If True (default), clears the buffer after retrieval to avoid
+            returning duplicate output on subsequent calls.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            List of output entries, each with:
+            - category: "console" (logpoints), "stdout", "stderr", etc.
+            - output: The output text
+            - timestamp: Unix timestamp when output was received (API only)
+        """
+
+    @abstractmethod
     async def cleanup(self) -> None:
         """Clean up resources and shut down the debug interface.
 
