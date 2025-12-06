@@ -390,7 +390,7 @@ class JavaScriptAdapter(DebugAdapter):
     async def _build_launch_command(
         self,
         target: str,
-        _adapter_host: str,
+        adapter_host: str,  # noqa: ARG002
         adapter_port: int,
         args: list[str] | None = None,
     ) -> list[str]:
@@ -401,7 +401,8 @@ class JavaScriptAdapter(DebugAdapter):
         target : str
             JavaScript or TypeScript file to debug
         adapter_host : str
-            Host for DAP server to bind to
+            Host for DAP server to bind to (unused - vscode-js-debug binds to
+            localhost only)
         adapter_port : int
             Port for DAP server to listen on
         args : List[str], optional
@@ -431,17 +432,17 @@ class JavaScriptAdapter(DebugAdapter):
     # Environment & Process
     # ----------------------
 
-    def _add_adapter_specific_vars(self, env: dict[str, Any]) -> dict[str, Any]:
+    def _add_adapter_specific_vars(self, env: dict[str, str]) -> dict[str, str]:
         """Add JavaScript-specific environment variables.
 
         Parameters
         ----------
-        env : Dict[str, Any]
+        env : dict[str, str]
             Current environment variables
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, str]
             Updated environment with JavaScript-specific variables
         """
         # Set Node.js specific environment variables

@@ -4,11 +4,47 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from aidb.adapters.base.config import AdapterConfig
+from aidb.adapters.base.config import AdapterCapabilities, AdapterConfig
 from aidb.adapters.base.initialize import InitializationOp, InitializationOpType
 from aidb.adapters.base.launch import BaseLaunchConfig
 from aidb.common.errors import ConfigurationError
 from aidb.models.entities.breakpoint import HitConditionMode
+
+# Static capabilities from debugpy source code
+# Source: debugpy/src/debugpy/adapter/clients.py (initialize_request method)
+PYTHON_CAPABILITIES = AdapterCapabilities(
+    # Breakpoint capabilities
+    conditional_breakpoints=True,
+    logpoints=True,
+    hit_conditional_breakpoints=True,
+    function_breakpoints=True,
+    data_breakpoints=False,
+    # Inspection capabilities
+    evaluate_for_hovers=True,
+    set_variable=True,
+    set_expression=True,
+    completions=True,
+    exception_info=True,
+    clipboard_context=True,
+    value_formatting_options=True,
+    # Navigation capabilities
+    restart_frame=False,
+    step_in_targets=False,
+    goto_targets=True,
+    breakpoint_locations=False,
+    # Session capabilities
+    terminate_debuggee=True,
+    restart=False,
+    terminate_request=True,
+    # Module/source capabilities
+    modules=True,
+    loaded_sources=False,
+    delayed_stack_trace_loading=True,
+    # Advanced capabilities
+    exception_options=True,
+    read_memory=False,
+    write_memory=False,
+)
 
 
 @dataclass
@@ -54,6 +90,7 @@ class PythonAdapterConfig(AdapterConfig):
     )
 
     # Python (debugpy) supports all hit condition modes
+    # (DAP only returns boolean, not which modes - this is adapter-specific)
     supported_hit_conditions: set[HitConditionMode] = field(
         default_factory=lambda: {
             HitConditionMode.EXACT,
@@ -65,12 +102,15 @@ class PythonAdapterConfig(AdapterConfig):
             HitConditionMode.EQUALS,
         },
     )
-    supports_conditional_breakpoints: bool = True
-    supports_logpoints: bool = True
 
     # debugpy spawns a detached adapter process (PPID=1)
     detached_process_names: list[str] = field(
         default_factory=lambda: ["python", "debugpy"],
+    )
+
+    # Static capabilities from debugpy source
+    capabilities: AdapterCapabilities = field(
+        default_factory=lambda: PYTHON_CAPABILITIES,
     )
 
     def get_initialization_sequence(self) -> list[InitializationOp]:

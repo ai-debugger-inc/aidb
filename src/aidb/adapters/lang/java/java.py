@@ -928,26 +928,25 @@ class JavaAdapter(DebugAdapter):
 
     async def _build_launch_command(
         self,
-        target: str,
-        adapter_host: str,
-        adapter_port: int,
-        args: list[str] | None = None,
+        target: str,  # noqa: ARG002
+        adapter_host: str,  # noqa: ARG002
+        adapter_port: int,  # noqa: ARG002
+        args: list[str] | None = None,  # noqa: ARG002
     ) -> list[str]:
-        """Build launch command - not used by Java adapter.
+        """Build launch command for Java adapter.
 
-        Java adapter uses JDT LS bridge which handles launch internally.
-        This method exists to satisfy the abstract method requirement.
+        Note: Java uses JDT.LS attach mode, not direct launch. This method
+        returns an empty list as Java debugging is handled via attach to
+        the JDT.LS language server process. See the JDT LS bridge methods
+        for the actual connection logic.
 
-        Raises
-        ------
-        NotImplementedError
-            Always raised - Java uses JDT LS bridge, not command-based launch
+        Returns
+        -------
+        list[str]
+            Empty list - Java uses attach mode via JDT.LS, not direct launch
         """
-        msg = (
-            "JavaAdapter does not use command-based launch. "
-            "All launching is handled via JDT LS bridge."
-        )
-        raise NotImplementedError(msg)
+        # Java uses attach mode via JDT.LS, not direct launch
+        return []
 
     # ---------------------------------
     # Java Tooling & Classpath Helpers

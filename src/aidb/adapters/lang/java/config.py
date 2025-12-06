@@ -4,10 +4,46 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from aidb.adapters.base.config import AdapterConfig
+from aidb.adapters.base.config import AdapterCapabilities, AdapterConfig
 from aidb.adapters.base.initialize import InitializationOp, InitializationOpType
 from aidb.adapters.base.launch import BaseLaunchConfig, LaunchConfigFactory
 from aidb.models.entities.breakpoint import HitConditionMode
+
+# Static capabilities from java-debug source code
+# Source: java-debug/com.microsoft.java.debug.core/.../InitializeRequestHandler.java
+JAVA_CAPABILITIES = AdapterCapabilities(
+    # Breakpoint capabilities
+    conditional_breakpoints=True,
+    logpoints=True,
+    hit_conditional_breakpoints=True,
+    function_breakpoints=True,
+    data_breakpoints=True,
+    # Inspection capabilities
+    evaluate_for_hovers=True,
+    set_variable=True,
+    set_expression=False,
+    completions=True,
+    exception_info=True,
+    clipboard_context=True,
+    value_formatting_options=False,
+    # Navigation capabilities
+    restart_frame=True,
+    step_in_targets=True,
+    goto_targets=False,
+    breakpoint_locations=True,
+    # Session capabilities
+    terminate_debuggee=True,
+    restart=False,
+    terminate_request=False,
+    # Module/source capabilities
+    modules=False,
+    loaded_sources=False,
+    delayed_stack_trace_loading=False,
+    # Advanced capabilities
+    exception_options=False,
+    read_memory=False,
+    write_memory=False,
+)
 
 
 @dataclass
@@ -60,13 +96,12 @@ class JavaAdapterConfig(AdapterConfig):
     )
 
     # Java adapter only supports exact hit counts (no operators)
+    # (DAP only returns boolean, not which modes - this is adapter-specific)
     supported_hit_conditions: set[HitConditionMode] = field(
         default_factory=lambda: {
             HitConditionMode.EXACT,  # Only plain integers like "5"
         },
     )
-    supports_conditional_breakpoints: bool = True
-    supports_logpoints: bool = True
 
     # Reconnection fallback settings
     enable_dap_reconnection_fallback: bool = True
@@ -82,6 +117,9 @@ class JavaAdapterConfig(AdapterConfig):
     detached_process_names: list[str] = field(
         default_factory=lambda: ["java"],
     )
+
+    # Static capabilities from java-debug source
+    capabilities: AdapterCapabilities = field(default_factory=lambda: JAVA_CAPABILITIES)
 
     def get_initialization_sequence(self) -> list[InitializationOp]:
         """Get Java-specific initialization sequence.
