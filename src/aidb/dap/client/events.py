@@ -369,11 +369,25 @@ class EventProcessor(Obj):
             self.ctx.debug("AidbBreakpoint event with no body")
 
     def _handle_output(self, event: Event) -> None:
-        """Handle output event."""
+        """Handle output event.
+
+        Stores output in state buffer for retrieval by MCP handlers (logpoints, etc.)
+        and logs the output for debugging purposes.
+        """
         output_event = cast("OutputEvent", event)
         if output_event.body:
             category = output_event.body.category or "console"
             output = output_event.body.output or ""
+
+            # Store in state buffer with rotation
+            entry = {
+                "category": category,
+                "output": output.rstrip(),
+                "timestamp": time.time(),
+            }
+            if len(self._state.output_buffer) >= self._state.output_buffer_max_size:
+                self._state.output_buffer.pop(0)
+            self._state.output_buffer.append(entry)
 
             # Log based on category
             if category == "stderr":
