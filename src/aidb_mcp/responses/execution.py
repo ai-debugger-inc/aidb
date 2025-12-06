@@ -47,6 +47,7 @@ class ExecuteResponse(Response):
     code_context: CodeContextResult | None = None
     has_breakpoints: bool = False
     detailed_status: str | None = None
+    program_output: list[dict[str, Any]] | None = None  # Logpoint/stdout/stderr output
 
     def _generate_summary(self) -> str:
         if self.terminated:
@@ -133,6 +134,10 @@ class ExecuteResponse(Response):
         )
         if code_snapshot:
             response["data"][ResponseFieldName.CODE_SNAPSHOT] = code_snapshot
+
+        # Add program output if present (logpoints, stdout, stderr)
+        if self.program_output:
+            response["data"]["output"] = self.program_output
 
         return response
 

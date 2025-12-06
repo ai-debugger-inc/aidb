@@ -12,7 +12,6 @@ from aidb_logging import get_mcp_logger as get_logger
 from ...core import ToolName, VariableAction
 from ...core.constants import ParamName
 from ...core.decorators import mcp_tool
-from ...core.serialization import to_jsonable
 from ...responses import VariableGetResponse, VariableSetResponse
 from ...responses.errors import InternalError, UnsupportedOperationError
 from ...responses.helpers import (
@@ -90,11 +89,14 @@ async def _handle_get_variable(
             "frame_id": frame_param,
         },
     )
-    result = await api.introspection.evaluate(expression, frame_id=frame_param)
+    eval_result = await api.introspection.evaluate(expression, frame_id=frame_param)
 
+    # Extract only the needed fields from EvaluationResult
+    # Avoid nesting the entire object which creates result.result structure
     return VariableGetResponse(
         expression=expression,
-        value=to_jsonable(result),
+        value=eval_result.result,  # Just the actual value, not the whole object
+        type_name=eval_result.type_name,
         frame=frame_param or 0,
         session_id=session_id,
     ).to_mcp_response()

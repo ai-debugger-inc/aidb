@@ -182,20 +182,26 @@ def get_all_mcp_tools() -> list[Tool]:
                                 },
                                 "hit_condition": {
                                     "type": "string",
-                                    "description": "Optional hit condition (e.g., '>5' or '%10')",
+                                    "description": (
+                                        "Optional hit condition (e.g., '>5' or '%10')"
+                                    ),
                                 },
                                 "log_message": {
                                     "type": "string",
-                                    "description": "Optional log message instead of pausing",
+                                    "description": (
+                                        "Optional log message instead of pausing"
+                                    ),
                                 },
                             },
                             "required": ["file", "line"],
                         },
                         "description": (
-                            "Initial breakpoints as objects with 'file' and 'line' fields. Can be in ANY "
-                            "files, often DIFFERENT from the target. The target starts "
-                            "execution, breakpoints pause where you want to debug. "
-                            "Ex: [{'file': 'src/models/user.py', 'line': 42}, {'file': 'utils/validator.py', 'line': 15, 'condition': 'x > 0'}]"
+                            "Initial breakpoints as objects with 'file' and 'line' "
+                            "fields. Can be in ANY files, often DIFFERENT from the "
+                            "target. The target starts execution, breakpoints pause "
+                            "where you want to debug. Ex: [{'file': 'src/models/"
+                            "user.py', 'line': 42}, {'file': 'utils/validator.py', "
+                            "'line': 15, 'condition': 'x > 0'}]"
                         ),
                     },
                     ParamName.ARGS: {
@@ -409,12 +415,16 @@ def get_all_mcp_tools() -> list[Tool]:
             name=ToolName.BREAKPOINT,
             title="Manage Breakpoints",
             description=(
-                "Manage breakpoints with verification and auto-correction.\n\n"
+                "Manage breakpoints. Supports conditions (condition='x>5'), "
+                "hit counts (hit_condition='>3' to skip first 3 hits), "
+                "and logpoints (log_message='val={x}').\n\n"
                 "Actions:\n"
                 f"- '{BreakpointAction.SET.value}': Set a breakpoint (default)\n"
                 f"- '{BreakpointAction.REMOVE.value}': Remove a breakpoint\n"
                 f"- '{BreakpointAction.LIST.value}': List all breakpoints\n"
-                f"- '{BreakpointAction.CLEAR_ALL.value}': Remove all breakpoints"
+                f"- '{BreakpointAction.CLEAR_ALL.value}': Remove all breakpoints\n"
+                f"- '{BreakpointAction.WATCH.value}': Set watchpoint (Java only)\n"
+                f"- '{BreakpointAction.UNWATCH.value}': Remove watchpoint (Java only)"
             ),
             icons=get_tool_icon(ToolName.BREAKPOINT),
             annotations=ToolAnnotations(
@@ -434,7 +444,8 @@ def get_all_mcp_tools() -> list[Tool]:
                     ParamName.LOCATION: {
                         "type": "string",
                         "description": (
-                            "Breakpoint location (``file:line`` or ``file:line:column``)"
+                            "Breakpoint location (``file:line`` or "
+                            "``file:line:column``)"
                         ),
                     },
                     ParamName.COLUMN: {
@@ -457,6 +468,21 @@ def get_all_mcp_tools() -> list[Tool]:
                     ParamName.LOG_MESSAGE: {
                         "type": "string",
                         "description": "Log message instead of pausing (logpoint)",
+                    },
+                    ParamName.NAME: {
+                        "type": "string",
+                        "description": (
+                            "Variable name for watch action (e.g., 'user.email')"
+                        ),
+                    },
+                    ParamName.ACCESS_TYPE: {
+                        "type": "string",
+                        "enum": ["read", "write", "readWrite"],
+                        "default": "write",
+                        "description": (
+                            "Access type for watch action: "
+                            "'read', 'write', or 'readWrite'"
+                        ),
                     },
                     ParamName.SESSION_ID: {
                         "type": "string",
@@ -544,10 +570,12 @@ def get_all_mcp_tools() -> list[Tool]:
             description=(
                 "Comprehensive session lifecycle management.\n\n"
                 "**Actions:**\n"
-                f"• `{SessionAction.STATUS.value}`: Show current session status (default)\n"
+                f"• `{SessionAction.STATUS.value}`: "
+                "Show current session status (default)\n"
                 f"• `{SessionAction.LIST.value}`: List all active sessions\n"
                 f"• `{SessionAction.STOP.value}`: Stop current/specified session\n"
-                f"• `{SessionAction.RESTART.value}`: Restart session with same configuration\n"
+                f"• `{SessionAction.RESTART.value}`: "
+                "Restart session with same configuration\n"
                 f"• `{SessionAction.SWITCH.value}`: Switch to different session"
             ),
             icons=get_tool_icon(ToolName.SESSION),
@@ -586,16 +614,25 @@ def get_all_mcp_tools() -> list[Tool]:
             description=(
                 "Configuration and environment management.\n\n"
                 "**Actions:**\n"
-                f"• `{ConfigAction.SHOW.value}`: Show current configuration (default)\n"
+                f"• `{ConfigAction.SHOW.value}`: "
+                "Show current configuration (default)\n"
                 f"• `{ConfigAction.ENV.value}`: Show/set environment variables\n"
-                f"• `{ConfigAction.LAUNCH.value}`: Discover and manage VS Code launch.json configurations\n"
-                f"• `{ConfigAction.CAPABILITIES.value}`: Show debugging capabilities for languages (replaces aidb.capabilities)\n"
-                f"• `{ConfigAction.ADAPTERS.value}`: Check debug adapter installation status\n\n"
+                f"• `{ConfigAction.LAUNCH.value}`: "
+                "Discover and manage VS Code launch.json configurations\n"
+                f"• `{ConfigAction.CAPABILITIES.value}`: "
+                "Show debugging capabilities for languages "
+                "(replaces aidb.capabilities)\n"
+                f"• `{ConfigAction.ADAPTERS.value}`: "
+                "Check debug adapter installation status\n\n"
                 "**Examples:**\n"
-                f"• config('{ConfigAction.ENV.value}') - Show AIDB_* environment variables\n"
-                f"• config('{ConfigAction.LAUNCH.value}') - List available launch configurations\n"
-                f"• config('{ConfigAction.ADAPTERS.value}') - Show installed debug adapters\n"
-                f"• config('{ConfigAction.CAPABILITIES.value}', language='python') - Python debugging features"
+                f"• config('{ConfigAction.ENV.value}') - "
+                "Show AIDB_* environment variables\n"
+                f"• config('{ConfigAction.LAUNCH.value}') - "
+                "List available launch configurations\n"
+                f"• config('{ConfigAction.ADAPTERS.value}') - "
+                "Show installed debug adapters\n"
+                f"• config('{ConfigAction.CAPABILITIES.value}', "
+                "language='python') - Python debugging features"
             ),
             icons=get_tool_icon(ToolName.CONFIG),
             annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=False),
@@ -732,14 +769,21 @@ def get_all_mcp_tools() -> list[Tool]:
             description=(
                 "Consolidated adapter management with action-based operations\n\n"
                 "**Actions:**\n"
-                f"• `{AdapterAction.DOWNLOAD.value}`: Download and install a specific language adapter (requires language)\n"
-                f"• `{AdapterAction.DOWNLOAD_ALL.value}`: Download and install all available adapters (language ignored)\n"
-                f"• `{AdapterAction.LIST.value}`: List installed adapters and status (language optional for filtering)\n\n"
+                f"• `{AdapterAction.DOWNLOAD.value}`: "
+                "Download and install a specific language adapter "
+                "(requires language)\n"
+                f"• `{AdapterAction.DOWNLOAD_ALL.value}`: "
+                "Download and install all available adapters (language ignored)\n"
+                f"• `{AdapterAction.LIST.value}`: "
+                "List installed adapters and status (language optional)\n\n"
                 "**Management:**\n"
                 "Downloads debug adapters from GitHub releases to ~/.aidb/adapters/. "
-                "Versions match current project. Validates language support dynamically.\n\n"
-                "**Aliases:** install→download, install_all→download_all, status/show→list\n\n"
-                "**Usage:** Install missing adapters when encountering AdapterNotFoundError messages."
+                "Versions match current project. "
+                "Validates language support dynamically.\n\n"
+                "**Aliases:** install→download, install_all→download_all, "
+                "status/show→list\n\n"
+                "**Usage:** Install missing adapters when encountering "
+                "AdapterNotFoundError messages."
             ),
             icons=get_tool_icon(ToolName.ADAPTER),
             annotations=ToolAnnotations(
@@ -767,7 +811,8 @@ def get_all_mcp_tools() -> list[Tool]:
                     ParamName.FORCE: {
                         "type": "boolean",
                         "description": (
-                            "Force re-download if already installed (download/download_all actions). "
+                            "Force re-download if already installed "
+                            "(download/download_all actions). "
                             "Use when adapters need updating or are corrupted"
                         ),
                         "default": False,

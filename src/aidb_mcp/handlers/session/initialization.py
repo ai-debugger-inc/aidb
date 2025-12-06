@@ -70,6 +70,118 @@ def _validate_initialization() -> dict[str, Any] | None:
     return None
 
 
+def _get_adapter_capabilities(language: str) -> dict[str, Any]:
+    """Get debugging capabilities for the specified language adapter.
+
+    Reads static capabilities from the adapter config. These are hardcoded
+    in the upstream debug adapter implementations and extracted to config.
+
+    Parameters
+    ----------
+    language : str
+        The language to get capabilities for
+
+    Returns
+    -------
+    dict[str, Any]
+        Capability summary for the language
+    """
+    try:
+        from aidb.session.adapter_registry import AdapterRegistry
+        from aidb_common.discovery.adapters import get_supported_hit_conditions
+
+        registry = AdapterRegistry()
+        config = registry.get_adapter_config(language.lower())
+
+        if config:
+            caps = config.capabilities
+            hit_modes = list(get_supported_hit_conditions(language))
+            logger.debug("Using static capabilities from config for %s", language)
+            return {
+                "conditional_breakpoints": caps.conditional_breakpoints,
+                "logpoints": caps.logpoints,
+                "hit_count_breakpoints": caps.hit_conditional_breakpoints,
+                "watchpoints": caps.data_breakpoints,
+                "function_breakpoints": caps.function_breakpoints,
+                "hit_condition_modes": hit_modes,
+            }
+    except Exception as e:
+        logger.debug("Failed to get capabilities for %s: %s", language, e)
+
+    # Safe defaults if config lookup fails
+    logger.warning("Config lookup failed for %s, using defaults", language)
+    return {
+        "conditional_breakpoints": True,
+        "logpoints": True,
+        "hit_count_breakpoints": True,
+        "watchpoints": False,
+        "function_breakpoints": True,
+        "hit_condition_modes": [],
+    }
+
+
+def _build_breakpoint_formats(language: str, capabilities: dict[str, Any]) -> dict:
+    """Build language-aware breakpoint format examples with availability notes.
+
+    Parameters
+    ----------
+    language : str
+        The language for context
+    capabilities : dict[str, Any]
+        The adapter capabilities
+
+    Returns
+    -------
+    dict
+        Breakpoint format examples with availability notes
+    """
+    formats: dict[str, Any] = {
+        "basic": {"file": "<path>", "line": 15},
+    }
+
+    # Conditional breakpoints
+    if capabilities.get("conditional_breakpoints", True):
+        formats["conditional"] = {"file": "<path>", "line": 15, "condition": "x > 10"}
+
+    # Hit count breakpoints - include modes info
+    if capabilities.get("hit_count_breakpoints", True):
+        hit_modes = capabilities.get("hit_condition_modes", [])
+        hit_format: dict[str, Any] = {
+            "file": "<path>",
+            "line": 15,
+            "hit_condition": ">3",
+        }
+        # Add note about limited hit condition support
+        if hit_modes and "EXACT" in hit_modes and len(hit_modes) == 1:
+            hit_format["_note"] = "This adapter only supports exact counts (e.g., '5')"
+        formats["hit_count"] = hit_format
+
+    # Logpoints
+    if capabilities.get("logpoints", True):
+        formats["logpoint"] = {
+            "file": "<path>",
+            "line": 15,
+            "log_message": "x={x}",
+            "_note": "Output appears in execute() response program_output field",
+        }
+
+    # Watchpoints - only show if supported (currently Java only)
+    if capabilities.get("watchpoints", False):
+        formats["watchpoint"] = {
+            "name": "variable_name",
+            "access_type": "write",
+            "_note": "Set on variable in Variables view after pausing at breakpoint",
+        }
+    else:
+        # Add note that watchpoints aren't available for this language
+        formats["_watchpoint_note"] = (
+            f"Watchpoints not supported for {language}. "
+            "Only Java debugging supports data breakpoints."
+        )
+
+    return formats
+
+
 async def _check_adapter_availability(language: str) -> dict[str, Any]:
     """Check if the debug adapter for the given language is available.
 
@@ -207,6 +319,12 @@ async def handle_init(args: dict[str, Any]) -> dict[str, Any]:
         # Extract next_steps from starter response to top level
         next_steps = starter_response.pop("next_steps", None)
 
+        # Get adapter capabilities for this language
+        capabilities = _get_adapter_capabilities(language)
+
+        # Build language-aware breakpoint formats with availability notes
+        breakpoint_formats = _build_breakpoint_formats(language, capabilities)
+
         # In compact mode, filter to essential fields only
         config_mgr = ConfigManager()
         if not config_mgr.is_mcp_verbose():
@@ -215,7 +333,13 @@ async def handle_init(args: dict[str, Any]) -> dict[str, Any]:
                 "language": starter_response.get("language"),
                 "framework": starter_response.get("framework"),
                 "ready": True,
+                "capabilities": capabilities,
+                "breakpoint_formats": breakpoint_formats,
             }
+        else:
+            # Verbose mode - add capabilities and breakpoint_formats to response
+            starter_response["capabilities"] = capabilities
+            starter_response["breakpoint_formats"] = breakpoint_formats
 
         # Create a response with the starter data and adapter status
         init_response = Response(

@@ -284,6 +284,7 @@ async def _build_execution_response(
     api: Any,
     context: Any,
     state: dict[str, Any],
+    collect_output: bool = True,
 ) -> ExecuteResponse:
     """Build execution response with code context.
 
@@ -299,6 +300,8 @@ async def _build_execution_response(
         Session context
     state : dict
         Execution state
+    collect_output : bool
+        Whether to collect and include program output (logpoints, stdout, stderr)
 
     Returns
     -------
@@ -318,6 +321,26 @@ async def _build_execution_response(
     if state["stopped"] and context:
         code_context = await get_code_snapshot_if_paused(api, context)
 
+    # Collect program output (logpoints, stdout, stderr)
+    program_output = None
+    if collect_output and api:
+        try:
+            output_entries = await api.introspection.get_output(clear=True)
+            if output_entries:
+                # Filter to relevant categories
+                program_output = [
+                    e
+                    for e in output_entries
+                    if e.get("category") in ("console", "stdout", "stderr")
+                ]
+                if not program_output:
+                    program_output = None  # Don't include empty list
+        except Exception as output_error:
+            logger.debug(
+                "Failed to collect output",
+                extra={"error": str(output_error)},
+            )
+
     logger.info(
         "Execution completed",
         extra={
@@ -330,6 +353,8 @@ async def _build_execution_response(
             "has_breakpoints": has_breakpoints,
             "session_id": session_id,
             "has_code_context": code_context is not None,
+            "has_output": program_output is not None,
+            "output_count": len(program_output) if program_output else 0,
             "state": (
                 SessionState.PAUSED.name
                 if state["stopped"]
@@ -348,6 +373,7 @@ async def _build_execution_response(
         code_context=code_context,
         has_breakpoints=has_breakpoints,
         detailed_status=detailed_status.value,
+        program_output=program_output,
     )
 
     logger.debug(
@@ -422,6 +448,9 @@ async def handle_execution(args: dict[str, Any]) -> dict[str, Any]:
         # Extract execution state
         state = _extract_execution_state(result, context)
 
+        # Get collect_output parameter (defaults to True)
+        collect_output = args.get(ParamName.COLLECT_OUTPUT, True)
+
         # Build and return response
         response = await _build_execution_response(
             action,
@@ -429,6 +458,7 @@ async def handle_execution(args: dict[str, Any]) -> dict[str, Any]:
             api,
             context,
             state,
+            collect_output=collect_output,
         )
         return response.to_mcp_response()
 

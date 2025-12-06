@@ -93,14 +93,13 @@ class Response:
         }
 
         # Auto-extract all dataclass fields into data
-        # Skip base fields and None values
-        # Note: SESSION_ID is NOT a base field - it's response data that the
-        # decorator copies to top level (see _add_session_id_to_result)
+        # Skip base fields, session_id (added at top level), and None values
         base_fields = {
             MCPResponseField.SUMMARY,
             MCPResponseField.SUCCESS,
             MCPResponseField.ERROR_CODE,
             MCPResponseField.ERROR_MESSAGE,
+            ParamName.SESSION_ID,
         }
         extracted_fields = []
         for key, value in asdict(self).items():

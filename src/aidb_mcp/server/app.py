@@ -32,15 +32,18 @@ from aidb_mcp.server.runtime import get_runtime_config
 
 # Provide a fallback for Python <3.11 ExceptionGroup
 try:
-    ExceptionGroup  # type: ignore[has-type,used-before-def]
+    _ = ExceptionGroup  # type: ignore[has-type,used-before-def]
 except NameError:  # pragma: no cover - legacy fallback
 
-    class ExceptionGroup(Exception):
+    class ExceptionGroupError(Exception):
         """Group multiple exceptions together (Python < 3.11 fallback)."""
 
         def __init__(self, message: str, exceptions: list[Exception]):
             super().__init__(message)
             self.exceptions = exceptions
+
+    # Alias for compatibility with Python 3.11+ code paths
+    ExceptionGroup = ExceptionGroupError  # type: ignore[misc,assignment]
 
 
 logger = get_logger(__name__)
@@ -416,30 +419,32 @@ class AidbMCPServer:
         finally:
             await self._cleanup()
 
-    async def _cleanup(self) -> None:
+    def _create_cleanup_tasks(self) -> list[asyncio.Task[Any]]:
+        """Create cleanup tasks for event monitoring and debug sessions."""
+        from aidb_mcp.integrations.notifications import stop_event_monitoring
         from aidb_mcp.session.manager import _DEBUG_SESSIONS
 
+        tasks: list[asyncio.Task[Any]] = []
+        tasks.append(asyncio.create_task(stop_event_monitoring()))
+
+        for session_id in list(_DEBUG_SESSIONS.keys()):
+            try:
+                tasks.append(
+                    asyncio.create_task(self._cleanup_session_safely(session_id)),
+                )
+            except Exception as e:  # pragma: no cover
+                logger.warning(
+                    "Error creating cleanup task for session %s: %s",
+                    session_id,
+                    e,
+                )
+        return tasks
+
+    async def _cleanup(self) -> None:
         logger.info("Cleaning up AIDB MCP Server...")
-        cleanup_tasks = []
+        cleanup_tasks: list[asyncio.Task[Any]] = []
         try:
-            from aidb_mcp.integrations.notifications import stop_event_monitoring
-
-            cleanup_tasks.append(asyncio.create_task(stop_event_monitoring()))
-
-            session_ids = list(_DEBUG_SESSIONS.keys())
-            for session_id in session_ids:
-                try:
-                    cleanup_task = asyncio.create_task(
-                        self._cleanup_session_safely(session_id),
-                    )
-                    cleanup_tasks.append(cleanup_task)
-                except Exception as e:  # pragma: no cover
-                    logger.warning(
-                        "Error creating cleanup task for session %s: %s",
-                        session_id,
-                        e,
-                    )
-
+            cleanup_tasks = self._create_cleanup_tasks()
             if cleanup_tasks:
                 try:
                     await asyncio.wait_for(

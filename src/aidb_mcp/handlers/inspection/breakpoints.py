@@ -258,6 +258,247 @@ async def _handle_clear_all_breakpoints(
     ).to_mcp_response()
 
 
+async def _resolve_variable_reference(
+    api,
+    var_name: str,
+) -> int | dict[str, Any]:
+    """Resolve a variable name to its variablesReference.
+
+    Handles nested names like "user.email" by traversing the object tree.
+
+    Returns
+    -------
+    int
+        The variablesReference if found
+    dict
+        Error response if variable not found
+    """
+    locals_response = await api.introspection.locals()
+    var_parts = var_name.split(".")
+    current_vars = locals_response.variables
+
+    for i, part in enumerate(var_parts):
+        if part not in current_vars:
+            # Try globals for the first part
+            if i == 0:
+                globals_response = await api.introspection.globals()
+                if part in globals_response.variables:
+                    current_vars = globals_response.variables
+                else:
+                    return invalid_parameter(
+                        param_name=ParamName.NAME,
+                        expected_type="variable name in current scope",
+                        received_value=var_name,
+                        error_message=f"Variable '{part}' not found",
+                    )
+            else:
+                return invalid_parameter(
+                    param_name=ParamName.NAME,
+                    expected_type="valid variable path",
+                    received_value=var_name,
+                    error_message=f"Field '{part}' not found on variable",
+                )
+
+        var = current_vars[part]
+        if i == len(var_parts) - 1:
+            # Final variable - return its reference
+            if var.id:
+                return var.id
+            return invalid_parameter(
+                param_name=ParamName.NAME,
+                expected_type="variable with reference",
+                received_value=var_name,
+                error_message="Could not get variable reference for watchpoint",
+            )
+        if var.has_children and var.id:
+            # Expand children for nested access
+            children_response = await api.introspection.get_children(var.id)
+            current_vars = children_response.variables
+        else:
+            return invalid_parameter(
+                param_name=ParamName.NAME,
+                expected_type="expandable variable",
+                received_value=var_name,
+                error_message=f"Variable '{part}' has no expandable children",
+            )
+
+    return invalid_parameter(
+        param_name=ParamName.NAME,
+        expected_type="variable with reference",
+        received_value=var_name,
+        error_message="Could not resolve variable reference",
+    )
+
+
+async def _handle_watch_breakpoint(
+    api,
+    _context,
+    args: dict[str, Any],
+) -> dict[str, Any]:
+    """Handle WATCH breakpoint action (data breakpoint / watchpoint).
+
+    Watchpoints break when a variable is read or written. Only supported for Java
+    debugging.
+    """
+    # Validate language is Java
+    language = getattr(api.session, "language", None) if api.session else None
+    if language != "java":
+        return UnsupportedOperationError(
+            operation="Watchpoints",
+            adapter_type=f"{language or 'unknown'} adapter",
+            language=language or "unknown",
+            error_message=(
+                "Watchpoints (data breakpoints) are only supported for Java. "
+                "Python and JavaScript runtimes do not support hardware watchpoints."
+            ),
+        ).to_mcp_response()
+
+    # Validate we're paused
+    session = api.session if api and hasattr(api, "session") else None
+    if (
+        session
+        and hasattr(session, "state")
+        and hasattr(session.state, "is_paused")
+        and not session.state.is_paused()
+    ):
+        return UnsupportedOperationError(
+            operation="Set watchpoint",
+            adapter_type="java adapter",
+            language="java",
+            error_message=(
+                "Must be paused at a breakpoint to set a watchpoint. "
+                "Set a regular breakpoint first and pause execution."
+            ),
+        ).to_mcp_response()
+
+    # Get required parameters
+    var_name = args.get(ParamName.NAME)
+    if not var_name:
+        return missing_parameter(
+            param_name=ParamName.NAME,
+            param_description="Provide 'name' parameter with variable name",
+            example_value="user.email",
+        )
+
+    access_type = args.get(ParamName.ACCESS_TYPE, "write")
+    condition = args.get(ParamName.CONDITION)
+    hit_condition = args.get(ParamName.HIT_CONDITION)
+
+    logger.info(
+        "Setting watchpoint",
+        extra={
+            "variable_name": var_name,
+            "access_type": access_type,
+            "has_condition": bool(condition),
+            "has_hit_condition": bool(hit_condition),
+        },
+    )
+
+    try:
+        # Step 1: Resolve variable to get variablesReference
+        var_ref = await _resolve_variable_reference(api, var_name)
+        if isinstance(var_ref, dict):
+            return var_ref  # Error response
+
+        # Step 2: Get data breakpoint info
+        var_parts = var_name.split(".")
+        data_bp_info = await api.session.debug.get_data_breakpoint_info(
+            variable_reference=var_ref,
+            name=var_parts[-1],
+        )
+
+        if not data_bp_info.data_id:
+            return UnsupportedOperationError(
+                operation=f"Watch '{var_name}'",
+                adapter_type="java adapter",
+                language="java",
+                error_message=(
+                    f"Cannot set watchpoint on '{var_name}'. "
+                    "The variable may not support data breakpoints."
+                ),
+            ).to_mcp_response()
+
+        # Step 3: Set the data breakpoint
+        response = await api.orchestration.data_breakpoint(
+            data_id=data_bp_info.data_id,
+            access_type=access_type,
+            condition=condition,
+            hit_condition=hit_condition,
+        )
+
+        return BreakpointMutationResponse(
+            action="watch",
+            location=var_name,
+            affected_count=1 if response.success else 0,
+            condition=condition,
+            hit_condition=hit_condition,
+            verified=response.success,
+        ).to_mcp_response()
+
+    except Exception as e:
+        logger.exception("Failed to set watchpoint: %s", e)
+        return internal_error(
+            operation="watch",
+            exception=e,
+            summary=f"Failed to set watchpoint on '{var_name}'",
+        )
+
+
+async def _handle_unwatch_breakpoint(
+    api,
+    _context,
+    args: dict[str, Any],
+) -> dict[str, Any]:
+    """Handle UNWATCH breakpoint action (remove data breakpoint).
+
+    Removes a previously set watchpoint.
+    """
+    # Validate language is Java
+    language = getattr(api.session, "language", None) if api.session else None
+    if language != "java":
+        return UnsupportedOperationError(
+            operation="Watchpoints",
+            adapter_type=f"{language or 'unknown'} adapter",
+            language=language or "unknown",
+            error_message="Watchpoints are only supported for Java debugging.",
+        ).to_mcp_response()
+
+    var_name = args.get(ParamName.NAME)
+    if not var_name:
+        return missing_parameter(
+            param_name=ParamName.NAME,
+            param_description="Provide 'name' parameter with watchpoint name to remove",
+        )
+
+    logger.info("Removing watchpoint", extra={"variable_name": var_name})
+
+    try:
+        # Clear all data breakpoints (DAP doesn't have per-watchpoint removal)
+        # The setDataBreakpoints request replaces all data breakpoints
+        # To remove, we'd need to track active watchpoints and re-send without this one
+        # For now, we clear all data breakpoints
+        from aidb.dap.protocol.bodies import SetDataBreakpointsArguments
+        from aidb.dap.protocol.requests import SetDataBreakpointsRequest
+
+        args_dap = SetDataBreakpointsArguments(breakpoints=[])
+        request = SetDataBreakpointsRequest(seq=0, arguments=args_dap)
+        await api.session.dap.send_request(request)
+
+        return BreakpointMutationResponse(
+            action="unwatch",
+            location=var_name,
+            affected_count=1,
+        ).to_mcp_response()
+
+    except Exception as e:
+        logger.exception("Failed to remove watchpoint: %s", e)
+        return internal_error(
+            operation="unwatch",
+            exception=e,
+            summary=f"Failed to remove watchpoint '{var_name}'",
+        )
+
+
 def _validate_hit_condition(api, hit_condition: str) -> dict[str, Any] | None:
     """Validate hit condition for the current language.
 
@@ -412,6 +653,8 @@ async def handle_breakpoint(args: dict[str, Any]) -> dict[str, Any]:
             BreakpointAction.REMOVE: _handle_remove_breakpoint,
             BreakpointAction.LIST: _handle_list_breakpoints,
             BreakpointAction.CLEAR_ALL: _handle_clear_all_breakpoints,
+            BreakpointAction.WATCH: _handle_watch_breakpoint,
+            BreakpointAction.UNWATCH: _handle_unwatch_breakpoint,
         }
 
         handler = action_handlers.get(action_enum)
