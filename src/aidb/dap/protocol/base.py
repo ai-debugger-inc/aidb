@@ -1,7 +1,13 @@
+# ============================================================================
+# HAND-WRITTEN FILE - Versioned by DAP spec but not auto-generated
+#
+# Spec hash:    f4feadc09927d22d
+# Updated:      2025-12-07T01:35:14Z
+# ============================================================================
 """DAP Protocol - Base protocol classes and core interfaces.
 
-Auto-generated from Debug Adapter Protocol specification. Do not edit
-manually."""
+Auto-generated from Debug Adapter Protocol specification. Do not edit manually.
+"""
 
 import builtins
 import json
@@ -27,8 +33,8 @@ class DAPDataclass(SerializableMixin):
     def to_dict(self) -> dict[str, Any]:
         """Convert the dataclass to a dictionary for JSON serialization.
 
-        Includes both dataclass fields and dynamically added attributes, which
-        is essential for DAP configuration with adapter-specific fields.
+        Includes both dataclass fields and dynamically added attributes, which is
+        essential for DAP configuration with adapter-specific fields.
         """
         result = super().to_dict()
 
@@ -44,10 +50,9 @@ class DAPDataclass(SerializableMixin):
 class ImmutableAfterInit:
     """Mixin that makes instances immutable after dataclass initialization.
 
-    We cannot use @dataclass(frozen=True) on shared bases because requests
-    remain mutable while responses/events should be immutable. This mixin
-    freezes instances in __post_init__ and blocks any subsequent attribute
-    mutation or deletion.
+    We cannot use @dataclass(frozen=True) on shared bases because requests remain
+    mutable while responses/events should be immutable. This mixin freezes instances in
+    __post_init__ and blocks any subsequent attribute mutation or deletion.
     """
 
     _frozen: bool = False
@@ -75,8 +80,8 @@ class ImmutableAfterInit:
 class ProtocolMessage(DAPDataclass):
     """Base class for all DAP protocol messages.
 
-    This includes requests, responses, and events. Each message has a sequence
-    number that is used to identify responses to requests.
+    This includes requests, responses, and events. Each message has a sequence number
+    that is used to identify responses to requests.
     """
 
     # _spec.json#7
@@ -245,8 +250,8 @@ class OperationResponseBody(ImmutableAfterInit, SerializableMixin):
     """Base class for all DAP response body types.
 
     This class serves as the base type for all operation-specific response body
-    dataclasses, providing type safety and better IDE support compared to using
-    generic dictionaries.
+    dataclasses, providing type safety and better IDE support compared to using generic
+    dictionaries.
     """
 
 
@@ -255,7 +260,6 @@ class OperationEventBody(ImmutableAfterInit, SerializableMixin):
     """Base class for all DAP event body types.
 
     This class serves as the base type for all operation-specific event body
-    dataclasses, providing type safety and better IDE support compared to using
-    generic dictionaries.
+    dataclasses, providing type safety and better IDE support compared to using generic
+    dictionaries.
     """
-
