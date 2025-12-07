@@ -256,7 +256,7 @@ class JavaAdapter(DebugAdapter):
         args: list[str] | None = None,
         env: dict[str, str] | None = None,
         cwd: str | None = None,
-        launch_config_name: str | None = None,
+        launch_config_name: str | None = None,  # noqa: ARG002
         workspace_root: str | None = None,
     ) -> tuple["asyncio.subprocess.Process", int]:
         """Launch the Java debug adapter using JDT LS.

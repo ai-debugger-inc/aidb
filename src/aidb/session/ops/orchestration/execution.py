@@ -4,7 +4,6 @@ import asyncio
 from typing import TYPE_CHECKING, Optional, cast
 
 from aidb.api.constants import (
-    DEFAULT_WAIT_TIMEOUT_S,
     EVENT_POLL_TIMEOUT_S,
     MEDIUM_SLEEP_S,
     STACK_TRACE_TIMEOUT_S,
@@ -408,15 +407,15 @@ class ExecutionOperations(SessionOperationsMixin):
             ):
                 await self._wait_for_child_session(timeout=10.0)
 
-            # If initial breakpoints were set, wait briefly for the first stop so
-            # the session begins in a paused state. This avoids races where tests
-            # immediately issue a continue before the first breakpoint stop has
-            # been delivered.
-            if has_breakpoints:
+            # Determine if we should auto-wait for breakpoints
+            # Default behavior: wait if breakpoints are set
+            should_wait = auto_wait if auto_wait is not None else has_breakpoints
+
+            if should_wait:
                 try:
                     result = (
                         await self.session.events.wait_for_stopped_or_terminated_async(
-                            timeout=DEFAULT_WAIT_TIMEOUT_S,
+                            timeout=wait_timeout,
                         )
                     )
                     self.ctx.debug(
@@ -426,93 +425,6 @@ class ExecutionOperations(SessionOperationsMixin):
                     self.ctx.debug(
                         f"post-start auto-wait error (non-fatal): {wait_error}",
                     )
-            #     else:
-            #         self.ctx.debug(
-            #             "Session is paused after initialization (not at breakpoint), "
-            #             "sending initial continue to start execution",
-            #         )
-            #         try:
-            #             # Get current thread ID for the continue request
-            #             thread_id = await self.get_current_thread_id()
-            #
-            #             # Create and send continue request
-            #             from aidb.dap.protocol.bodies import ContinueArguments
-            #             from aidb.dap.protocol.requests import ContinueRequest
-            #
-            #             continue_args = ContinueArguments(threadId=thread_id)
-            #             continue_request = ContinueRequest(
-            #                 seq=await self.session.dap.get_next_seq(),
-            #                 arguments=continue_args,
-            #             )
-            #
-            #             # If we have breakpoints, send continue WITH wait_for_stop
-            #             # to ensure we wait for the first breakpoint hit
-            #             if has_breakpoints:
-            #                 self.ctx.debug(
-            #                     "Sending continue with wait_for_stop=True "
-            #                     "to wait for first breakpoint hit",
-            #                 )
-            #                 await self.continue_(continue_request, wait_for_stop=True)
-            #                 sent_continue_with_wait = True
-            #                 self.ctx.debug(
-            #                     "Continue completed - session stopped at breakpoint",
-            #                 )
-            #             else:
-            #                 # No breakpoints - send continue without waiting
-            #                 await self.session.dap.send_request(continue_request)
-            #                 self.ctx.debug("Initial continue sent successfully")
-            #
-            #         except Exception as e:
-            #             self.ctx.warning(f"Failed to send initial continue: {e}")
-            #             # Don't fail the start operation - continue with normal flow
-            #
-            # # Determine auto-wait behavior
-            # if auto_wait is None:
-            #     # Default: auto-wait if breakpoints are set
-            #     auto_wait = has_breakpoints
-            #     if auto_wait:
-            #         self.ctx.debug(
-            #             "Auto-waiting for stop event since breakpoints are set",
-            #         )
-            #
-            # # Auto-wait for first breakpoint hit if requested
-            # # Skip if we already waited via continue_ above
-            # if auto_wait and not sent_continue_with_wait:
-            #     # Check if already paused at breakpoint
-            #     if self.session.is_paused():
-            #         current_stop_reason = (
-            #             self.session.dap.get_stop_reason()
-            #             if hasattr(self.session.dap, "get_stop_reason")
-            #             else None
-            #         )
-            #         if current_stop_reason == "breakpoint":
-            #             self.ctx.debug(
-            #                 "Already paused at breakpoint, skipping auto-wait",
-            #             )
-            #         else:
-            #             # Paused but not at breakpoint - wait for breakpoint
-            #             self.ctx.debug(
-            #                 f"Waiting for stop event (timeout={wait_timeout}s)",
-            #             )
-            #             try:
-            #                 await self.session.wait_for_stop(timeout=wait_timeout)
-            #                 self.ctx.debug("Successfully stopped at breakpoint")
-            #             except Exception as wait_error:
-            #                 self.ctx.warning(
-            #                     f"Auto-wait timed out or failed: {wait_error}. "
-            #                     "Program may not have hit a breakpoint.",
-            #                 )
-            #     else:
-            #         # Not paused - wait for stop
-            #         self.ctx.debug(f"Waiting for stop event (timeout={wait_timeout}s)")
-            #         try:
-            #             await self.session.wait_for_stop(timeout=wait_timeout)
-            #             self.ctx.debug("Successfully stopped at breakpoint")
-            #         except Exception as wait_error:
-            #             self.ctx.warning(
-            #                 f"Auto-wait timed out or failed: {wait_error}. "
-            #                 "Program may not have hit a breakpoint.",
-            #             )
 
             return StartResponse(
                 success=True,

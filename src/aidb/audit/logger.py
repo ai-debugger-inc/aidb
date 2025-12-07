@@ -83,8 +83,6 @@ class AuditLogger:
         self._retention_days = config.get_audit_retention_days()
 
         # Check if audit logging is enabled via environment variable (opt-in)
-        import os
-
         enabled_env = os.getenv("AIDB_AUDIT_ENABLED", "false").lower() == "true"
         self._enabled = audit_requested and enabled_env
 

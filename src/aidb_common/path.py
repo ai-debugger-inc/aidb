@@ -5,6 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import overload
 
+from aidb_common.constants import ADAPTERS_SUBDIR, AIDB_HOME_DIR, LOG_SUBDIR
+
+# Cache directory constants
+_CACHE_DIR = ".cache"
+_CACHE_AIDB_SUBDIR = "aidb"
+
 
 def get_aidb_home() -> Path:
     """Get the AIDB home directory (~/.aidb).
@@ -14,7 +20,7 @@ def get_aidb_home() -> Path:
     Path
         The AIDB home directory path
     """
-    return Path.home() / ".aidb"
+    return Path.home() / AIDB_HOME_DIR
 
 
 def get_aidb_adapters_dir() -> Path:
@@ -25,7 +31,7 @@ def get_aidb_adapters_dir() -> Path:
     Path
         The AIDB adapters directory path
     """
-    return Path.home() / ".aidb" / "adapters"
+    return Path.home() / AIDB_HOME_DIR / ADAPTERS_SUBDIR
 
 
 def get_aidb_log_dir() -> Path:
@@ -36,7 +42,7 @@ def get_aidb_log_dir() -> Path:
     Path
         The AIDB log directory path
     """
-    return Path.home() / ".aidb" / "log"
+    return Path.home() / AIDB_HOME_DIR / LOG_SUBDIR
 
 
 def get_aidb_cache_dir() -> Path:
@@ -47,7 +53,7 @@ def get_aidb_cache_dir() -> Path:
     Path
         The AIDB cache directory path
     """
-    return Path.home() / ".cache" / "aidb" / "adapters"
+    return Path.home() / _CACHE_DIR / _CACHE_AIDB_SUBDIR / ADAPTERS_SUBDIR
 
 
 @overload

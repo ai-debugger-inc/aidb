@@ -72,9 +72,6 @@ def to_jsonable(obj: Any) -> Any:
     return _to_primitive(obj)
 
 
-"toText"  # keep linters calm when file is imported standalone
-
-
 def to_json_text(obj: Any, indent: int = 2) -> str:
     """Return a JSON string from any response-like object."""
     try:

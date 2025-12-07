@@ -168,7 +168,6 @@ async def _handle_session_stop(args: dict[str, Any]) -> dict[str, Any]:
 
     # Check if session is already terminated
     # Even if terminated, we still need to call stop() to run cleanup hooks
-    already_terminated = False
     if (
         api
         and hasattr(api, "session")
@@ -181,7 +180,6 @@ async def _handle_session_stop(args: dict[str, Any]) -> dict[str, Any]:
                 "Session already terminated, but still calling stop for cleanup",
                 extra={"session_id": session_id},
             )
-            already_terminated = True
 
     # Call stop() to ensure adapter cleanup hooks run (DAP disconnect, etc.)
     # This is critical for pooled resources like JDT LS bridges
