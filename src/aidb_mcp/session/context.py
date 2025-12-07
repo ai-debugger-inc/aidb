@@ -68,6 +68,9 @@ class MCPSessionContext:
     # Restart context - stores launch params for session restart
     launch_params: dict[str, Any] = field(default_factory=dict)
 
+    # Source path resolution for remote debugging
+    source_paths: list[str] = field(default_factory=list)
+
     def reset(self):
         """Reset the context to initial state."""
         logger.debug(
@@ -106,6 +109,9 @@ class MCPSessionContext:
 
         # Reset launch params
         self.launch_params = {}
+
+        # Reset source paths
+        self.source_paths = []
 
     def update_position(self, frame: AidbStackFrame | None = None):
         """Update current position from a stack frame."""

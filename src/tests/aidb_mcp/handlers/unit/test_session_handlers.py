@@ -424,3 +424,77 @@ if __name__ == "__main__":
                 assert "target" in error_msg or "required" in error_msg, (
                     "Error should mention missing target parameter"
                 )
+
+    @pytest.mark.asyncio
+    async def test_session_start_with_source_paths(self, simple_program, tmp_path):
+        """Test session_start stores source_paths in session context.
+
+        Verifies that source_paths parameter is properly stored for remote debugging
+        code context resolution.
+        """
+        from aidb_mcp.session import get_or_create_session
+
+        # Create mock source directories
+        source_dir1 = tmp_path / "src" / "main" / "java"
+        source_dir1.mkdir(parents=True)
+        source_dir2 = tmp_path / "lib" / "java"
+        source_dir2.mkdir(parents=True)
+
+        source_paths = [str(source_dir1), str(source_dir2)]
+
+        # Init and start session with source_paths
+        await self.call_tool("init", {ParamName.LANGUAGE: "python"})
+        response = await self.call_tool(
+            "session_start",
+            {
+                ParamName.TARGET: str(simple_program),
+                ParamName.SOURCE_PATHS: source_paths,
+            },
+        )
+
+        self.assert_response_success(response, "Session start should succeed")
+        session_id = response["session_id"]
+
+        # Verify source_paths stored in session context
+        _, _, context = get_or_create_session(session_id)
+        assert context.source_paths == source_paths, (
+            "source_paths should be stored in session context"
+        )
+
+        # Verify source_paths also in launch_params for restart
+        assert ParamName.SOURCE_PATHS in context.launch_params
+        assert context.launch_params[ParamName.SOURCE_PATHS] == source_paths
+
+        # Cleanup
+        await self.call_tool(
+            "session",
+            {ParamName.ACTION: "stop", ParamName.SESSION_ID: session_id},
+        )
+
+    @pytest.mark.asyncio
+    async def test_session_start_without_source_paths(self, simple_program):
+        """Test session_start works correctly without source_paths.
+
+        Verifies backward compatibility - source_paths is optional.
+        """
+        from aidb_mcp.session import get_or_create_session
+
+        # Init and start session without source_paths
+        await self.call_tool("init", {ParamName.LANGUAGE: "python"})
+        response = await self.call_tool(
+            "session_start",
+            {ParamName.TARGET: str(simple_program)},
+        )
+
+        self.assert_response_success(response, "Session start should succeed")
+        session_id = response["session_id"]
+
+        # Verify source_paths is empty list (not None)
+        _, _, context = get_or_create_session(session_id)
+        assert context.source_paths == [], "source_paths should default to empty list"
+
+        # Cleanup
+        await self.call_tool(
+            "session",
+            {ParamName.ACTION: "stop", ParamName.SESSION_ID: session_id},
+        )

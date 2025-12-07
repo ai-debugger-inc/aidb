@@ -225,6 +225,17 @@ def get_all_mcp_tools() -> list[Tool]:
                         "type": "string",
                         "description": "Workspace root directory",
                     },
+                    ParamName.SOURCE_PATHS: {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": (
+                            "Additional source directories for resolving file paths. "
+                            "Used for remote debugging where debug adapter returns "
+                            "paths that don't exist locally (e.g., JAR-internal paths "
+                            "like 'trino-main.jar!/io/trino/Foo.java'). Each path "
+                            "should be a local directory containing source files."
+                        ),
+                    },
                     ParamName.SESSION_ID: {
                         "type": "string",
                         "description": (

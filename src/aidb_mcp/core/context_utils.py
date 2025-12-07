@@ -518,7 +518,7 @@ def get_next_action_guidance(
 
 
 async def get_code_snapshot_if_paused(
-    debug_api: DebugAPI,  # noqa: ARG001
+    debug_api: DebugAPI,
     context: MCPSessionContext | None,
 ) -> CodeContextResult | None:
     """Get code snapshot if debugger is paused.
@@ -547,8 +547,18 @@ async def get_code_snapshot_if_paused(
         return None
 
     try:
-        # Create CodeContext instance (ctx can be None for basic usage)
-        code_ctx = CodeContext(ctx=None)
+        # Get source path resolver from adapter if available
+        source_path_resolver = None
+        if debug_api and debug_api.session and debug_api.session.adapter:
+            source_path_resolver = debug_api.session.adapter.source_path_resolver
+
+        # Create CodeContext instance with source paths for remote debugging
+        source_paths = context.source_paths if context else []
+        code_ctx = CodeContext(
+            ctx=None,
+            source_paths=source_paths,
+            source_path_resolver=source_path_resolver,
+        )
 
         # Get configured context lines from config
         breadth = ConfigManager().get_mcp_code_context_lines()

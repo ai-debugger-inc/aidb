@@ -311,6 +311,7 @@ class ParamName:
     PORT = "port"
     MODULE = "module"
     SUBSCRIBE_EVENTS = "subscribe_events"
+    SOURCE_PATHS = "source_paths"
 
     # Execution control parameters
     COUNT = "count"

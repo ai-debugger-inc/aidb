@@ -20,6 +20,7 @@ from .target_resolver import PythonTargetResolver
 from .trace import PythonTraceManager
 
 if TYPE_CHECKING:
+    from aidb.adapters.base.source_path_resolver import SourcePathResolver
     from aidb.interfaces import ISession
 
 
@@ -129,6 +130,18 @@ class PythonAdapter(DebugAdapter):
             PythonTargetResolver instance for module vs file detection
         """
         return PythonTargetResolver(adapter=self, ctx=self.ctx)
+
+    def _create_source_path_resolver(self) -> "SourcePathResolver":
+        """Create Python-specific source path resolver.
+
+        Returns
+        -------
+        SourcePathResolver
+            PythonSourcePathResolver instance for site-packages resolution
+        """
+        from .source_path_resolver import PythonSourcePathResolver
+
+        return PythonSourcePathResolver(adapter=self, ctx=self.ctx)
 
     def _validate_target_hook(self, context: HookContext) -> None:
         """Override target validation to handle Python modules.

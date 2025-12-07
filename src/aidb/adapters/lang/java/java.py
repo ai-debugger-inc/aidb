@@ -17,6 +17,7 @@ from .target_resolver import JavaTargetResolver
 from .tooling import JavaClasspathBuilder, JavaToolchain
 
 if TYPE_CHECKING:
+    from aidb.adapters.base.source_path_resolver import SourcePathResolver
     from aidb.interfaces import ISession
 
 
@@ -215,6 +216,18 @@ class JavaAdapter(DebugAdapter):
             JavaTargetResolver instance for .java/.class/.jar detection
         """
         return JavaTargetResolver(adapter=self, ctx=self.ctx)
+
+    def _create_source_path_resolver(self) -> "SourcePathResolver":
+        """Create Java-specific source path resolver.
+
+        Returns
+        -------
+        SourcePathResolver
+            JavaSourcePathResolver instance for JAR path resolution
+        """
+        from .source_path_resolver import JavaSourcePathResolver
+
+        return JavaSourcePathResolver(adapter=self, ctx=self.ctx)
 
     def _build_classpath(self, target: str) -> list[str]:
         """Build classpath for the debug session.

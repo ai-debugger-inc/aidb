@@ -22,6 +22,7 @@ from .config import JavaScriptAdapterConfig
 from .target_resolver import JavaScriptTargetResolver
 
 if TYPE_CHECKING:
+    from aidb.adapters.base.source_path_resolver import SourcePathResolver
     from aidb.interfaces import ISession
 
 
@@ -187,6 +188,18 @@ class JavaScriptAdapter(DebugAdapter):
             JavaScriptTargetResolver instance for file type detection
         """
         return JavaScriptTargetResolver(adapter=self, ctx=self.ctx)
+
+    def _create_source_path_resolver(self) -> "SourcePathResolver":
+        """Create JavaScript-specific source path resolver.
+
+        Returns
+        -------
+        SourcePathResolver
+            JavaScriptSourcePathResolver instance for node_modules resolution
+        """
+        from .source_path_resolver import JavaScriptSourcePathResolver
+
+        return JavaScriptSourcePathResolver(adapter=self, ctx=self.ctx)
 
     async def attach(self, pid: int, session_id: str) -> None:
         """Attach to a running Node.js process.

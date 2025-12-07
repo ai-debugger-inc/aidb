@@ -19,11 +19,12 @@ AIDB debug adapters provide language-agnostic debugging capabilities through the
 
 ```
 DebugAdapter (base class)
-├── ProcessManager     - Process lifecycle (launch, monitor, stop, cleanup)
-├── PortManager        - Port acquisition, verification, release
-├── LaunchOrchestrator - Launch sequence coordination
-├── TargetResolver     - Target type detection and normalization
-└── AdapterHooksMixin  - Lifecycle hooks for extension points
+├── ProcessManager       - Process lifecycle (launch, monitor, stop, cleanup)
+├── PortManager          - Port acquisition, verification, release
+├── LaunchOrchestrator   - Launch sequence coordination
+├── TargetResolver       - Target type detection and normalization
+├── SourcePathResolver   - Source path resolution for remote debugging
+└── AdapterHooksMixin    - Lifecycle hooks for extension points
 ```
 
 ### Key Principles
@@ -105,6 +106,10 @@ class MyLanguageAdapter(DebugAdapter):
         """Create language-specific target resolver."""
         return MyLanguageTargetResolver(adapter=self, ctx=self.ctx)
 
+    def _create_source_path_resolver(self) -> "SourcePathResolver":
+        """Create language-specific source path resolver for remote debugging."""
+        return MyLanguageSourcePathResolver(adapter=self, ctx=self.ctx)
+
     def _get_process_name_pattern(self) -> str:
         """Get process name pattern for cleanup."""
         return "my-language-debug"
@@ -151,6 +156,19 @@ See `LaunchOrchestrator` in `src/aidb/adapters/base/components/launch_orchestrat
 
 - `launch(target, port, args)` - Simple launch with target file
 - `launch_with_config(launch_config, port, workspace_root)` - Launch with VS Code launch.json configuration
+
+### SourcePathResolver Usage
+
+See `SourcePathResolver` in `src/aidb/adapters/base/source_path_resolver.py` for base implementation. Each language adapter implements its own resolver:
+
+- **Python**: `src/aidb/adapters/lang/python/source_path_resolver.py` - Handles site-packages, venv, egg paths
+- **JavaScript**: `src/aidb/adapters/lang/javascript/source_path_resolver.py` - Handles node_modules, webpack paths
+- **Java**: `src/aidb/adapters/lang/java/source_path_resolver.py` - Handles JAR notation, Maven layouts
+
+Key methods:
+
+- `extract_relative_path(file_path)` - Extract language-specific relative path from adapter-returned path
+- `resolve(file_path, source_paths)` - Resolve remote path to local source file
 
 ## Lifecycle Hooks Reference
 
@@ -366,7 +384,11 @@ All file paths mentioned in this skill are relative to the repo root:
 
 - Base adapter: `src/aidb/adapters/base/adapter.py`
 - Components: `src/aidb/adapters/base/components/`
+- SourcePathResolver base: `src/aidb/adapters/base/source_path_resolver.py`
 - Python adapter: `src/aidb/adapters/lang/python/python.py`
+- Python source resolver: `src/aidb/adapters/lang/python/source_path_resolver.py`
 - JavaScript adapter: `src/aidb/adapters/lang/javascript/javascript.py`
+- JavaScript source resolver: `src/aidb/adapters/lang/javascript/source_path_resolver.py`
 - Java adapter: `src/aidb/adapters/lang/java/java.py`
+- Java source resolver: `src/aidb/adapters/lang/java/source_path_resolver.py`
 - DAP protocol: `src/aidb/dap/protocol.py`

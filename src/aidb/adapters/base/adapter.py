@@ -24,6 +24,7 @@ from .components.process_manager import ProcessManager
 from .config import AdapterConfig
 from .hooks import AdapterHooksMixin, HookContext, LifecycleHook
 from .launch import BaseLaunchConfig
+from .source_path_resolver import SourcePathResolver
 from .target_resolver import TargetResolver
 from .vslaunch import resolve_launch_configuration
 
@@ -93,6 +94,7 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
     _port_manager: "IPortManager"
     _launch_orchestrator: "ILaunchOrchestrator"
     _target_resolver: TargetResolver
+    _source_path_resolver: SourcePathResolver
 
     # ----------------------
     # Public API / Lifecycle
@@ -165,6 +167,9 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
 
         # Target resolver - language-specific target normalization
         self._target_resolver = self._create_target_resolver()
+
+        # Source path resolver - language-specific source path resolution
+        self._source_path_resolver = self._create_source_path_resolver()
 
         self._trace_manager: AdapterTraceLogManager | None = None
         self._output_capture: AdapterOutputCapture | None = None
@@ -258,6 +263,17 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
         if self._adapter_locator is None:
             self._adapter_locator = AdapterBinaryLocator(ctx=self.ctx)
         return self._adapter_locator
+
+    @property
+    def source_path_resolver(self) -> SourcePathResolver:
+        """Get the source path resolver.
+
+        Returns
+        -------
+        SourcePathResolver
+            Language-specific source path resolver instance
+        """
+        return self._source_path_resolver
 
     @property
     def binary_path(self) -> Path:
@@ -738,6 +754,22 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
         -------
         TargetResolver
             Language-specific target resolver instance
+        """
+
+    @abstractmethod
+    def _create_source_path_resolver(self) -> "SourcePathResolver":
+        """Create language-specific source path resolver.
+
+        Each adapter MUST implement this to provide language-specific
+        source path resolution for remote debugging scenarios.
+
+        Source path resolution maps debug adapter paths (which may be
+        container paths, JAR-internal paths, etc.) to local source files.
+
+        Returns
+        -------
+        SourcePathResolver
+            Language-specific source path resolver instance
         """
 
     @abstractmethod
