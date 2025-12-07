@@ -70,7 +70,10 @@ runs:
       with:
         files: .coverage
         flags: ${{ inputs.coverage-flags || inputs.suite }}
+        token: ${{ env.CODECOV_TOKEN }}
         fail_ci_if_error: false
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
     - name: Upload test summary
       if: always()

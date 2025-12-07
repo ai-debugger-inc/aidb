@@ -79,7 +79,7 @@ jobs:
     needs: [load-versions, validate-and-extract-version]
     uses: ./.github/workflows/test-parallel.yaml
     with:
-      skip_coverage: true
+      skip_coverage: false
       python-version: ${{ needs.load-versions.outputs.python-version }}
       node-version: ${{ needs.load-versions.outputs.node-version }}
       java-version: ${{ needs.load-versions.outputs.java-version }}
