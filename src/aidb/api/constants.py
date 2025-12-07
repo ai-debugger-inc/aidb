@@ -19,7 +19,6 @@ DEFAULT_FRAME_ID = 0
 
 # Step operation defaults
 DEFAULT_STEP_GRANULARITY = "line"
-DEFAULT_SINGLE_THREAD = False
 DEFAULT_WAIT_FOR_STOP = True
 
 # Memory operation defaults

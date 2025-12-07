@@ -12,6 +12,7 @@ from aidb_logging import get_mcp_logger as get_logger
 
 from ...core import StepAction, ToolName
 from ...core.constants import ParamName, ResponseDataKey, SessionState
+from ...core.context_utils import build_error_execution_state
 from ...core.decorators import mcp_tool
 from ...responses import StepResponse
 from ...responses.errors import InternalError
@@ -214,46 +215,6 @@ async def _execute_step_sequence(
     return results
 
 
-def _build_error_execution_state(api: Any, context: Any) -> dict[str, Any]:
-    """Build execution state for error response.
-
-    Parameters
-    ----------
-    api : Any
-        Debug API instance
-    context : Any
-        Session context
-
-    Returns
-    -------
-    dict
-        Execution state dictionary
-    """
-    try:
-        from ...core.context_utils import determine_detailed_status
-
-        detailed_status = determine_detailed_status(api, context, None)
-        return {
-            "status": detailed_status.value,
-            "session_state": (
-                SessionState.PAUSED.value
-                if context.is_paused
-                else SessionState.RUNNING.value
-                if context.is_running
-                else SessionState.STOPPED.value
-            ),
-            "current_location": (
-                f"{context.current_file}:{context.current_line}"
-                if context.current_file
-                else None
-            ),
-            "breakpoints_active": bool(context.breakpoints_set),
-        }
-    except Exception as state_error:
-        logger.debug("Could not build execution state: %s", state_error)
-        return {}
-
-
 async def _build_step_response(
     action: StepAction,
     session_id: str,
@@ -278,34 +239,20 @@ async def _build_step_response(
     StepResponse
         Formatted step response
     """
-    # Build location
-    location = None
-    if context and context.current_file:
-        location = f"{context.current_file}:{context.current_line}"
-
-    # Determine detailed status for step operation
-    from ...core.context_utils import (
-        determine_detailed_status,
-        get_code_snapshot_if_paused,
-    )
+    from ...core.context_utils import build_response_context
 
     stop_reason = DAPStopReason.STEP.value
-    detailed_status = determine_detailed_status(api, context, stop_reason)
-    has_breakpoints = bool(context.breakpoints_set) if context else False
-
-    # Get code snapshot after stepping
-    code_context = None
-    if context and context.is_paused:
-        code_context = await get_code_snapshot_if_paused(api, context)
+    is_paused = context and context.is_paused
+    resp_ctx = await build_response_context(api, context, stop_reason, is_paused)
 
     return StepResponse(
         action=action.value,
-        location=location,
+        location=resp_ctx.location,
         stopped=True,
         session_id=session_id,
-        code_context=code_context,
-        has_breakpoints=has_breakpoints,
-        detailed_status=detailed_status.value,
+        code_context=resp_ctx.code_context,
+        has_breakpoints=resp_ctx.has_breakpoints,
+        detailed_status=resp_ctx.detailed_status,
     )
 
 
@@ -379,8 +326,8 @@ async def handle_step(args: dict[str, Any]) -> dict[str, Any]:
             ).to_mcp_response()
 
         # Add execution state if we have context
-        if "context" in locals() and context:
-            execution_state = _build_error_execution_state(api, context)
+        if "context" in locals() and context and "api" in locals() and api:
+            execution_state = build_error_execution_state(api, context)
             if execution_state:
                 error_response["data"]["execution_state"] = execution_state
 

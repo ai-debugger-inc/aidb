@@ -274,20 +274,16 @@ async def _build_run_until_response(
     RunUntilResponse
         Formatted response
     """
-    from ...core.context_utils import (
-        determine_detailed_status,
-        get_code_snapshot_if_paused,
-    )
+    from ...core.context_utils import build_response_context
 
     # Determine stop reason for status
     stop_reason = None if paused_at_target else StopReason.COMPLETED
-    detailed_status = determine_detailed_status(api, context, stop_reason)
-    has_breakpoints = bool(context.breakpoints_set) if context else False
-
-    # Get code snapshot if paused at target
-    code_context = None
-    if paused_at_target and context:
-        code_context = await get_code_snapshot_if_paused(api, context)
+    resp_ctx = await build_response_context(
+        api,
+        context,
+        stop_reason,
+        is_paused=paused_at_target,
+    )
 
     return RunUntilResponse(
         target_location=f"{file_path}:{line}",
@@ -295,9 +291,9 @@ async def _build_run_until_response(
         actual_location=f"{file_path}:{line}" if paused_at_target else None,
         stop_reason=stop_reason,
         session_id=session_id,
-        code_context=code_context,
-        has_breakpoints=has_breakpoints,
-        detailed_status=detailed_status.value,
+        code_context=resp_ctx.code_context,
+        has_breakpoints=resp_ctx.has_breakpoints,
+        detailed_status=resp_ctx.detailed_status,
     )
 
 

@@ -433,6 +433,10 @@ class BreakpointOperations(APIOperationBase):
             msg,
         )
 
+    @audit_operation(
+        component="api.orchestration",
+        operation="clear_function_breakpoints",
+    )
     async def clear_function_breakpoints(
         self,
         names: list[str] | None = None,
@@ -457,6 +461,196 @@ class BreakpointOperations(APIOperationBase):
         """
         # Pass names to session layer for selective clearing
         return await self.session.debug.clear_function_breakpoints(names)
+
+    @audit_operation(component="api.orchestration", operation="clear_data_breakpoints")
+    async def clear_data_breakpoints(self) -> AidbBreakpointsResponse:
+        """Clear all data breakpoints (watchpoints).
+
+        This removes all currently set data breakpoints that were previously
+        set via ``data_breakpoint()`` or ``set_data_breakpoint_for_variable()``.
+
+        Returns
+        -------
+        AidbBreakpointsResponse
+            Empty response indicating data breakpoints were cleared
+        """
+        from aidb.dap.protocol.bodies import SetDataBreakpointsArguments
+        from aidb.dap.protocol.requests import SetDataBreakpointsRequest
+
+        # Clear by sending empty breakpoints list
+        args = SetDataBreakpointsArguments(breakpoints=[])
+        request = SetDataBreakpointsRequest(seq=0, arguments=args)
+        await self.session.dap.send_request(request)
+
+        return AidbBreakpointsResponse(breakpoints={}, success=True)
+
+    @audit_operation(
+        component="api.orchestration",
+        operation="get_data_breakpoint_info",
+    )
+    async def get_data_breakpoint_info(
+        self,
+        variable_reference: int,
+        name: str,
+    ) -> tuple[str | None, str | None]:
+        """Get information needed to set a data breakpoint on a variable.
+
+        This queries the debug adapter to get the data ID needed for setting
+        a data breakpoint (watchpoint) on a specific variable.
+
+        Parameters
+        ----------
+        variable_reference : int
+            The variablesReference of the container holding the variable
+        name : str
+            The name of the variable within the container
+
+        Returns
+        -------
+        tuple[str | None, str | None]
+            A tuple of (data_id, error_description).
+            On success: (data_id, None)
+            On failure: (None, error_description)
+        """
+        try:
+            result = await self.session.debug.get_data_breakpoint_info(
+                variable_reference=variable_reference,
+                name=name,
+            )
+            if result and result.data_id:
+                return (result.data_id, None)
+            return (None, result.description if result else "Unknown error")
+        except Exception as e:
+            return (None, str(e))
+
+    @audit_operation(
+        component="api.orchestration",
+        operation="set_data_breakpoint_for_variable",
+    )
+    async def set_data_breakpoint_for_variable(
+        self,
+        var_name: str,
+        access_type: str = "write",
+        condition: str | None = None,
+        hit_condition: str | None = None,
+        frame_id: int | None = None,
+    ) -> AidbBreakpointsResponse:
+        """Set a data breakpoint (watchpoint) on a variable by name.
+
+        This is a convenience method that combines variable resolution and
+        data breakpoint setting. It handles nested variable names like
+        "user.email" by traversing the object tree.
+
+        Parameters
+        ----------
+        var_name : str
+            Variable name, optionally with dot notation for nested access
+        access_type : str
+            Type of access to break on: "read", "write", or "readWrite"
+        condition : str, optional
+            Expression that must evaluate to true to break
+        hit_condition : str, optional
+            Expression controlling how many hits are required
+        frame_id : int, optional
+            Frame to search in, by default None (top frame)
+
+        Returns
+        -------
+        AidbBreakpointsResponse
+            Information about the set data breakpoint
+
+        Raises
+        ------
+        AidbError
+            If variable cannot be resolved or breakpoint cannot be set
+        """
+        # Import here to avoid circular imports
+        from aidb.api.introspection.variables import VariableOperations
+
+        # Create a temporary VariableOperations instance
+        var_ops = VariableOperations(self._root_session, self.ctx)
+
+        # Resolve the variable to get its reference
+        var_ref, resolve_error = await var_ops.resolve_variable(var_name, frame_id)
+        if resolve_error:
+            msg = f"Cannot set watchpoint: {resolve_error}"
+            raise AidbError(msg)
+
+        # Get the variable name parts for the data breakpoint info
+        var_parts = var_name.split(".")
+        final_name = var_parts[-1]
+
+        # Get data breakpoint info
+        data_id, info_error = await self.get_data_breakpoint_info(var_ref, final_name)
+        if info_error:
+            msg = f"Cannot set watchpoint on '{var_name}': {info_error}"
+            raise AidbError(msg)
+
+        # Set the data breakpoint
+        return await self.data_breakpoint(
+            data_id=data_id,  # type: ignore  # We checked data_id is not None
+            access_type=access_type,
+            condition=condition,
+            hit_condition=hit_condition,
+        )
+
+    def validate_hit_condition(
+        self,
+        hit_condition: str,
+        language: str | None = None,
+    ) -> tuple[bool, str | None]:
+        """Validate a hit condition for the current or specified language.
+
+        Hit conditions control when a breakpoint fires based on hit count.
+        Different languages support different hit condition formats.
+
+        Parameters
+        ----------
+        hit_condition : str
+            The hit condition string to validate
+            (e.g., ">5", "==3", "%10", "5")
+        language : str, optional
+            Language to validate against. If None, uses session's language.
+
+        Returns
+        -------
+        tuple[bool, str | None]
+            A tuple of (is_valid, error_message).
+            On success: (True, None)
+            On failure: (False, error_message)
+
+        Examples
+        --------
+        >>> is_valid, err = api.orchestration.validate_hit_condition(">5")
+        >>> if not is_valid:
+        ...     print(f"Invalid: {err}")
+        """
+        from aidb.models.entities.breakpoint import HitConditionMode
+        from aidb_common.discovery.adapters import (
+            get_supported_hit_conditions,
+            supports_hit_condition,
+        )
+
+        # Get language from session if not provided
+        if language is None:
+            language = getattr(self.session, "language", "python")
+
+        # First try to parse the hit condition
+        try:
+            mode, _ = HitConditionMode.parse(hit_condition)
+        except ValueError as e:
+            return (False, f"Invalid hit condition format: {e}")
+
+        # Check if the language supports this hit condition
+        if not supports_hit_condition(language, hit_condition):
+            supported = get_supported_hit_conditions(language)
+            return (
+                False,
+                f"The {language} adapter doesn't support {mode.name} hit conditions. "
+                f"Supported: {', '.join(supported)}",
+            )
+
+        return (True, None)
 
     @audit_operation(component="api.orchestration", operation="list_breakpoints")
     async def list_breakpoints(self) -> AidbBreakpointsResponse:

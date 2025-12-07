@@ -6,6 +6,7 @@ consistent location and state information across all MCP tools.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from aidb.common.code_context import CodeContext
@@ -105,8 +106,9 @@ async def _gather_stack_info(debug_api: DebugAPI) -> dict[str, Any]:
     Returns
     -------
     dict[str, Any]
-        Dictionary with current_location (LocationDict), stack_frames (list[StackFrameDict]),
-        and thread_info (dict with id, name, count)
+        Dictionary with current_location (LocationDict),
+        stack_frames (list[StackFrameDict]), and thread_info (dict with id,
+        name, count)
     """
     result: dict[str, Any] = {
         "current_location": None,
@@ -591,3 +593,126 @@ async def get_code_snapshot_if_paused(
             },
         )
         return None
+
+
+def build_error_execution_state(
+    api: DebugAPI | None,
+    context: MCPSessionContext | None,
+    include_error_context: bool = False,
+) -> dict[str, Any]:
+    """Build execution state dictionary for error responses.
+
+    This provides a consistent structure for execution state in error responses
+    across different MCP handlers.
+
+    Parameters
+    ----------
+    api : DebugAPI | None
+        Debug API instance
+    context : MCPSessionContext | None
+        Session context
+    include_error_context : bool
+        If True, includes "error_context": True in the result
+
+    Returns
+    -------
+    dict[str, Any]
+        Execution state dictionary with status, session_state, current_location,
+        and breakpoints_active fields
+    """
+    try:
+        detailed_status = determine_detailed_status(api, context, None)
+        state: dict[str, Any] = {
+            "status": detailed_status.value,
+            "session_state": (
+                ExecutionState.PAUSED.value
+                if context and context.is_paused
+                else ExecutionState.RUNNING.value
+                if context and context.is_running
+                else ExecutionState.UNKNOWN.value
+            ),
+            "current_location": (
+                f"{context.current_file}:{context.current_line}"
+                if context and context.current_file
+                else None
+            ),
+            "breakpoints_active": bool(context.breakpoints_set) if context else False,
+        }
+        if include_error_context:
+            state["error_context"] = True
+        return state
+    except Exception as state_error:
+        logger.debug("Could not build execution state: %s", state_error)
+        return {}
+
+
+@dataclass
+class ResponseContext:
+    """Common context fields for execution response building.
+
+    This dataclass consolidates the common fields used across different execution
+    response types (execute, step, run_until).
+    """
+
+    location: str | None
+    """Current file:line location, or None if not available."""
+
+    detailed_status: str
+    """Detailed execution status value."""
+
+    has_breakpoints: bool
+    """Whether breakpoints are currently set."""
+
+    code_context: Any | None
+    """Code snapshot at current location, or None."""
+
+
+async def build_response_context(
+    api: DebugAPI | None,
+    context: MCPSessionContext | None,
+    stop_reason: str | None = None,
+    is_paused: bool = True,
+) -> ResponseContext:
+    """Build common context fields for execution responses.
+
+    This helper consolidates the common pattern used across execute, step,
+    and run_until handlers for building response context.
+
+    Parameters
+    ----------
+    api : DebugAPI | None
+        Debug API instance
+    context : MCPSessionContext | None
+        Session context with current location and state
+    stop_reason : str | None
+        Stop reason for status determination (e.g., "step", "breakpoint")
+    is_paused : bool
+        Whether the debugger is paused (for code snapshot retrieval)
+
+    Returns
+    -------
+    ResponseContext
+        Dataclass with location, detailed_status, has_breakpoints, code_context
+    """
+    # Build location from context
+    location = None
+    if context and context.current_file:
+        location = f"{context.current_file}:{context.current_line}"
+
+    # Determine detailed status
+    detailed_status = determine_detailed_status(api, context, stop_reason)
+
+    # Check for breakpoints
+    has_breakpoints = bool(context.breakpoints_set) if context else False
+
+    # Get code snapshot if paused
+    code_context = None
+    if is_paused and context:
+        code_context = await get_code_snapshot_if_paused(api, context)
+
+    return ResponseContext(
+        location=location,
+        detailed_status=detailed_status.value,
+        has_breakpoints=has_breakpoints,
+        code_context=code_context,
+    )

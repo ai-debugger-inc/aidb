@@ -415,3 +415,32 @@ class SessionConnector(Obj):
             return True
         except Exception:
             return False
+
+    def get_output(self, clear: bool = True) -> list[dict[str, Any]]:
+        """Get collected program output (logpoints, stdout, stderr).
+
+        This method provides proper encapsulation of the DAP client's output
+        buffer, avoiding direct access to private attributes.
+
+        Parameters
+        ----------
+        clear : bool
+            If True (default), clears the buffer after retrieval to avoid
+            returning duplicate output on subsequent calls.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            List of output entries, each with:
+            - category: "console" (logpoints), "stdout", "stderr", etc.
+            - output: The output text
+            - timestamp: Unix timestamp when output was received
+        """
+        if not self._dap:
+            return []
+
+        state = self._dap._state
+        output = list(state.output_buffer)
+        if clear:
+            state.output_buffer.clear()
+        return output

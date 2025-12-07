@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from aidb.models.entities.breakpoint import HitConditionMode
 from aidb_logging import get_mcp_logger as get_logger
 
 from ...core import BreakpointAction, ToolName
@@ -23,7 +22,6 @@ from ...responses.helpers import (
     missing_parameter,
 )
 from ...tools.actions import normalize_action
-from ...utils import get_supported_hit_conditions, supports_hit_condition
 
 if TYPE_CHECKING:
     from ...core.types import BreakpointSpec
@@ -57,9 +55,14 @@ async def _handle_set_breakpoint(api, context, args: dict[str, Any]) -> dict[str
     # Validate hit condition if provided
     hit_condition = args.get(ParamName.HIT_CONDITION)
     if hit_condition:
-        validation_result = _validate_hit_condition(api, hit_condition)
-        if validation_result:
-            return validation_result
+        is_valid, error_msg = api.orchestration.validate_hit_condition(hit_condition)
+        if not is_valid:
+            return invalid_parameter(
+                param_name="hit_condition",
+                expected_type="valid hit condition format",
+                received_value=hit_condition,
+                error_message=error_msg or "Invalid hit condition",
+            )
 
     # Parse and validate location
     parsed = _parse_breakpoint_location(location)
@@ -258,78 +261,6 @@ async def _handle_clear_all_breakpoints(
     ).to_mcp_response()
 
 
-async def _resolve_variable_reference(
-    api,
-    var_name: str,
-) -> int | dict[str, Any]:
-    """Resolve a variable name to its variablesReference.
-
-    Handles nested names like "user.email" by traversing the object tree.
-
-    Returns
-    -------
-    int
-        The variablesReference if found
-    dict
-        Error response if variable not found
-    """
-    locals_response = await api.introspection.locals()
-    var_parts = var_name.split(".")
-    current_vars = locals_response.variables
-
-    for i, part in enumerate(var_parts):
-        if part not in current_vars:
-            # Try globals for the first part
-            if i == 0:
-                globals_response = await api.introspection.globals()
-                if part in globals_response.variables:
-                    current_vars = globals_response.variables
-                else:
-                    return invalid_parameter(
-                        param_name=ParamName.NAME,
-                        expected_type="variable name in current scope",
-                        received_value=var_name,
-                        error_message=f"Variable '{part}' not found",
-                    )
-            else:
-                return invalid_parameter(
-                    param_name=ParamName.NAME,
-                    expected_type="valid variable path",
-                    received_value=var_name,
-                    error_message=f"Field '{part}' not found on variable",
-                )
-
-        var = current_vars[part]
-        if i == len(var_parts) - 1:
-            # Final variable - return its reference
-            if var.id:
-                return var.id
-            return invalid_parameter(
-                param_name=ParamName.NAME,
-                expected_type="variable with reference",
-                received_value=var_name,
-                error_message="Could not get variable reference for watchpoint",
-            )
-        if var.has_children and var.id:
-            # Expand children for nested access
-            children_response = await api.introspection.get_children(var.id)
-            current_vars = children_response.variables
-        else:
-            return invalid_parameter(
-                param_name=ParamName.NAME,
-                expected_type="expandable variable",
-                received_value=var_name,
-                error_message=f"Variable '{part}' has no expandable children",
-            )
-
-    return invalid_parameter(
-        param_name=ParamName.NAME,
-        expected_type="variable with reference",
-        received_value=var_name,
-        error_message="Could not resolve variable reference",
-    )
-
-
 async def _handle_watch_breakpoint(
     api,
     _context,
@@ -396,9 +327,14 @@ async def _handle_watch_breakpoint(
 
     try:
         # Step 1: Resolve variable to get variablesReference
-        var_ref = await _resolve_variable_reference(api, var_name)
-        if isinstance(var_ref, dict):
-            return var_ref  # Error response
+        var_ref, error_msg = await api.introspection.resolve_variable(var_name)
+        if error_msg:
+            return invalid_parameter(
+                param_name=ParamName.NAME,
+                expected_type="variable name in current scope",
+                received_value=var_name,
+                error_message=error_msg,
+            )
 
         # Step 2: Get data breakpoint info
         var_parts = var_name.split(".")
@@ -497,46 +433,6 @@ async def _handle_unwatch_breakpoint(
             exception=e,
             summary=f"Failed to remove watchpoint '{var_name}'",
         )
-
-
-def _validate_hit_condition(api, hit_condition: str) -> dict[str, Any] | None:
-    """Validate hit condition for the current language.
-
-    Returns error response or None.
-    """
-    # Get the language from session
-    language = getattr(api.session, "language", "python") if api.session else "python"
-
-    if not supports_hit_condition(language, hit_condition):
-        try:
-            mode, _ = HitConditionMode.parse(hit_condition)
-            supported = get_supported_hit_conditions(language)
-            logger.info(
-                "Unsupported hit condition",
-                extra={
-                    "language": language,
-                    "hit_condition": hit_condition,
-                    "supported": supported,
-                },
-            )
-            return UnsupportedOperationError(
-                operation=f"Hit condition '{hit_condition}'",
-                adapter_type=f"{language} adapter",
-                language=language,
-                error_message=(
-                    f"The {language} adapter doesn't support "
-                    f"{mode.name} hit conditions. "
-                    f"Supported: {', '.join(supported)}"
-                ),
-            ).to_mcp_response()
-        except ValueError as e:
-            return invalid_parameter(
-                param_name="hit_condition",
-                expected_type="valid hit condition format",
-                received_value=hit_condition,
-                error_message=str(e),
-            )
-    return None
 
 
 def _parse_breakpoint_location(location: str) -> tuple[str, int] | dict[str, Any]:

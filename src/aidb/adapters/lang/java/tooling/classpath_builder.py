@@ -100,14 +100,18 @@ class JavaClasspathBuilder:
             return explicit_main_class
 
         if target.endswith(".class"):
-            # Extract class name from path
-            # This is simplified - real implementation would need to handle packages
-            return Path(target).stem
+            # Extract class name from path, normalizing package separators
+            return self.normalize_class_name(Path(target).stem)
 
         if target.endswith(".jar"):
-            # For JARs, we'd need to read the manifest or require main_class
-            # In a full implementation, this would parse META-INF/MANIFEST.MF
-            msg = "For JAR files, please specify main_class parameter"
+            # Try to read main class from JAR manifest
+            main_class = self.resolve_jar_manifest(target)
+            if main_class:
+                return main_class
+            msg = (
+                "For JAR files without Main-Class manifest attribute, "
+                "please specify main_class parameter"
+            )
             raise AidbError(msg)
 
         # For .java files (that we compiled or will compile)
@@ -125,22 +129,17 @@ class JavaClasspathBuilder:
         -------
         Optional[str]
             Main class name from manifest, or None if not found
-
-        Notes
-        -----
-        This is a placeholder for future implementation. A complete version
-        would use zipfile to read META-INF/MANIFEST.MF and parse Main-Class attribute.
         """
-        # TODO: Implement JAR manifest parsing
-        # import zipfile
-        # with zipfile.ZipFile(jar_path, 'r') as jar:
-        #     try:
-        #         manifest = jar.read('META-INF/MANIFEST.MF').decode('utf-8')
-        #         for line in manifest.split('\n'):
-        #             if line.startswith('Main-Class:'):
-        #                 return line.split(':', 1)[1].strip()
-        #     except KeyError:
-        #         pass
+        import zipfile
+
+        try:
+            with zipfile.ZipFile(jar_path, "r") as jar:
+                manifest = jar.read("META-INF/MANIFEST.MF").decode("utf-8")
+                for line in manifest.split("\n"):
+                    if line.startswith("Main-Class:"):
+                        return line.split(":", 1)[1].strip()
+        except (KeyError, zipfile.BadZipFile, FileNotFoundError):
+            pass
         return None
 
     def normalize_class_name(self, class_name: str) -> str:
@@ -156,10 +155,5 @@ class JavaClasspathBuilder:
         str
             Normalized class name
         """
-        # Remove .class extension if present
-        class_name = class_name.removesuffix(".class")
-
-        # Replace path separators with dots for package names
-        class_name = class_name.replace("/", ".").replace("\\", ".")
-
-        return class_name
+        # Remove .class extension if present, then replace path separators with dots
+        return class_name.removesuffix(".class").replace("/", ".").replace("\\", ".")

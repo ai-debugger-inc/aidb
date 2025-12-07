@@ -502,3 +502,51 @@ class Session(
             raise RuntimeError(msg)
 
         return await self.dap.send_request(request)
+
+    def get_output(self, clear: bool = True) -> list[dict[str, Any]]:
+        """Get collected program output (logpoints, stdout, stderr).
+
+        This method provides proper encapsulation of the DAP client's output
+        buffer. Output is collected from DAP output events during program
+        execution. Logpoint messages appear with category "console".
+
+        Parameters
+        ----------
+        clear : bool
+            If True (default), clears the buffer after retrieval to avoid
+            returning duplicate output on subsequent calls.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            List of output entries, each with:
+            - category: "console" (logpoints), "stdout", "stderr", etc.
+            - output: The output text
+            - timestamp: Unix timestamp when output was received
+        """
+        return self.connector.get_output(clear=clear)
+
+    def is_stopped(self) -> bool:
+        """Check if the session is stopped (paused at a breakpoint or step).
+
+        This is a unified method that handles both parent and child sessions
+        correctly. It checks the DAP client's stopped state, which is accurate
+        for:
+        - Parent sessions that are paused at breakpoints
+        - Child sessions (JavaScript/TypeScript) that may stop before full
+          session initialization
+
+        For high-level session lifecycle status, use ``is_paused()`` instead.
+        For low-level DAP client state, use ``is_dap_stopped()`` instead.
+
+        Returns
+        -------
+        bool
+            True if the session is stopped/paused, False otherwise
+        """
+        # For child sessions or sessions with DAP client, check DAP state
+        if self.connector.has_dap_client():
+            return self.is_dap_stopped()
+
+        # Fallback to session state for sessions without DAP client yet
+        return self.state.is_paused()

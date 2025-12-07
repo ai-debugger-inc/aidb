@@ -11,6 +11,7 @@ from aidb_logging import get_mcp_logger as get_logger
 
 from ...core import ExecutionAction, ToolName
 from ...core.constants import ErrorMessage, ParamName, SessionState
+from ...core.context_utils import build_error_execution_state
 from ...core.decorators import mcp_tool
 from ...core.exceptions import ErrorCode
 from ...responses import ExecuteResponse
@@ -237,47 +238,6 @@ def _extract_execution_state(result: Any, context: Any) -> dict[str, Any]:
     }
 
 
-def _build_error_execution_state(api: Any, context: Any) -> dict[str, Any]:
-    """Build execution state for error response.
-
-    Parameters
-    ----------
-    api : Any
-        Debug API instance
-    context : Any
-        Session context
-
-    Returns
-    -------
-    dict
-        Execution state dictionary
-    """
-    try:
-        from ...core.context_utils import determine_detailed_status
-
-        detailed_status = determine_detailed_status(api, context, None)
-        return {
-            "status": detailed_status.value,
-            "session_state": (
-                SessionState.PAUSED.value
-                if context.is_paused
-                else SessionState.RUNNING.value
-                if context.is_running
-                else SessionState.STOPPED.value
-            ),
-            "current_location": (
-                f"{context.current_file}:{context.current_line}"
-                if context.current_file
-                else None
-            ),
-            "breakpoints_active": bool(context.breakpoints_set),
-            "error_context": True,
-        }
-    except Exception as state_error:
-        logger.debug("Could not build execution state: %s", state_error)
-        return {}
-
-
 async def _build_execution_response(
     action: ExecutionAction,
     session_id: str,
@@ -308,18 +268,14 @@ async def _build_execution_response(
     ExecuteResponse
         Formatted execution response
     """
-    from ...core.context_utils import (
-        determine_detailed_status,
-        get_code_snapshot_if_paused,
+    from ...core.context_utils import build_response_context
+
+    resp_ctx = await build_response_context(
+        api,
+        context,
+        state["stop_reason"],
+        is_paused=state["stopped"],
     )
-
-    detailed_status = determine_detailed_status(api, context, state["stop_reason"])
-    has_breakpoints = bool(context.breakpoints_set) if context else False
-
-    # Get code snapshot if paused
-    code_context = None
-    if state["stopped"] and context:
-        code_context = await get_code_snapshot_if_paused(api, context)
 
     # Collect program output (logpoints, stdout, stderr)
     program_output = None
@@ -349,10 +305,10 @@ async def _build_execution_response(
             "terminated": state["terminated"],
             "location": state["location"],
             "stop_reason": state["stop_reason"],
-            "detailed_status": detailed_status.value,
-            "has_breakpoints": has_breakpoints,
+            "detailed_status": resp_ctx.detailed_status,
+            "has_breakpoints": resp_ctx.has_breakpoints,
             "session_id": session_id,
-            "has_code_context": code_context is not None,
+            "has_code_context": resp_ctx.code_context is not None,
             "has_output": program_output is not None,
             "output_count": len(program_output) if program_output else 0,
             "state": (
@@ -370,9 +326,9 @@ async def _build_execution_response(
         location=state["location"],
         stop_reason=state["stop_reason"],
         session_id=session_id,
-        code_context=code_context,
-        has_breakpoints=has_breakpoints,
-        detailed_status=detailed_status.value,
+        code_context=resp_ctx.code_context,
+        has_breakpoints=resp_ctx.has_breakpoints,
+        detailed_status=resp_ctx.detailed_status,
         program_output=program_output,
     )
 
@@ -487,7 +443,11 @@ async def handle_execution(args: dict[str, Any]) -> dict[str, Any]:
 
         # Try to add execution state if we have context
         if "context" in locals() and context and "api" in locals() and api:
-            execution_state = _build_error_execution_state(api, context)
+            execution_state = build_error_execution_state(
+                api,
+                context,
+                include_error_context=True,
+            )
             if execution_state:
                 error_response["data"]["execution_state"] = execution_state
 

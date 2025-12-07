@@ -58,16 +58,7 @@ class APIIntrospectionOperations(VariableOperations, MemoryOperations, StackOper
             - output: The output text
             - timestamp: Unix timestamp when output was received
         """
-        # Access the DAP client state through the session connector
-        dap_client = self.session.connector._dap
-        if not dap_client:
-            return []
-
-        state = dap_client._state
-        output = list(state.output_buffer)
-        if clear:
-            state.output_buffer.clear()
-        return output
+        return self.session.get_output(clear=clear)
 
 
 __all__ = [
