@@ -14,6 +14,7 @@ from aidb_cli.core.constants import (
     CIJobPatterns,
     CIJobStatus,
     ExitCode,
+    ExternalURLs,
     Icons,
 )
 from aidb_cli.core.decorators import handle_exceptions
@@ -110,7 +111,7 @@ def summary(  # noqa: C901
 
     if gh_check.returncode != 0:
         output.error("GitHub CLI (gh) is not installed or not in PATH")
-        output.plain("Install it from: https://cli.github.com/")
+        output.plain(ExternalURLs.GITHUB_CLI_INSTALL_MSG)
         ctx.exit(ExitCode.GENERAL_ERROR)
 
     # Fetch job data from GitHub
@@ -156,7 +157,7 @@ def summary(  # noqa: C901
 
         if not test_jobs:
             output.success(
-                f"{Icons.SUCCESS} All test jobs passed! (Use --all to see details)",
+                "All test jobs passed! (Use --all to see details)",
             )
             ctx.exit(0)
 
@@ -178,8 +179,7 @@ def summary(  # noqa: C901
     output.plain("")
     if failed_jobs:
         output.error(
-            f"{Icons.ERROR} {len(failed_jobs)} test job(s) failed. "
-            f"Check logs for details.",
+            f"{len(failed_jobs)} test job(s) failed. Check logs for details.",
         )
         if not detailed:
             output.plain("\nFor detailed test results:")
@@ -187,11 +187,11 @@ def summary(  # noqa: C901
         ctx.exit(ExitCode.GENERAL_ERROR)
     elif cancelled_jobs:
         output.warning(
-            f"{Icons.WARNING} {len(cancelled_jobs)} test job(s) were cancelled",
+            f"{len(cancelled_jobs)} test job(s) were cancelled",
         )
         ctx.exit(0)
     else:
-        output.success(f"{Icons.SUCCESS} All test jobs passed!")
+        output.success("All test jobs passed!")
         ctx.exit(0)
 
 
@@ -402,7 +402,7 @@ def _display_flakes_report(
 
     if gh_check.returncode != 0:
         output.error("GitHub CLI (gh) is not installed or not in PATH")
-        output.plain("Install it from: https://cli.github.com/")
+        output.plain(ExternalURLs.GITHUB_CLI_INSTALL_MSG)
         ctx.exit(ExitCode.GENERAL_ERROR)
 
     # Download the flaky-tests-report artifact
@@ -486,8 +486,7 @@ def _format_flakes_output(  # noqa: C901
         1 for s in by_suite.values() if s.get("flaky_count", 0) > 0
     )
     output.warning(
-        f"{Icons.WARNING} {total_flaky} flaky test(s) detected across "
-        f"{suites_with_flakes} suite(s)",
+        f"{total_flaky} flaky test(s) detected across {suites_with_flakes} suite(s)",
     )
     if total_failing > 0:
         output.error(

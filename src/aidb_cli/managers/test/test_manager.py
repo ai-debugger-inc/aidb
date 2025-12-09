@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Any, Optional
 import click
 
 from aidb.common.errors import AidbError
-from aidb_cli.core.constants import Icons
 from aidb_cli.core.utils import CliOutput
 from aidb_cli.managers.base.orchestrator import BaseOrchestrator
 from aidb_cli.managers.build import BuildManager
@@ -76,18 +75,13 @@ class TestManager(BaseOrchestrator):
                 check=True,
             )
         except (AidbError, FileNotFoundError):
-            CliOutput.plain(
-                f"{Icons.ERROR} Docker is not installed or not available",
-                err=True,
-            )
+            CliOutput.error("Docker is not installed or not available")
             return False
 
         execution_service = self.get_service(TestExecutionService)
         if not execution_service.compose_file.exists():
-            CliOutput.plain(
-                f"{Icons.ERROR} Docker compose file not found: "
-                f"{execution_service.compose_file}",
-                err=True,
+            CliOutput.error(
+                f"Docker compose file not found: {execution_service.compose_file}",
             )
             return False
 
@@ -183,9 +177,7 @@ class TestManager(BaseOrchestrator):
             adapter_status = self.check_adapters([language])
             missing = [k for k, v in adapter_status.items() if not v]
             if missing:
-                CliOutput.plain(
-                    f"{Icons.WARNING}  Missing adapters: {', '.join(missing)}",
-                )
+                CliOutput.warning(f" Missing adapters: {', '.join(missing)}")
                 CliOutput.plain("   Run './dev-cli adapters build' to build them")
                 response = click.confirm("Continue anyway?", default=False)
                 if not response:

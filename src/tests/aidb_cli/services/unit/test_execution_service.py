@@ -471,7 +471,7 @@ class TestTestExecutionService:
                     assert "wait" in wait_cmd
                     assert "aidb-mcp-test" in wait_cmd
 
-    @patch("aidb_cli.services.test.test_execution_service.StreamHandlerService")
+    @patch("aidb_cli.services.test.test_execution_service.StreamHandler")
     def test_run_local_tests_success(
         self,
         mock_stream_service_class,
@@ -483,7 +483,7 @@ class TestTestExecutionService:
         suite_path = tmp_path / "tests"
         suite_path.mkdir()
 
-        # Mock StreamHandlerService.run_with_streaming
+        # Mock StreamHandler.run_with_streaming
         mock_stream_service = Mock()
         mock_stream_service_class.return_value = mock_stream_service
         mock_result = Mock(

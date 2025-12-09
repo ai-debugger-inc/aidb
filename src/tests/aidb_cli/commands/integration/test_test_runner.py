@@ -67,7 +67,7 @@ class TestTestRunnerBasic:
 
         result = runner.invoke(
             cli,
-            ["-v", "test", "run", "-s", "logging", "-p", "unified", "--local"],
+            ["-v", "test", "run", "-s", "logging", "-k", "unified", "--local"],
             catch_exceptions=False,
         )
 
@@ -134,7 +134,7 @@ class TestTestRunnerAdvanced:
 
         result = runner.invoke(
             cli,
-            ["-v", "test", "run", "-s", "logging", "-j", "2", "--local"],
+            ["-v", "test", "run", "-s", "logging", "-n", "2", "--local"],
             catch_exceptions=False,
         )
         # Integration test: verify CLI handles parallel execution correctly
@@ -309,7 +309,7 @@ class TestTestRunnerError:
 
         result = runner.invoke(
             cli,
-            ["test", "run", "-s", "logging", "-p", "nonexistent_pattern_xyz123"],
+            ["test", "run", "-s", "logging", "-k", "nonexistent_pattern_xyz123"],
             catch_exceptions=False,
         )
 
@@ -319,8 +319,12 @@ class TestTestRunnerError:
         assert mock_test_execution_no_tests.called
 
     @pytest.mark.integration
-    def test_invalid_marker_handling(self, mock_test_execution_no_tests):
-        """Test handling of non-existent markers."""
+    def test_invalid_marker_handling(self):
+        """Test handling of non-existent markers.
+
+        The CLI validates markers upfront and rejects invalid ones before invoking
+        pytest, providing better UX than letting pytest fail.
+        """
         runner = CliRunner()
 
         result = runner.invoke(
@@ -329,6 +333,6 @@ class TestTestRunnerError:
             catch_exceptions=False,
         )
 
-        # Should complete without error (exit code 5 normalized to 0 by CLI)
-        assert result.exit_code == 0, f"Invalid marker test failed: {result.output}"
-        assert mock_test_execution_no_tests.called
+        # CLI validates markers upfront and returns exit code 2 for invalid choice
+        assert result.exit_code == 2, f"Expected exit code 2: {result.output}"
+        assert "invalid choice" in result.output.lower()

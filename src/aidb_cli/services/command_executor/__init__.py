@@ -1,112 +1,189 @@
-"""Command executor service subpackage.
+"""Command executor service.
 
-This package provides modular services for command execution with a
-unified facade interface.
-
-The CommandExecutor facade provides the main interface, delegating to:
-- ExecutionService: Core command execution
-- TtyDetectionService: TTY/CI environment detection
-- StreamHandlerService: Output streaming/buffering
-- EnvironmentService: Environment variable management
+Provides unified command execution with automatic TTY detection, streaming, and
+environment management.
 """
 
 import contextlib
+import os
+import shutil
 import subprocess
+import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from aidb_cli.core.constants import STREAM_WINDOW_SIZE
+from aidb.common.errors import AidbError
+from aidb_cli.core.constants import STREAM_WINDOW_SIZE, ExitCode
 from aidb_common.env import read_bool
 from aidb_logging import get_cli_logger
 
-from .environment_service import EnvironmentService
-from .execution_service import ExecutionService
-from .stream_handler_service import StreamHandlerService
-from .tty_detection_service import TtyDetectionService
+from .stream_handler import StreamHandler
+
+if TYPE_CHECKING:
+    import click
 
 logger = get_cli_logger(__name__)
+
+# CI environment variable names
+_CI_ENV_VARS = (
+    "CI",
+    "GITHUB_ACTIONS",
+    "GITLAB_CI",
+    "JENKINS_HOME",
+    "CIRCLECI",
+    "TRAVIS",
+    "BUILDKITE",
+    "DRONE",
+    "TEAMCITY_VERSION",
+    "TF_BUILD",
+    "GITHUB_WORKFLOW",
+)
 
 
 class CommandExecutor:
     """Centralized command executor with automatic streaming detection.
 
-    This class acts as a facade over specialized services to provide
-    a unified interface for command execution throughout the CLI.
-
     Handles all subprocess execution for the CLI with smart defaults:
-    - Streams output in TTY environments for better UX (10-line rolling window)
-    - Buffers output in CI/CD or when verbose mode is enabled
+    - Streams output in TTY environments (rolling window display)
+    - Buffers output in CI/CD environments
     - Provides consistent error handling and logging
-    - Respects the global --verbose flag from CLI context
 
     This is the ONLY class in the CLI that should execute subprocesses.
     All commands and managers must use this service for consistency.
 
     Examples
     --------
-    >>> # Create executor (usually done by Context)
     >>> executor = CommandExecutor()
-    >>>
-    >>> # Auto-detect streaming vs buffering
     >>> result = executor.execute(['ls', '-la'])
-    >>>
-    >>> # Force output capture regardless of environment
-    >>> result = executor.execute(
-    ...     ['git', 'log', '--oneline'],
-    ...     capture_output=True
-    ... )
-    >>> print(result.stdout)
+    >>> result = executor.execute(['git', 'log'], capture_output=True)
     """
 
-    def __init__(self, ctx=None):
+    def __init__(self, ctx: "click.Context | None" = None) -> None:
         """Initialize command executor.
 
         Parameters
         ----------
         ctx : click.Context, optional
-            CLI context for accessing verbosity flags
+            CLI context for accessing verbosity flags and environment
         """
-        # Initialize component services
-        self._tty_service = TtyDetectionService(ctx)
-        self._env_service = EnvironmentService()
-        self._exec_service = ExecutionService()
         self._ctx = ctx
 
-        # Configuration
-        self._force_streaming = read_bool("AIDB_CLI_FORCE_STREAMING", False)
+        # Cache TTY/CI detection results
+        self._is_ci: bool | None = None
+        self._is_tty: bool | None = None
+        self._supports_ansi: bool | None = None
+
+        # Get base environment from context or system
+        if ctx and hasattr(ctx, "obj") and hasattr(ctx.obj, "resolved_env"):
+            self._base_env: dict[str, str] = ctx.obj.resolved_env.copy()
+        else:
+            self._base_env = dict(os.environ)
+
+    # -------------------------------------------------------------------------
+    # TTY / CI Detection
+    # -------------------------------------------------------------------------
+
+    @property
+    def is_ci(self) -> bool:
+        """Check if running in CI/CD environment."""
+        if self._is_ci is None:
+            self._is_ci = any(self._base_env.get(var) for var in _CI_ENV_VARS)
+            if self._is_ci:
+                logger.debug("CI environment detected")
+        return self._is_ci
+
+    @property
+    def is_tty(self) -> bool:
+        """Check if stdout is a TTY."""
+        if self._is_tty is None:
+            self._is_tty = sys.stdout.isatty()
+        return self._is_tty
+
+    @property
+    def supports_ansi(self) -> bool:
+        """Check if environment supports ANSI escape codes."""
+        if self._supports_ansi is None:
+            from aidb_cli.core.constants import EnvVars
+
+            force_ansi = read_bool(EnvVars.CLI_FORCE_ANSI, False)
+            self._supports_ansi = self.is_tty or force_ansi
+        return self._supports_ansi
+
+    def get_terminal_width(self, fallback: int = 80) -> int:
+        """Get terminal width for formatting."""
+        try:
+            return shutil.get_terminal_size(fallback=(fallback, 24)).columns
+        except Exception:
+            return fallback
 
     def should_stream(self) -> bool:
-        """Determine if output should be streamed based on environment.
+        """Determine if output should be streamed based on environment."""
+        from aidb_cli.core.constants import EnvVars
 
-        Returns
-        -------
-        bool
-            True if streaming should be used, False for buffering
-        """
-        # Always use streaming for both NORMAL and LARGE sizes
-        # The difference is handled in the max_lines parameter
-        return self._tty_service.should_stream(verbose=False)
+        if read_bool(EnvVars.CLI_FORCE_STREAMING, False):
+            return True
+        if self.is_ci:
+            return False
+        return self.is_tty
 
     def should_stream_for_verbosity(
         self,
         verbose: bool = False,
         verbose_debug: bool = False,
     ) -> bool:
-        """Determine if output should be streamed based on verbosity level.
+        """Determine if output should be streamed based on verbosity level."""
+        if self.is_ci:
+            return False
+        if not verbose and not verbose_debug:
+            return False
+        return self.is_tty
 
-        Parameters
-        ----------
-        verbose : bool, optional
-            Whether -v verbose mode is enabled
-        verbose_debug : bool, optional
-            Whether -vvv verbose debug mode is enabled
+    # -------------------------------------------------------------------------
+    # Environment Management
+    # -------------------------------------------------------------------------
 
-        Returns
-        -------
-        bool
-            True if streaming should be enabled for the given verbosity level
+    def build_environment(
+        self,
+        env_overrides: dict[str, str] | None = None,
+    ) -> dict[str, str] | None:
+        """Build command environment with overrides.
+
+        Returns None if no overrides (subprocess uses default environment).
         """
-        return self._tty_service.should_stream_for_verbosity(verbose, verbose_debug)
+        if not env_overrides:
+            return None
+        command_env = self._base_env.copy()
+        command_env.update(env_overrides)
+        return command_env
+
+    def find_executable(self, name: str) -> Path | None:
+        """Find an executable in PATH."""
+        path = shutil.which(name)
+        return Path(path) if path else None
+
+    def add_to_path(
+        self,
+        directory: Path,
+        env: dict[str, str] | None = None,
+        prepend: bool = True,
+    ) -> dict[str, str]:
+        """Add a directory to PATH."""
+        env = self._base_env.copy() if env is None else env.copy()
+        path_components = [p for p in env.get("PATH", "").split(os.pathsep) if p]
+        dir_str = str(directory)
+
+        if dir_str not in path_components:
+            if prepend:
+                path_components.insert(0, dir_str)
+            else:
+                path_components.append(dir_str)
+            env["PATH"] = os.pathsep.join(path_components)
+
+        return env
+
+    # -------------------------------------------------------------------------
+    # Command Execution
+    # -------------------------------------------------------------------------
 
     def _determine_streaming_mode(
         self,
@@ -114,52 +191,23 @@ class CommandExecutor:
         verbose: bool | None,
         verbose_debug: bool | None,
     ) -> bool:
-        """Determine if streaming should be used based on parameters.
-
-        Parameters
-        ----------
-        capture_output : bool | None
-            Explicit capture_output setting
-        verbose : bool | None
-            Verbose mode flag
-        verbose_debug : bool | None
-            Verbose debug mode flag
-
-        Returns
-        -------
-        bool
-            True if streaming should be used
-        """
-        # Explicit capture_output=True always disables streaming
+        """Determine if streaming should be used based on parameters."""
         if capture_output is True:
-            logger.debug("Streaming disabled: capture_output=True")
             return False
-
-        # capture_output=False means we want to see output unconditionally
         if capture_output is False:
-            stream = self.should_stream()
-            logger.debug("Streaming decision for capture_output=False: %s", stream)
-            return stream
+            return self.should_stream()
 
-        # Use OutputStrategy if available (preferred path)
+        # Use OutputStrategy if available
         if self._ctx and hasattr(self._ctx, "obj") and hasattr(self._ctx.obj, "output"):
-            stream = self._ctx.obj.output.should_stream()
-            logger.debug("Streaming decision from OutputStrategy: %s", stream)
-            return stream
+            return self._ctx.obj.output.should_stream()
 
-        # Fallback: use verbosity parameters if provided
+        # Fallback to verbosity parameters
         if verbose is not None or verbose_debug is not None:
             v = verbose if verbose is not None else False
             vvv = verbose_debug if verbose_debug is not None else False
-            stream = self.should_stream_for_verbosity(v, vvv)
-            logger.debug("Streaming decision from verbosity flags: %s", stream)
-            return stream
+            return self.should_stream_for_verbosity(v, vvv)
 
-        # Ultimate fallback: use TTY-based detection (legacy behavior)
-        # This ensures TTY environments get streaming by default
-        stream = self.should_stream()
-        logger.debug("Streaming decision from TTY detection fallback: %s", stream)
-        return stream
+        return self.should_stream()
 
     def execute(
         self,
@@ -174,7 +222,7 @@ class CommandExecutor:
         passthrough_no_stream: bool = False,
         **kwargs: Any,
     ) -> subprocess.CompletedProcess[str]:
-        r"""Execute a command with automatic streaming detection.
+        """Execute a command with automatic streaming detection.
 
         Parameters
         ----------
@@ -183,23 +231,19 @@ class CommandExecutor:
         cwd : Path, optional
             Working directory
         env : dict[str, str], optional
-            Environment variables
+            Environment variables to add/override
         check : bool
             Whether to raise exception on failure
         timeout : float, optional
             Timeout in seconds
         capture_output : bool, optional
-            Whether to capture output. If True, forces buffering regardless
-            of environment. If False, output goes to stdout/stderr. If None
-            (default), auto-detection determines behavior based on TTY and flags
+            If True, capture output. If False, show output. If None, auto-detect.
         verbose : bool, optional
-            Whether -v verbose mode is enabled (affects streaming behavior)
+            Whether verbose mode is enabled
         verbose_debug : bool, optional
-            Whether -vvv verbose debug mode is enabled (affects streaming behavior)
+            Whether verbose debug mode is enabled
         passthrough_no_stream : bool
-            If True, output passes directly through to stdout/stderr without
-            buffering or streaming. Prevents deadlocks when subprocess generates
-            large amounts of output. Default is False
+            If True, output passes directly to stdout without buffering
         **kwargs : Any
             Additional arguments passed to subprocess
 
@@ -213,59 +257,21 @@ class CommandExecutor:
         AidbError
             If command fails and check=True
         """
-        # Convert string command to list
         if isinstance(cmd, str):
             cmd = cmd.split()
 
-        # Determine if we should stream
         stream = self._determine_streaming_mode(capture_output, verbose, verbose_debug)
 
-        # Update capture_output based on streaming decision
         if capture_output is None:
             capture_output = not stream
 
-        logger.debug("Executing command: %s (stream=%s)", " ".join(cmd), stream)
-        if cwd:
-            logger.debug("Working directory: %s", cwd)
+        logger.debug("Executing: %s (stream=%s)", " ".join(cmd), stream)
 
-        # Remove terminal normalization - it was disrupting VSCode terminal features
-        # Focus on preventing streaming initialization when not needed
+        command_env = self.build_environment(env)
 
-        # Build environment
-        command_env = self._env_service.build_environment(env)
-
-        # Debug log environment if executing docker compose
-        if len(cmd) > 1 and cmd[0] == "docker" and cmd[1] == "compose":
-            if command_env:
-                repo_root_val = command_env.get("REPO_ROOT", "NOT_SET")
-                logger.debug("Docker compose environment: REPO_ROOT=%s", repo_root_val)
-                # Show all AIDB/TEST env vars being passed
-                relevant_vars = {
-                    k: v
-                    for k, v in command_env.items()
-                    if k.startswith(("REPO_", "TEST_", "AIDB_", "PYTEST_"))
-                }
-                logger.debug(
-                    "Docker compose relevant env vars: %s",
-                    list(relevant_vars.keys()),
-                )
-            else:
-                logger.debug(
-                    "Docker compose using default environment (command_env is None)",
-                )
-
-        # Defensive guard: ensure capture_output=True never triggers streaming
-        if capture_output is True and stream:
-            logger.warning(
-                "Logic error: capture_output=True but stream=True, "
-                "forcing stream=False",
-            )
-            stream = False
-
-        # Allow callers to force passthrough without rolling-window streaming
+        # Passthrough mode: direct execution without streaming
         if passthrough_no_stream:
-            logger.debug("Passthrough without streaming for command: %s", " ".join(cmd))
-            return self._exec_service.execute(
+            return self._run_subprocess(
                 cmd,
                 cwd=cwd,
                 env=command_env,
@@ -275,36 +281,24 @@ class CommandExecutor:
                 **kwargs,
             )
 
+        # Streaming mode: use rolling window display
         if stream:
-            # Additional safety check: never stream when capture_output is
-            # explicitly True
-            if capture_output is True:
-                logger.error(
-                    "Critical logic error: attempting to stream with "
-                    "capture_output=True",
-                )
-                msg = "Cannot use streaming when capture_output=True"
-                raise ValueError(msg)
-
-            # Use streaming execution with configured window size
-            terminal_width = self._tty_service.get_terminal_width()
-            stream_service = StreamHandlerService(
+            stream_handler = StreamHandler(
                 max_lines=STREAM_WINDOW_SIZE,
                 clear_on_exit=False,
-                supports_ansi=self._tty_service.supports_ansi,
-                terminal_width=terminal_width,
+                supports_ansi=self.supports_ansi,
+                terminal_width=self.get_terminal_width(),
             )
-
-            return stream_service.run_with_streaming(
+            return stream_handler.run_with_streaming(
                 cmd,
                 cwd=cwd,
                 env=command_env,
                 timeout=timeout,
                 check=check,
             )
-        # Use buffered execution - ensure no streaming artifacts
-        logger.debug("Using buffered execution (capture_output=%s)", capture_output)
-        return self._exec_service.execute(
+
+        # Buffered mode: standard subprocess execution
+        return self._run_subprocess(
             cmd,
             cwd=cwd,
             env=command_env,
@@ -314,156 +308,94 @@ class CommandExecutor:
             **kwargs,
         )
 
+    def _run_subprocess(
+        self,
+        cmd: list[str],
+        cwd: Path | None = None,
+        env: dict[str, str] | None = None,
+        capture_output: bool = False,
+        timeout: float | None = None,
+        check: bool = True,
+        **kwargs: Any,
+    ) -> subprocess.CompletedProcess[str]:
+        """Run subprocess with error handling."""
+        try:
+            result = subprocess.run(  # noqa: S603
+                cmd,
+                cwd=cwd,
+                env=env,
+                capture_output=capture_output,
+                text=True,
+                timeout=timeout,
+                check=False,
+                **kwargs,
+            )
+
+            if check and result.returncode != 0:
+                cmd_str = " ".join(cmd)
+                error_msg = f"Command failed (exit {result.returncode}): {cmd_str}"
+                if result.stderr:
+                    error_msg += f"\n{result.stderr}"
+                raise AidbError(error_msg)
+
+            return result
+
+        except subprocess.TimeoutExpired as e:
+            error_msg = f"Command timed out after {timeout}s: {' '.join(cmd)}"
+            if check:
+                raise AidbError(error_msg) from e
+            return subprocess.CompletedProcess(cmd, ExitCode.TIMEOUT, "", str(e))
+
+        except FileNotFoundError as e:
+            error_msg = f"Command not found: {cmd[0]}"
+            if check:
+                raise AidbError(error_msg) from e
+            return subprocess.CompletedProcess(cmd, ExitCode.NOT_FOUND, "", str(e))
+
     def create_process(
         self,
         cmd: list[str] | str,
         cwd: Path | None = None,
         env: dict[str, str] | None = None,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stdout: Any = subprocess.PIPE,
+        stderr: Any = subprocess.PIPE,
         **kwargs: Any,
     ) -> subprocess.Popen:
-        r"""Create a subprocess.Popen for advanced streaming scenarios.
+        """Create a subprocess.Popen for advanced streaming scenarios.
 
-        This method is intended for cases where real-time streaming with
-        direct process control is required (e.g., log tailing). For most
-        command execution, use the execute() method instead.
-
-        Parameters
-        ----------
-        cmd : list[str] or str
-            Command to execute
-        cwd : Path, optional
-            Working directory
-        env : dict[str, str], optional
-            Environment variables to add/override
-        stdout : Any
-            stdout handling (default: subprocess.PIPE)
-        stderr : Any
-            stderr handling (default: subprocess.PIPE)
-        **kwargs : Any
-            Additional arguments passed to subprocess.Popen
-
-        Returns
-        -------
-        subprocess.Popen
-            The created process object
-
-        Examples
-        --------
-        >>> # Create a process for streaming logs
-        >>> process = executor.create_process(
-        ...     ['docker', 'logs', '--follow', 'mycontainer'],
-        ...     stdout=subprocess.PIPE,
-        ...     stderr=subprocess.STDOUT,
-        ...     text=True
-        ... )
-        >>> # Read from process.stdout in real-time
-        >>> for line in process.stdout:
-        ...     print(line.strip())
+        Use this for cases requiring real-time streaming with direct process control
+        (e.g., log tailing). For most commands, use execute() instead.
         """
-        # Convert string command to list
         if isinstance(cmd, str):
             cmd = cmd.split()
 
-        # Build environment
-        command_env = self._env_service.build_environment(env)
+        command_env = self.build_environment(env)
 
-        # Delegate to execution service
-        return self._exec_service.create_process(
-            cmd,
-            cwd=cwd,
-            env=command_env,
-            stdout=stdout,
-            stderr=stderr,
-            **kwargs,
-        )
-
-    # Convenience methods for environment management
-
-    def find_executable(self, name: str) -> Path | None:
-        """Find an executable in PATH.
-
-        Parameters
-        ----------
-        name : str
-            Name of the executable
-
-        Returns
-        -------
-        Path | None
-            Path to executable if found
-        """
-        return self._env_service.find_executable(name)
-
-    def add_to_path(
-        self,
-        directory: Path,
-        env: dict[str, str] | None = None,
-        prepend: bool = True,
-    ) -> dict[str, str]:
-        """Add a directory to PATH.
-
-        Parameters
-        ----------
-        directory : Path
-            Directory to add
-        env : dict[str, str], optional
-            Environment to modify
-        prepend : bool
-            Whether to prepend or append
-
-        Returns
-        -------
-        dict[str, str]
-            Environment with updated PATH
-        """
-        return self._env_service.add_to_path(directory, env, prepend)
-
-    @property
-    def is_ci(self) -> bool:
-        """Check if running in CI/CD environment.
-
-        Returns
-        -------
-        bool
-            True if in CI/CD environment
-        """
-        return self._tty_service.is_ci
-
-    @property
-    def is_tty(self) -> bool:
-        """Check if stdout is a TTY.
-
-        Returns
-        -------
-        bool
-            True if stdout is a TTY
-        """
-        return self._tty_service.is_tty
+        try:
+            return subprocess.Popen(  # noqa: S603
+                cmd,
+                cwd=cwd,
+                env=command_env,
+                stdout=stdout,
+                stderr=stderr,
+                **kwargs,
+            )
+        except FileNotFoundError as e:
+            msg = f"Command not found: {cmd[0]}"
+            raise AidbError(msg) from e
 
     def _normalize_terminal_state(self) -> None:
-        """Ensure terminal is in a clean state before command execution.
+        """Reset terminal ANSI state."""
+        if self.supports_ansi:
+            with contextlib.suppress(Exception):
+                print("\033[0m", end="", flush=True)
 
-        This method helps prevent streaming artifacts from persisting between command
-        invocations by ensuring the terminal cursor and display state are properly
-        normalized.
-        """
-        if not self._tty_service.supports_ansi:
-            return
 
-        with contextlib.suppress(Exception):
-            # Very minimal terminal normalization - only reset ANSI attributes
-            # Avoid disrupting VSCode terminal features like sticky scroll
-            print("\033[0m", end="", flush=True)
-
+# Backward compatibility: expose StreamHandler as StreamHandlerService
+StreamHandlerService = StreamHandler
 
 __all__ = [
-    # Main facade
     "CommandExecutor",
-    # Component services
-    "ExecutionService",
-    "TtyDetectionService",
-    "StreamHandlerService",
-    "EnvironmentService",
+    "StreamHandler",
+    "StreamHandlerService",  # Backward compat
 ]

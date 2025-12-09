@@ -1,14 +1,11 @@
 """Unified test command for AIDB CLI."""
 
-from pathlib import Path
-
 import click
 
 from aidb_cli.core.cleanup import ResourceCleaner
 from aidb_cli.core.constants import Icons
 from aidb_cli.core.decorators import handle_exceptions
 from aidb_cli.core.param_types import (
-    DockerProfileParamType,
     LanguageParamType,
     TestMarkerParamType,
     TestPatternParamType,
@@ -16,7 +13,6 @@ from aidb_cli.core.param_types import (
 )
 from aidb_cli.core.paths import CachePaths
 from aidb_cli.services.test.test_coordinator_service import TestCoordinatorService
-from aidb_cli.services.test.test_coverage_service import TestCoverageService
 from aidb_cli.services.test.test_suite_service import TestSuiteService
 from aidb_logging import get_cli_logger
 
@@ -38,12 +34,6 @@ def group(ctx: click.Context) -> None:
     help="Test suite to run (required)",
 )
 @click.option(
-    "--profile",
-    type=DockerProfileParamType(),
-    default=None,
-    help="Docker compose profile to use (overrides suite-based inference)",
-)
-@click.option(
     "--language",
     "-l",
     type=LanguageParamType(include_all=True),
@@ -54,13 +44,13 @@ def group(ctx: click.Context) -> None:
 @click.option(
     "--marker",
     "-m",
-    type=str,
+    type=TestMarkerParamType(),
     multiple=True,
-    help="Pytest markers to filter tests",
+    help="Pytest markers to filter tests (use 'test list --markers' for full list)",
 )
 @click.option(
-    "--pattern",
-    "-p",
+    "-k",
+    "pattern",
     type=TestPatternParamType(),
     help="Test expression to match (pytest -k style)",
 )
@@ -71,9 +61,15 @@ def group(ctx: click.Context) -> None:
     help="Specific test target (can specify multiple)",
 )
 @click.option("--local", is_flag=True, help="Run tests locally instead of in Docker")
-@click.option("--parallel", "-j", type=int, help="Number of parallel test workers")
+@click.option("--parallel", "-n", type=int, help="Number of parallel test workers")
 @click.option("--coverage", "-c", is_flag=True, help="Run with coverage reporting")
-@click.option("--failfast", "-x", is_flag=True, help="Stop on first failure")
+@click.option(
+    "--failfast",
+    "--exitfirst",
+    "-x",
+    is_flag=True,
+    help="Stop on first failure",
+)
 @click.option(
     "--last-failed",
     "--lf",
@@ -108,7 +104,6 @@ def group(ctx: click.Context) -> None:
 def run(
     ctx: click.Context,
     suite: str,
-    profile: str | None,
     language: tuple[str, ...],
     marker: tuple[str, ...],
     pattern: str | None,
@@ -128,7 +123,7 @@ def run(
 
     \b
     Examples:
-        ./dev-cli test run -p "*payment*"  # Runs in Docker by default
+        ./dev-cli test run -k "*payment*"  # Runs in Docker by default
         ./dev-cli test run -t "test_api.py::TestEndpoint" --local
         ./dev-cli test run --suite shared --language python
         ./dev-cli test run --suite shared --language java --language javascript
@@ -149,17 +144,11 @@ def run(
 
     # Determine execution environment based on suite metadata
     # Only override if --local is explicitly set, otherwise respect metadata
-    # If profile is specified, that implies Docker
-    docker_override = False if local else (True if profile else None)
+    docker_override = False if local else None
     use_docker = coordinator.determine_execution_environment(suite, docker_override)
 
     # Prepare suite display name
-    if suite:
-        suite_display = suite
-    elif profile:
-        suite_display = f"profile={profile}"
-    else:
-        suite_display = "pattern-based"
+    suite_display = suite if suite else "pattern-based"
 
     # Show clean test initiation banner
     mode = "docker" if use_docker else "local"
@@ -236,7 +225,6 @@ def run(
     # Execute tests
     exit_code = coordinator.execute_tests(
         suite=suite,
-        profile=profile,
         languages=languages,
         markers=list(marker) if marker else None,
         pattern=pattern,
@@ -289,7 +277,7 @@ def run(
     help="Filter by test suite (optional)",
 )
 @click.option("--marker", "-m", type=TestMarkerParamType(), help="Filter by marker")
-@click.option("--pattern", "-p", type=TestPatternParamType(), help="Filter by pattern")
+@click.option("-k", "pattern", type=TestPatternParamType(), help="Filter by pattern")
 @click.option("--markers", is_flag=True, help="Show all available pytest markers")
 @click.option("--patterns", is_flag=True, help="Show example test patterns")
 @click.pass_context
@@ -339,36 +327,6 @@ def list_tests(
         # Get total count
         all_files = suite_service.find_matching_files(pattern_to_use, suite, limit=999)
         suite_service.display_matching_files(pattern_to_use, files, len(all_files))
-
-
-@group.command()
-@click.option(
-    "--format",
-    "-f",
-    type=click.Choice(["terminal", "html", "xml", "json"]),
-    default="terminal",
-    help="Report format",
-)
-@click.option("--output", "-o", type=click.Path(path_type=Path), help="Output file")
-@click.option("--coverage", "-c", is_flag=True, help="Include coverage report")
-@click.pass_context
-@handle_exceptions
-def report(
-    ctx: click.Context,
-    fmt: str,
-    output_path: Path | None,
-    coverage: bool,
-) -> None:
-    """Generate test reports and coverage analysis."""
-    cli_output = ctx.obj.output
-    cli_output.section("Test Report Generation", Icons.REPORT)
-
-    # Initialize coverage service
-    coverage_service = TestCoverageService(ctx.obj.repo_root, ctx.obj.command_executor)
-
-    # Generate report
-    if not coverage_service.generate_report(fmt, output_path, coverage):
-        ctx.exit(1)
 
 
 @group.command()

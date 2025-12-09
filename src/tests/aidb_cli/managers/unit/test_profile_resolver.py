@@ -14,21 +14,10 @@ from aidb_common.constants import Language
 class TestTestProfileResolver:
     """Test the TestProfileResolver."""
 
-    def test_determine_profile_explicit_profile_priority(self):
-        """Test explicit --profile flag overrides everything."""
-        result = TestProfileResolver.determine_profile(
-            suite="core",
-            profile="mcp",
-            target=["frameworks/python/"],
-        )
-
-        assert result == "mcp"
-
     def test_determine_profile_language_detection_python(self):
         """Test detects Python from path."""
         result = TestProfileResolver.determine_profile(
             suite=None,
-            profile=None,
             target=["src/tests/frameworks/python/test_django.py"],
         )
 
@@ -38,7 +27,6 @@ class TestTestProfileResolver:
         """Test detects JavaScript from path."""
         result = TestProfileResolver.determine_profile(
             suite=None,
-            profile=None,
             target=["frameworks/javascript/test_express.py"],
         )
 
@@ -48,7 +36,6 @@ class TestTestProfileResolver:
         """Test detects Java from path."""
         result = TestProfileResolver.determine_profile(
             suite=None,
-            profile=None,
             target=["frameworks/java/test_spring.py"],
         )
 
@@ -59,7 +46,6 @@ class TestTestProfileResolver:
         language."""
         result = TestProfileResolver.determine_profile(
             suite=None,
-            profile=None,
             target=["frameworks/test_common.py"],
         )
 
@@ -69,7 +55,6 @@ class TestTestProfileResolver:
         """Test uses first target for profile detection."""
         result = TestProfileResolver.determine_profile(
             suite=None,
-            profile=None,
             target=["frameworks/python/", "frameworks/java/"],
         )
 
@@ -79,7 +64,6 @@ class TestTestProfileResolver:
         """Test known suite maps to profile."""
         result = TestProfileResolver.determine_profile(
             suite="mcp",
-            profile=None,
             target=None,
         )
 
@@ -89,7 +73,6 @@ class TestTestProfileResolver:
         """Test known suite maps to profile."""
         result = TestProfileResolver.determine_profile(
             suite="adapters",
-            profile=None,
             target=None,
         )
 
@@ -99,7 +82,6 @@ class TestTestProfileResolver:
         """Test shared maps to base profile."""
         result = TestProfileResolver.determine_profile(
             suite="shared",
-            profile=None,
             target=None,
         )
 
@@ -109,7 +91,6 @@ class TestTestProfileResolver:
         """Test cli maps to base profile."""
         result = TestProfileResolver.determine_profile(
             suite="cli",
-            profile=None,
             target=None,
         )
 
@@ -119,7 +100,6 @@ class TestTestProfileResolver:
         """Test unknown suite defaults to base for safety."""
         result = TestProfileResolver.determine_profile(
             suite="unknown_suite_xyz",
-            profile=None,
             target=None,
         )
 
@@ -145,7 +125,6 @@ class TestTestProfileResolver:
         for known_profile in known_profiles:
             result = TestProfileResolver.determine_profile(
                 suite=known_profile,
-                profile=None,
                 target=None,
             )
             # Special cases that map to base
@@ -158,51 +137,38 @@ class TestTestProfileResolver:
         """Test defaults to base when no inputs provided."""
         result = TestProfileResolver.determine_profile(
             suite=None,
-            profile=None,
             target=None,
         )
 
         assert result == DockerProfiles.BASE
 
-    def test_determine_profile_priority_order_comprehensive(self):
-        """Test complete priority chain works correctly."""
-        # Explicit profile beats language detection
-        result1 = TestProfileResolver.determine_profile(
-            suite=None,
-            profile="mcp",
-            target=["frameworks/python/test.py"],
-        )
-        assert result1 == "mcp"
-
+    def test_determine_profile_priority_order(self):
+        """Test priority: language detection beats suite."""
         # Language detection beats suite
-        result2 = TestProfileResolver.determine_profile(
+        result = TestProfileResolver.determine_profile(
             suite="mcp",
-            profile=None,
             target=["frameworks/javascript/test.py"],
         )
-        assert result2 == Language.JAVASCRIPT.value
+        assert result == Language.JAVASCRIPT.value
 
         # Suite beats default
-        result3 = TestProfileResolver.determine_profile(
+        result = TestProfileResolver.determine_profile(
             suite="adapters",
-            profile=None,
             target=None,
         )
-        assert result3 == "adapters"
+        assert result == "adapters"
 
         # Default is base
-        result4 = TestProfileResolver.determine_profile(
+        result = TestProfileResolver.determine_profile(
             suite=None,
-            profile=None,
             target=None,
         )
-        assert result4 == DockerProfiles.BASE
+        assert result == DockerProfiles.BASE
 
     def test_determine_profile_edge_case_empty_target_list(self):
         """Test empty target list doesn't crash."""
         result = TestProfileResolver.determine_profile(
             suite=None,
-            profile=None,
             target=[],
         )
 
@@ -212,7 +178,6 @@ class TestTestProfileResolver:
         """Test targets without frameworks/ path ignored for language detection."""
         result = TestProfileResolver.determine_profile(
             suite=None,
-            profile=None,
             target=["src/tests/cli/test_command.py"],
         )
 
@@ -221,20 +186,9 @@ class TestTestProfileResolver:
     @patch("aidb_cli.managers.test.orchestrator.test_profile_resolver.logger")
     def test_determine_profile_logging(self, mock_logger):
         """Test debug logging occurs at each decision point."""
-        # Test explicit profile logging
-        TestProfileResolver.determine_profile(
-            suite=None,
-            profile="mcp",
-            target=None,
-        )
-        # Verify debug logging was called
-        assert mock_logger.debug.called
-
         # Test language detection logging
-        mock_logger.reset_mock()
         TestProfileResolver.determine_profile(
             suite=None,
-            profile=None,
             target=["frameworks/python/test.py"],
         )
         assert mock_logger.debug.called
@@ -243,7 +197,6 @@ class TestTestProfileResolver:
         mock_logger.reset_mock()
         TestProfileResolver.determine_profile(
             suite="mcp",
-            profile=None,
             target=None,
         )
         assert mock_logger.debug.called
@@ -252,7 +205,6 @@ class TestTestProfileResolver:
         mock_logger.reset_mock()
         TestProfileResolver.determine_profile(
             suite=None,
-            profile=None,
             target=None,
         )
         assert mock_logger.debug.called

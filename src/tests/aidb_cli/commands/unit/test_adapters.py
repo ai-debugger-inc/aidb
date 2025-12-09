@@ -64,11 +64,7 @@ class TestAdapterCommands:
         mock_adapter_service = Mock()
         mock_adapter_service.build_locally.return_value = True
         mock_build_manager.get_service.return_value = mock_adapter_service
-        mock_build_manager.get_supported_languages.return_value = [
-            "javascript",
-            "java",
-            "python",
-        ]
+        mock_build_manager.get_supported_languages.return_value = SUPPORTED_LANGUAGES
 
         result = cli_context_mock(
             cli_runner,

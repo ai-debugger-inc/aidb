@@ -126,9 +126,11 @@ def build(
 
     adapter_service = build_manager.get_service(AdapterService)
 
+    # Either -v or -vvv enables verbose output
+    is_verbose = ctx.obj.verbose or ctx.obj.verbose_debug
     success = adapter_service.build_locally(
         languages=languages,
-        verbose=ctx.obj.verbose,
+        verbose=is_verbose,
         resolved_env=ctx.obj.resolved_env,
     )
 
@@ -141,7 +143,7 @@ def build(
         output.section("Installing adapters to ~/.aidb/adapters/")
         install_success = adapter_service.install_adapters(
             languages=languages,
-            verbose=ctx.obj.verbose,
+            verbose=is_verbose,
         )
         if not install_success:
             ctx.exit(1)
@@ -307,9 +309,11 @@ def download(  # noqa: C901
         from aidb_cli.services.adapter import AdapterService
 
         adapter_service = build_manager.get_service(AdapterService)
+        # Either -v or -vvv enables verbose output
+        is_verbose = ctx.obj.verbose or ctx.obj.verbose_debug
         install_success = adapter_service.install_adapters(
             languages=languages_to_download,
-            verbose=ctx.obj.verbose,
+            verbose=is_verbose,
         )
         if not install_success:
             ctx.exit(1)
