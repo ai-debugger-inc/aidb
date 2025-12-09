@@ -358,32 +358,23 @@ class SessionBreakpointsMixin:
         asyncio.create_task(self._rebind_breakpoints_for_source(source.path))
 
     def _on_terminated_event(self, event: "Event") -> None:  # noqa: ARG002
-        """Clear breakpoint cache when session terminates.
+        """Handle session termination event.
 
-        When the debug session ends, the breakpoint cache becomes stale.
-        Clear it to prevent returning outdated breakpoint data.
+        Note: We intentionally do NOT clear the breakpoint cache on termination.
+        Breakpoint state represents what was set during the session and remains
+        valid information even after the debug target exits. The cache is only
+        cleared on explicit session cleanup/destroy.
 
         Parameters
         ----------
         event : Event
             The DAP terminated event (unused but required for event handler signature)
         """
-        # Schedule async cleanup as background task
-        import asyncio
-
-        task = asyncio.create_task(self._clear_breakpoint_cache_on_termination())
-        self._breakpoint_update_tasks.add(task)
-        task.add_done_callback(lambda t: self._breakpoint_update_tasks.discard(t))
-
-    async def _clear_breakpoint_cache_on_termination(self) -> None:
-        """Clear breakpoint store when session terminates (lock-protected)."""
-        async with self._breakpoint_store_lock:
-            count = len(self._breakpoint_store)
-            self._breakpoint_store.clear()
-            if count > 0:
-                self.ctx.debug(
-                    f"Cleared {count} breakpoint(s) from cache on session termination",
-                )
+        # Log termination but preserve breakpoint state
+        self.ctx.debug(
+            f"Session terminated, preserving {len(self._breakpoint_store)} "
+            "breakpoint(s) in cache",
+        )
 
     async def _rebind_breakpoints_for_source(self, source_path: str) -> None:
         """Re-send setBreakpoints for a specific source to accelerate verification.
@@ -602,6 +593,12 @@ class SessionBreakpointsMixin:
                             source_path,
                             response_bps,
                         )
+                        # Verify store was populated for debugging race conditions
+                        if not self._breakpoint_store:
+                            self.ctx.warning(
+                                f"Breakpoint store empty after setting "
+                                f"{len(response_bps)} breakpoints in {source_path}",
+                            )
                 else:
                     self.ctx.warning(
                         f"Failed to set breakpoints in {source_path}: "

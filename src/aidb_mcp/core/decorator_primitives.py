@@ -23,6 +23,7 @@ from .constants import ParamName
 from .decorator_helpers import (
     _add_session_id_to_result,
     _check_connection_health,
+    _check_termination_status,
     _get_session_or_error,
     _setup_session_context,
 )
@@ -35,13 +36,19 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-def with_thread_safety(require_session: bool = True) -> Callable:
+def with_thread_safety(
+    require_session: bool = True,
+    allow_on_terminated: list[str] | None = None,
+) -> Callable:
     """Add thread safety and connection checking to handlers.
 
     Parameters
     ----------
     require_session : bool
         Whether the handler requires an active session
+    allow_on_terminated : list[str], optional
+        List of action values that are allowed to proceed even on terminated sessions.
+        Useful for read-only operations like 'list' that access preserved state.
 
     Returns
     -------
@@ -91,42 +98,15 @@ def with_thread_safety(require_session: bool = True) -> Callable:
                     return health_error
 
                 # Check if session is terminated (fail fast)
-                # Check the session's own DAP client, not inherited from parent
-                # (JavaScript child sessions use parent's DAP which may be terminated)
-                if require_session and api and hasattr(api, "session"):
-                    session = api.session
-                    # Only check termination if session has its OWN DAP client
-                    # Don't check inherited parent DAP (child sessions)
-                    if (
-                        hasattr(session, "connector")
-                        and session.connector
-                        and session.connector._dap  # Own DAP client
-                    ):
-                        dap = session.connector._dap
-
-                        # Follow same pattern as SessionState.get_status():
-                        # Check if stopped/paused BEFORE checking terminated
-                        # This prevents blocking operations on paused sessions
-                        dap_is_stopped = (
-                            dap.is_stopped if hasattr(dap, "is_stopped") else False
-                        )
-                        dap_is_terminated = (
-                            dap.is_terminated
-                            if hasattr(dap, "is_terminated")
-                            else False
-                        )
-
-                        # Only block if session is terminated AND not just paused
-                        # If stopped at breakpoint, allow operations to proceed
-                        if dap_is_terminated and not dap_is_stopped:
-                            from ..responses.errors import SessionTerminatedError
-
-                            return SessionTerminatedError(
-                                session_id=sid,
-                                error_message=(
-                                    "Session has terminated and cannot execute commands"
-                                ),
-                            ).to_mcp_response()
+                termination_error = _check_termination_status(
+                    require_session,
+                    api,
+                    sid,
+                    args,
+                    allow_on_terminated,
+                )
+                if termination_error:
+                    return termination_error
 
                 # Add session info to args for handler
                 if sid is not None:

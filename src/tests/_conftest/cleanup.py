@@ -112,25 +112,8 @@ def reset_global_state():
     # Clear singleton instances to prevent test interference
     Singleton._instances.clear()
 
-    # Clear MCP/debugging session state to prevent test interference
-    try:
-        from aidb_mcp.session.manager import (
-            _DEBUG_SESSIONS,
-            _SESSION_CONTEXTS,
-            _state_lock,
-        )
-
-        with _state_lock:
-            _DEBUG_SESSIONS.clear()
-            _SESSION_CONTEXTS.clear()
-
-        # Also reset the default session ID
-        import aidb_mcp.session.manager as session_manager
-
-        session_manager._DEFAULT_SESSION_ID = None
-    except ImportError:
-        # MCP modules not available, nothing to clean
-        pass
-    except Exception as e:
-        msg = f"Failed to reset MCP session state: {e}"
-        logging.debug(msg)
+    # NOTE: Do NOT clear MCP session state globally (_DEBUG_SESSIONS, _SESSION_CONTEXTS)
+    # This breaks parallel test execution (pytest -n 4) because when one test finishes,
+    # it would clear sessions belonging to other still-running tests.
+    # Each test cleans up its own session via debug_interface.stop_session().
+    # The cleanup_orphaned_processes fixture handles any truly leaked processes.

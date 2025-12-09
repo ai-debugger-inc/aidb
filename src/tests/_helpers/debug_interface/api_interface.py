@@ -49,6 +49,109 @@ class APIInterface(DebugInterface):
         self._session_pool = session_pool
         self._session_from_pool = False
 
+    def _is_session_terminated(self) -> bool:
+        """Check if the current session has terminated.
+
+        Returns
+        -------
+        bool
+            True if the session has terminated.
+        """
+        if not self.session:
+            return True
+
+        # Check session status property
+        if hasattr(self.session, "status"):
+            from aidb.session.state import SessionStatus
+
+            if self.session.status == SessionStatus.TERMINATED:
+                return True
+
+        # Check DAP client termination state
+        return (
+            hasattr(self.session, "dap")
+            and hasattr(self.session.dap, "is_terminated")
+            and self.session.dap.is_terminated
+        )
+
+    async def _wait_for_breakpoint_verification(
+        self,
+        breakpoint_count: int,
+        timeout: float = 3.0,
+        poll_interval: float = 0.1,
+    ) -> None:
+        """Wait for breakpoints to be verified by the debug adapter.
+
+        JavaScript adapter returns provisional breakpoints initially and sends
+        verification events asynchronously via LoadedSource rebinding. This
+        polling ensures we wait for verification to complete in CI environments
+        where I/O may be slower.
+
+        Parameters
+        ----------
+        breakpoint_count : int
+            Number of breakpoints expected to be verified.
+        timeout : float
+            Maximum time to wait for verification.
+        poll_interval : float
+            Time between verification checks.
+        """
+        import asyncio
+        import time
+
+        start_time = time.monotonic()
+
+        while time.monotonic() - start_time < timeout:
+            breakpoints_list = await self.list_breakpoints()
+            verified_count = sum(
+                1 for bp in breakpoints_list if bp.get("verified", False)
+            )
+            if verified_count == breakpoint_count:
+                break
+            await asyncio.sleep(poll_interval)
+
+    async def _wait_for_single_breakpoint_verification(
+        self,
+        file: str,
+        line: int,
+        timeout: float = 3.0,
+        poll_interval: float = 0.1,
+    ) -> bool:
+        """Wait for a specific breakpoint to be verified.
+
+        Parameters
+        ----------
+        file : str
+            File path of the breakpoint.
+        line : int
+            Line number of the breakpoint.
+        timeout : float
+            Maximum time to wait for verification.
+        poll_interval : float
+            Time between verification checks.
+
+        Returns
+        -------
+        bool
+            True if the breakpoint was verified, False if timeout.
+        """
+        import asyncio
+        import time
+
+        start_time = time.monotonic()
+
+        while time.monotonic() - start_time < timeout:
+            breakpoints_list = await self.list_breakpoints()
+            for bp in breakpoints_list:
+                if (
+                    bp.get("file") == file
+                    and bp.get("line") == line
+                    and bp.get("verified", False)
+                ):
+                    return True
+            await asyncio.sleep(poll_interval)
+        return False
+
     async def initialize(
         self,
         language: str | None = None,
@@ -99,6 +202,18 @@ class APIInterface(DebugInterface):
             Session information.
         """
         self._validate_initialized()
+
+        # Auto-propagate APP_PORT from test environment to debuggee
+        # This enables dynamic port allocation for parallel test execution
+        import os
+
+        app_port = os.environ.get("APP_PORT")
+        if app_port:
+            env = launch_args.get("env", {})
+            if not isinstance(env, dict):
+                env = {}
+            env["APP_PORT"] = app_port
+            launch_args["env"] = env
 
         # Convert breakpoints to BreakpointSpec format
         bp_specs = None
@@ -222,31 +337,11 @@ class APIInterface(DebugInterface):
         self.session_id = self.session.id
         self._session_active = True
 
-        # Populate _breakpoints dictionary with initial breakpoints
-        # This ensures remove_breakpoint works correctly
-        # Wait for breakpoint verification to avoid race condition in CI
+        # Wait for breakpoint verification and populate tracking dict
+        # This handles JavaScript's async verification via LoadedSource rebinding
         if breakpoints:
-            import asyncio
-            import time
+            await self._wait_for_breakpoint_verification(len(breakpoints))
 
-            verification_timeout = 3.0
-            poll_interval = 0.1
-            start_time = time.monotonic()
-            breakpoint_count = len(breakpoints)
-
-            # Wait for all breakpoints to be verified
-            while time.monotonic() - start_time < verification_timeout:
-                breakpoints_list = await self.list_breakpoints()
-                verified_count = sum(
-                    1 for bp in breakpoints_list if bp.get("verified", False)
-                )
-
-                if verified_count == breakpoint_count:
-                    break
-
-                await asyncio.sleep(poll_interval)
-
-            # Populate tracking dict with final state
             breakpoints_list = await self.list_breakpoints()
             for bp in breakpoints_list:
                 bp_id = str(bp.get("id", ""))
@@ -388,6 +483,15 @@ class APIInterface(DebugInterface):
             if bp.line == line:
                 new_bp_data = bp_data
 
+        # Wait for breakpoint verification to avoid race condition in CI
+        # JavaScript adapters return provisional breakpoints initially
+        if new_bp_data and not new_bp_data.get("verified", False):
+            verified = await self._wait_for_single_breakpoint_verification(
+                file_str, line
+            )
+            if verified:
+                new_bp_data["verified"] = True
+
         if new_bp_data:
             return new_bp_data
 
@@ -437,11 +541,57 @@ class APIInterface(DebugInterface):
         del self._breakpoints[bp_id]
         return True
 
+    def _convert_breakpoints_response(
+        self,
+        response: Any,
+    ) -> list[dict[str, Any]]:
+        """Convert AidbBreakpointsResponse to test format.
+
+        Parameters
+        ----------
+        response : AidbBreakpointsResponse
+            Response from API.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            List of breakpoint dicts in test format.
+        """
+        breakpoints: list[dict[str, Any]] = []
+        if not response.breakpoints:
+            return breakpoints
+
+        for bp_id, bp in response.breakpoints.items():
+            bp_id_str = str(bp_id)
+            if bp_id_str in self._breakpoints:
+                breakpoints.append(self._breakpoints[bp_id_str])
+            else:
+                bp_info = {
+                    "id": bp_id,
+                    "file": bp.source_path,
+                    "line": bp.line,
+                    "location": f"{bp.source_path}:{bp.line}",
+                    "verified": bp.verified,
+                }
+                if hasattr(bp, "condition") and bp.condition:
+                    bp_info["condition"] = bp.condition
+                if hasattr(bp, "hit_condition") and bp.hit_condition:
+                    bp_info["hit_condition"] = bp.hit_condition
+                if hasattr(bp, "log_message") and bp.log_message:
+                    bp_info["log_message"] = bp.log_message
+                breakpoints.append(bp_info)
+
+        return breakpoints
+
     async def list_breakpoints(self) -> list[dict[str, Any]]:
         """List all current breakpoints.
 
         Uses the public API method which handles verification waiting
         automatically, preventing race conditions with fast-executing programs.
+
+        Falls back to locally cached breakpoints if the session has terminated
+        (which clears the session's breakpoint store but leaves our tracking
+        dict intact).
 
         Returns
         -------
@@ -450,35 +600,45 @@ class APIInterface(DebugInterface):
         """
         self._validate_session_active()
 
-        # Delegate to public API method
-        assert self.api is not None
-        response = await self.api.orchestration.list_breakpoints()
-
-        # Convert AidbBreakpointsResponse to test format
-        breakpoints = []
-        if response.breakpoints:
-            for bp_id, bp in response.breakpoints.items():
-                # Prefer metadata from our tracking dict if available (has correct file path)
-                bp_id_str = str(bp_id)
-                if bp_id_str in self._breakpoints:
-                    breakpoints.append(self._breakpoints[bp_id_str])
+        def _ensure_ids(bps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            """Ensure all breakpoints have IDs."""
+            fixed: list[dict[str, Any]] = []
+            for bp in bps:
+                if "id" not in bp or bp["id"] in (None, ""):
+                    loc = bp.get("location") or f"{bp.get('file')}:{bp.get('line')}"
+                    fixed.append({**bp, "id": loc})
                 else:
-                    bp_info = {
-                        "id": bp_id,
-                        "file": bp.source_path,
-                        "line": bp.line,
-                        "location": f"{bp.source_path}:{bp.line}",
-                        "verified": bp.verified,
-                    }
-                    if hasattr(bp, "condition") and bp.condition:
-                        bp_info["condition"] = bp.condition
-                    if hasattr(bp, "hit_condition") and bp.hit_condition:
-                        bp_info["hit_condition"] = bp.hit_condition
-                    if hasattr(bp, "log_message") and bp.log_message:
-                        bp_info["log_message"] = bp.log_message
-                    breakpoints.append(bp_info)
+                    fixed.append(bp)
+            return fixed
 
-        return breakpoints
+        # Delegate to public API method with error handling for terminated sessions
+        assert self.api is not None
+
+        try:
+            response = await self.api.orchestration.list_breakpoints()
+        except Exception:
+            # Check if this is due to session termination
+            if self._is_session_terminated():
+                # Brief retry in case of transient termination detection
+                import asyncio
+
+                await asyncio.sleep(0.2)
+
+                try:
+                    response = await self.api.orchestration.list_breakpoints()
+                except Exception:
+                    # Fall back to cached breakpoints
+                    return _ensure_ids(list(self._breakpoints.values()))
+            else:
+                # Re-raise non-termination errors
+                raise
+
+        # Convert and return, with fallback to cached breakpoints if API returns empty
+        breakpoints = self._convert_breakpoints_response(response)
+        if not breakpoints and self._breakpoints:
+            return _ensure_ids(list(self._breakpoints.values()))
+
+        return _ensure_ids(breakpoints)
 
     async def step_over(self) -> dict[str, Any]:
         """Step over the current line via the API.

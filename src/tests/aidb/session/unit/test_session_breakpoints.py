@@ -568,54 +568,39 @@ class TestSessionBreakpointsLoadedSourceEvent:
 class TestSessionBreakpointsOnTerminatedEvent:
     """Tests for SessionBreakpointsMixin._on_terminated_event()."""
 
-    def test_on_terminated_event_schedules_cleanup(
+    def test_on_terminated_event_preserves_breakpoints(
         self,
         breakpoints_mixin: TestableBreakpointsMixin,
     ) -> None:
-        """Schedule async cleanup task."""
+        """Breakpoints should be preserved on session termination."""
+        # Set up existing breakpoints
+        bp1 = make_breakpoint(bp_id=1)
+        bp2 = make_breakpoint(bp_id=2)
+        breakpoints_mixin._breakpoint_store = {1: bp1, 2: bp2}
+
         event = MagicMock()
 
-        with patch("asyncio.create_task") as mock_create_task:
-            mock_task = MagicMock()
-            mock_create_task.return_value = mock_task
+        breakpoints_mixin._on_terminated_event(event)
 
-            breakpoints_mixin._on_terminated_event(event)
+        # Breakpoints should still be there
+        assert 1 in breakpoints_mixin._breakpoint_store
+        assert 2 in breakpoints_mixin._breakpoint_store
 
-            mock_create_task.assert_called_once()
-            assert mock_task in breakpoints_mixin._breakpoint_update_tasks
-
-
-class TestSessionBreakpointsClearCacheOnTermination:
-    """Tests for SessionBreakpointsMixin._clear_breakpoint_cache_on_termination()."""
-
-    @pytest.mark.asyncio
-    async def test_clear_breakpoint_cache_clears_store(
+    def test_on_terminated_event_logs_preservation(
         self,
         breakpoints_mixin: TestableBreakpointsMixin,
     ) -> None:
-        """Verify store is cleared."""
+        """Debug log should indicate breakpoints are preserved."""
         breakpoints_mixin._breakpoint_store = {
             1: make_breakpoint(bp_id=1),
             2: make_breakpoint(bp_id=2),
         }
 
-        await breakpoints_mixin._clear_breakpoint_cache_on_termination()
+        event = MagicMock()
 
-        assert len(breakpoints_mixin._breakpoint_store) == 0
+        breakpoints_mixin._on_terminated_event(event)
 
-    @pytest.mark.asyncio
-    async def test_clear_breakpoint_cache_logs_count(
-        self,
-        breakpoints_mixin: TestableBreakpointsMixin,
-    ) -> None:
-        """Verify debug log includes count of cleared breakpoints."""
-        breakpoints_mixin._breakpoint_store = {
-            1: make_breakpoint(bp_id=1),
-            2: make_breakpoint(bp_id=2),
-        }
-
-        await breakpoints_mixin._clear_breakpoint_cache_on_termination()
-
+        # Should log preservation message
         breakpoints_mixin.ctx.debug.assert_called()
 
 

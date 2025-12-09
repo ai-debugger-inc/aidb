@@ -252,10 +252,17 @@ def cleanup_session(  # noqa: C901
         "registries_cleaned": False,
     }
 
+    logger.debug(
+        "[CLEANUP] cleanup_session session_id=%s, timeout=%s, force=%s",
+        session_id,
+        timeout,
+        force,
+    )
+
     try:
         with _state_lock:
             if session_id not in _DEBUG_SESSIONS:
-                logger.debug("Session not found for cleanup %s", session_id)
+                logger.debug("[CLEANUP] Session not found: %s", session_id)
                 return False
 
             api = _DEBUG_SESSIONS[session_id]
@@ -362,7 +369,16 @@ async def cleanup_session_async(
     timeout: float | None = None,
     force: bool = False,
 ) -> bool:
-    """Async version of cleanup_session with better timeout handling.
+    """Async version of cleanup_session.
+
+    NOTE: This runs cleanup synchronously in the current thread rather than
+    using a thread executor. This is intentional - the cleanup_session function
+    uses a threading.RLock that is also used by other code in the main thread.
+    Running cleanup in a separate thread causes cross-thread lock contention
+    and 10-second timeouts.
+
+    The cleanup operation is typically fast (< 100ms), so briefly blocking
+    the event loop is acceptable and avoids deadlock issues.
 
     Parameters
     ----------
@@ -378,9 +394,10 @@ async def cleanup_session_async(
     bool
         True if session was cleaned up
     """
-    # Run the synchronous cleanup in a thread to avoid blocking
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, cleanup_session, session_id, timeout, force)
+    # Run cleanup synchronously in the same thread to avoid lock contention
+    # The threading.RLock used by cleanup_session is also used by main thread code,
+    # so running in a separate thread causes deadlocks
+    return cleanup_session(session_id, timeout, force)
 
 
 def cleanup_all_sessions():

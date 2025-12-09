@@ -7,6 +7,7 @@ numbering, and response correlation.
 import asyncio
 from typing import TYPE_CHECKING, Any, Optional
 
+from aidb.api.constants import DEFAULT_REQUEST_TIMEOUT_S
 from aidb_common.config import config
 
 if TYPE_CHECKING:
@@ -129,7 +130,7 @@ class RequestHandler(Obj):
             If not connected or connection lost
         """
         if timeout is None:
-            timeout = 30.0  # Default timeout
+            timeout = DEFAULT_REQUEST_TIMEOUT_S
 
         return await self._send_request_core(
             request=request,

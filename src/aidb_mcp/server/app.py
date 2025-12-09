@@ -24,6 +24,11 @@ from mcp.types import (
     Tool,
 )
 
+from aidb.api.constants import (
+    DEFAULT_WAIT_TIMEOUT_S,
+    MCP_SERVER_TIMEOUT_S,
+    PROCESS_CLEANUP_TIMEOUT_S,
+)
 from aidb_logging import get_mcp_logger as get_logger
 from aidb_mcp.core.constants import DebugURI, EventType
 from aidb_mcp.core.performance import TraceSpan
@@ -127,7 +132,7 @@ class AidbMCPServer:
 
                 result = await asyncio.wait_for(
                     handle_tool(name, arguments),
-                    timeout=300.0,
+                    timeout=MCP_SERVER_TIMEOUT_S,
                 )
 
                 if not isinstance(result, dict):
@@ -449,7 +454,7 @@ class AidbMCPServer:
                 try:
                     await asyncio.wait_for(
                         asyncio.gather(*cleanup_tasks, return_exceptions=True),
-                        timeout=5.0,
+                        timeout=DEFAULT_WAIT_TIMEOUT_S,
                     )
                     logger.info("All cleanup tasks completed")
                 except asyncio.TimeoutError:
@@ -467,19 +472,26 @@ class AidbMCPServer:
         logger.info("AIDB MCP Server cleanup complete")
 
     async def _cleanup_session_safely(self, session_id: str) -> None:
+        """Clean up a debug session safely.
+
+        NOTE: This runs cleanup synchronously in the current thread rather than
+        using a thread executor. This is intentional - the cleanup_session function
+        uses a threading.RLock that is also used by other code in the main thread.
+        Running cleanup in a separate thread causes cross-thread lock contention
+        and 10-second timeouts.
+
+        The cleanup operation is typically fast (< 100ms), so briefly blocking
+        the event loop is acceptable and avoids deadlock issues.
+        """
         from aidb_mcp.session.manager import cleanup_session
 
         try:
-            success = await asyncio.wait_for(
-                asyncio.to_thread(cleanup_session, session_id),
-                timeout=2.0,
-            )
+            # Run cleanup synchronously to avoid cross-thread lock contention
+            success = cleanup_session(session_id)
             if success:
                 logger.info("Stopped debug session: %s", session_id)
             else:
                 logger.warning("Failed to stop debug session: %s", session_id)
-        except asyncio.TimeoutError:
-            logger.warning("Timeout stopping debug session: %s", session_id)
         except asyncio.CancelledError:
             logger.info("Cleanup cancelled for session: %s", session_id)
         except Exception as e:  # pragma: no cover

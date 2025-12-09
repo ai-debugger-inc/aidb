@@ -9,6 +9,8 @@ from aidb.common import AidbContext
 from aidb.dap.protocol.base import Event
 from aidb.patterns import Obj
 
+from .constants import EventType
+
 if TYPE_CHECKING:
     from aidb.interfaces import IContext
 
@@ -121,7 +123,8 @@ class MessageRouter(Obj):
 
             # If the adapter reports termination, proactively clear any pending
             # requests so callers don't wait for full request timeouts.
-            if event.event == "terminated" and self._request_handler is not None:
+            is_terminated = event.event == EventType.TERMINATED.value
+            if is_terminated and self._request_handler is not None:
                 try:
                     # Best effort: clear pending requests to return control quickly
                     # to any waiters instead of waiting on long timeouts.

@@ -2,8 +2,10 @@
 
 import asyncio
 import json
+import time
 from typing import TYPE_CHECKING, Any, Optional
 
+from aidb.api.constants import RECEIVE_POLL_TIMEOUT_S
 from aidb.common.errors import DebugConnectionError
 from aidb.dap.protocol.base import ProtocolMessage
 from aidb.patterns import Obj
@@ -14,6 +16,10 @@ if TYPE_CHECKING:
 # DAP protocol constants
 RECEIVE_BUFFER_SIZE = 4096
 DAP_HEADER_TERMINATOR = b"\r\n\r\n"
+
+# Maximum time to wait for a partial message to complete before giving up
+# This prevents infinite hangs when the adapter crashes mid-message
+PARTIAL_MESSAGE_TIMEOUT_S = 10.0
 
 
 class DAPTransport(Obj):
@@ -91,16 +97,33 @@ class DAPTransport(Obj):
         raise DebugConnectionError(msg, summary="Connection failed") from last_error
 
     async def disconnect(self) -> None:
-        """Close stream connection."""
-        if self._writer:
-            try:
-                self._writer.close()
-                await self._writer.wait_closed()
-            except Exception as e:
-                msg = f"Failed to properly close DAP transport writer: {e}"
-                self.ctx.debug(msg)
-            self._writer = None
-            self._reader = None
+        """Close stream connection.
+
+        Uses async_lock to prevent racing with send_message() during cleanup. Explicitly
+        closes both writer and reader transports to avoid ResourceWarnings about
+        unclosed sockets when the event loop closes.
+        """
+        async with self.async_lock:
+            if self._writer:
+                try:
+                    self._writer.close()
+                    await self._writer.wait_closed()
+                except Exception as e:
+                    self.ctx.debug(f"Failed to close DAP transport writer: {e}")
+                self._writer = None
+
+            # Explicitly close the reader's underlying transport to prevent
+            # ResourceWarnings about unclosed sockets during parallel test execution
+            if self._reader:
+                try:
+                    # Access the underlying transport from the StreamReader
+                    transport = getattr(self._reader, "_transport", None)
+                    if transport and not transport.is_closing():
+                        transport.close()
+                except Exception as e:
+                    self.ctx.debug(f"Failed to close reader transport: {e}")
+                self._reader = None
+
             self.ctx.debug("Disconnected from DAP adapter")
 
     async def send_message(self, message: ProtocolMessage) -> None:
@@ -152,7 +175,7 @@ class DAPTransport(Obj):
         try:
             chunk = await asyncio.wait_for(
                 self._reader.read(RECEIVE_BUFFER_SIZE),
-                timeout=1.0,
+                timeout=RECEIVE_POLL_TIMEOUT_S,
             )
             if not chunk:
                 msg = "Connection closed by remote"
@@ -211,17 +234,45 @@ class DAPTransport(Obj):
         if message:
             return message
 
+        # Track when we first started waiting for a partial message to complete
+        # This prevents infinite hangs if the adapter crashes mid-message
+        partial_message_start: float | None = None
+
         while True:
             # Read next chunk
             try:
                 chunk = await self._read_chunk_with_timeout()
 
                 if chunk is None:
-                    # Timeout occurred
+                    # No new data received - check for partial message timeout
+                    if self._receive_buffer:
+                        # We have partial data but no new data arrived
+                        if partial_message_start is None:
+                            partial_message_start = time.monotonic()
+                        elif (
+                            time.monotonic() - partial_message_start
+                            > PARTIAL_MESSAGE_TIMEOUT_S
+                        ):
+                            buffer_preview = self._receive_buffer[:100]
+                            msg = (
+                                f"Partial message timeout after "
+                                f"{PARTIAL_MESSAGE_TIMEOUT_S}s - adapter may have "
+                                f"crashed mid-message. Buffer: {buffer_preview!r}"
+                            )
+                            self.ctx.warning(msg)
+                            raise DebugConnectionError(
+                                msg,
+                                summary="Partial message timeout",
+                            )
+
+                    # Timeout occurred - check if we have a complete message
                     message = self._handle_timeout_state()
                     if message:
                         return message
                     continue
+
+                # Got new data - reset partial message timeout tracker
+                partial_message_start = None
 
                 # Add chunk to buffer
                 self._receive_buffer += chunk

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Optional, cast
 from aidb.dap.protocol.base import Event
 from aidb.patterns import Obj
 
+from .constants import EventType, StopReason
 from .state import SessionState
 
 if TYPE_CHECKING:
@@ -43,9 +44,18 @@ class EventProcessor(Obj):
         - Updating session state based on events
         - Managing event listeners
         - Providing event synchronization primitives
+
+    The event detection mechanism uses counters instead of boolean flags to ensure
+    that wait_for_event only returns True for NEW events, not stale events from
+    previous operations. This prevents race conditions in parallel test execution.
     """
 
-    def __init__(self, state: SessionState, ctx: Optional["IContext"] = None):
+    def __init__(
+        self,
+        state: SessionState,
+        ctx: Optional["IContext"] = None,
+        session_id: str | None = None,
+    ):
         """Initialize event processor.
 
         Parameters
@@ -54,12 +64,24 @@ class EventProcessor(Obj):
             Shared session state to update
         ctx : IContext, optional
             Application context for logging
+        session_id : str, optional
+            Session ID for logging and debugging
         """
         super().__init__(ctx)
         self._state = state
+        self._session_id = session_id
         self._listeners: dict[str, list[Callable[[Event], None]]] = defaultdict(list)
         self._last_events: dict[str, Event] = {}
-        self._event_received: dict[str, asyncio.Event] = defaultdict(asyncio.Event)
+
+        # Counter-based event detection for reliable wait_for_event
+        # Each event type has a counter that increments on each event receipt
+        # This allows wait_for_event to detect NEW events vs stale state
+        self._event_counter: dict[str, int] = defaultdict(int)
+        # Signal for waking up waiters (set on event, cleared before wait)
+        self._event_signal: dict[str, asyncio.Event] = defaultdict(asyncio.Event)
+
+        # Legacy alias for backward compatibility with clear_event() calls
+        self._event_received = self._event_signal
 
         # Track specific important events
         self._last_stopped_event: Event | None = None
@@ -118,23 +140,23 @@ class EventProcessor(Obj):
     def _get_event_handlers(self) -> dict[str, Callable]:
         """Get mapping of event types to handler methods."""
         return {
-            "initialized": self._handle_initialized,
-            "stopped": self._handle_stopped,
-            "continued": self._handle_continued,
-            "terminated": self._handle_terminated,
-            "exited": self._handle_exited,
-            "thread": self._handle_thread,
-            "breakpoint": self._handle_breakpoint,
-            "output": self._handle_output,
-            "process": self._handle_process,
-            "loadedSource": self._handle_loaded_source,
-            "memory": self._handle_memory,
-            "module": self._handle_module,
-            "progressStart": self._handle_progress_start,
-            "progressUpdate": self._handle_progress_update,
-            "progressEnd": self._handle_progress_end,
-            "invalidated": self._handle_invalidated,
-            "capabilities": self._handle_capabilities,
+            EventType.INITIALIZED.value: self._handle_initialized,
+            EventType.STOPPED.value: self._handle_stopped,
+            EventType.CONTINUED.value: self._handle_continued,
+            EventType.TERMINATED.value: self._handle_terminated,
+            EventType.EXITED.value: self._handle_exited,
+            EventType.THREAD.value: self._handle_thread,
+            EventType.BREAKPOINT.value: self._handle_breakpoint,
+            EventType.OUTPUT.value: self._handle_output,
+            EventType.PROCESS.value: self._handle_process,
+            EventType.LOADED_SOURCE.value: self._handle_loaded_source,
+            EventType.MEMORY.value: self._handle_memory,
+            EventType.MODULE.value: self._handle_module,
+            EventType.PROGRESSSTART.value: self._handle_progress_start,
+            EventType.PROGRESSUPDATE.value: self._handle_progress_update,
+            EventType.PROGRESSEND.value: self._handle_progress_end,
+            EventType.INVALIDATED.value: self._handle_invalidated,
+            EventType.CAPABILITIES.value: self._handle_capabilities,
         }
 
     def _record_event_timing(
@@ -168,6 +190,9 @@ class EventProcessor(Obj):
     def _signal_event_receipt(self, event: Event) -> None:
         """Signal that an event was received and record signal time.
 
+        Increments the event counter for reliable detection by wait_for_event,
+        and sets the signal to wake any waiters.
+
         Parameters
         ----------
         event : Event
@@ -182,7 +207,10 @@ class EventProcessor(Obj):
             msg = f"Failed to record event signal timing for {event.event}: {e}"
             self.ctx.debug(msg)
 
-        self._event_received[event.event].set()
+        # Increment counter for reliable event detection
+        self._event_counter[event.event] += 1
+        # Signal to wake up any waiters
+        self._event_signal[event.event].set()
 
     def process_event(self, event: Event) -> None:
         """Process a DAP event and update state.
@@ -217,7 +245,7 @@ class EventProcessor(Obj):
 
         if handler:
             # Log stopped events specifically for debugging
-            if event.event == "stopped":
+            if event.event == EventType.STOPPED.value:
                 self.ctx.debug(
                     f"Dispatching stopped event (seq={event.seq}) to handler, "
                     f"{len(self._stopped_listeners)} listeners waiting",
@@ -260,7 +288,7 @@ class EventProcessor(Obj):
             self._state.current_thread_id = None
 
         # Track breakpoint events
-        if self._state.stop_reason == "breakpoint":
+        if self._state.stop_reason == StopReason.BREAKPOINT.value:
             self._breakpoint_events.append(stopped_event)
             # Limit stored breakpoint events
             if len(self._breakpoint_events) > self._max_breakpoint_events:
@@ -738,9 +766,9 @@ class EventProcessor(Obj):
         Returns
         -------
         bool
-            True if event has been received
+            True if at least one event of this type has been received
         """
-        return self._event_received[event_type].is_set()
+        return self._event_counter[event_type] > 0
 
     async def wait_for_event(self, event_type: str, timeout: float = 2.0) -> bool:
         """Wait for a specific event type to occur.
@@ -757,6 +785,9 @@ class EventProcessor(Obj):
         bool
             True if event occurred, False if timeout
         """
+        # Session prefix for log messages
+        sid_prefix = f"[{self._session_id[:8]}] " if self._session_id else ""
+
         # Log wait start with current metrics
         now_wall = time.time()
         last_sig = self._state.event_last_signaled_wall.get(event_type)
@@ -765,18 +796,22 @@ class EventProcessor(Obj):
         age_proc = (now_wall - last_proc) if last_proc else None
         with contextlib.suppress(Exception):
             self.ctx.debug(
-                f"Waiting for event '{event_type}' timeout={timeout:.2f}s "
+                f"{sid_prefix}Waiting for event '{event_type}' "
+                f"timeout={timeout:.2f}s "
                 f"flag_set={self._event_received[event_type].is_set()} "
-                f"age_sig={age_sig:.3f} age_proc={age_proc:.3f}"
-                if (age_sig is not None and age_proc is not None)
-                else f"Waiting for event '{event_type}' timeout={timeout:.2f}s "
-                f"flag_set={self._event_received[event_type].is_set()}",
+                + (
+                    f"age_sig={age_sig:.3f} age_proc={age_proc:.3f}"
+                    if (age_sig is not None and age_proc is not None)
+                    else ""
+                ),
             )
 
         # If event already occurred, return immediately (avoid clearing to
         # prevent missed signals)
         if self._event_received[event_type].is_set():
-            self.ctx.debug(f"Event {event_type} already set; returning immediately")
+            self.ctx.debug(
+                f"{sid_prefix}Event {event_type} already set; returning immediately",
+            )
             return True
 
         # Otherwise wait w/out clearing to avoid a race where the signal is lost
@@ -796,9 +831,8 @@ class EventProcessor(Obj):
                 if last_sig2:
                     recv_age = time.time() - last_sig2
                 self.ctx.debug(
-                    f"Event {event_type} received; age_since_signal={recv_age:.3f}s"
-                    if recv_age is not None
-                    else f"Event {event_type} received",
+                    f"{sid_prefix}Event {event_type} received"
+                    + (f"; age_since_signal={recv_age:.3f}s" if recv_age else ""),
                 )
             except Exception as e:
                 msg = f"Failed to log event receipt timing for {event_type}: {e}"
@@ -809,8 +843,8 @@ class EventProcessor(Obj):
                 last_sig3 = self._state.event_last_signaled_wall.get(event_type)
                 last_proc3 = self._state.event_last_processed_wall.get(event_type)
                 self.ctx.debug(
-                    f"Timeout waiting for {event_type}; last_signal={last_sig3} "
-                    f"last_processed={last_proc3}",
+                    f"{sid_prefix}Timeout waiting for {event_type}; "
+                    f"last_signal={last_sig3} last_processed={last_proc3}",
                 )
             except Exception as e:
                 msg = f"Failed to log timeout diagnostics for {event_type}: {e}"
@@ -844,12 +878,13 @@ class EventProcessor(Obj):
         return self._breakpoint_events.copy()
 
     def clear_events(self) -> None:
-        """Clear all stored events."""
+        """Clear all stored events and reset counters."""
         self._last_events.clear()
         self._breakpoint_events.clear()
         self._last_stopped_event = None
         self._last_initialized_event = None
 
-        # Clear all event signals
-        for event in self._event_received.values():
+        # Clear all event signals and reset counters
+        for event in self._event_signal.values():
             event.clear()
+        self._event_counter.clear()

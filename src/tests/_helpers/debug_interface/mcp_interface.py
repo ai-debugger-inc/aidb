@@ -60,6 +60,11 @@ class MCPInterface(DebugInterface):
             Maximum time to wait for verification.
         poll_interval : float
             Time between verification checks.
+
+        Raises
+        ------
+        RuntimeError
+            If session terminates during verification.
         """
         import asyncio
         import time
@@ -67,7 +72,20 @@ class MCPInterface(DebugInterface):
         start_time = time.monotonic()
 
         while time.monotonic() - start_time < timeout:
-            breakpoints_list = await self.list_breakpoints()
+            try:
+                breakpoints_list = await self.list_breakpoints()
+            except RuntimeError as e:
+                # Re-raise with more context about when this happened
+                if "terminated unexpectedly" in str(e):
+                    elapsed = time.monotonic() - start_time
+                    msg = (
+                        f"Session terminated during breakpoint verification "
+                        f"(after {elapsed:.2f}s of {timeout}s timeout). "
+                        f"Original error: {e}"
+                    )
+                    raise RuntimeError(msg) from e
+                raise
+
             verified_count = sum(
                 1 for bp in breakpoints_list if bp.get("verified", False)
             )
@@ -95,6 +113,25 @@ class MCPInterface(DebugInterface):
             message = error.get("message") or error.get("code") or "Unknown error"
             return str(message)
         return str(error) if error else "Unknown error"
+
+    def _is_session_terminated_error(self, result: dict[str, Any]) -> bool:
+        """Check if the error is due to session termination.
+
+        Parameters
+        ----------
+        result : dict[str, Any]
+            MCP response dictionary.
+
+        Returns
+        -------
+        bool
+            True if the error indicates session termination.
+        """
+        error = result.get("error", {})
+        if isinstance(error, dict):
+            error_code = error.get("code", "")
+            return error_code == "AIDB_SESSION_TERMINATED"
+        return False
 
     def _collect_output_from_response(self, result: dict[str, Any]) -> None:
         """Collect output from MCP execute response and store in buffer.
@@ -145,7 +182,7 @@ class MCPInterface(DebugInterface):
         self._initialized_context = True
         self._initialized = True
 
-    async def start_session(
+    async def start_session(  # noqa: C901
         self,
         program: str | Path,
         breakpoints: list[dict[str, Any]] | None = None,
@@ -172,6 +209,18 @@ class MCPInterface(DebugInterface):
         if not self._initialized_context:
             msg = "MCP context not initialized. Call initialize() first."
             raise RuntimeError(msg)
+
+        # Auto-propagate APP_PORT from test environment to debuggee
+        # This enables dynamic port allocation for parallel test execution
+        import os
+
+        app_port = os.environ.get("APP_PORT")
+        if app_port:
+            env = launch_args.get("env", {})
+            if not isinstance(env, dict):
+                env = {}
+            env["APP_PORT"] = app_port
+            launch_args["env"] = env
 
         # Convert breakpoints to MCP format
         mcp_breakpoints = None
@@ -429,6 +478,11 @@ class MCPInterface(DebugInterface):
         -------
         list[dict[str, Any]]
             List of breakpoint information.
+
+        Raises
+        ------
+        RuntimeError
+            If session has terminated unexpectedly.
         """
         self._validate_session_active()
 
@@ -451,7 +505,16 @@ class MCPInterface(DebugInterface):
             return fixed
 
         if not result.get("success", False):
-            # Fall back to cached breakpoints
+            # Check for session termination - this indicates a real problem
+            # that should not be silently ignored
+            if self._is_session_terminated_error(result):
+                msg = (
+                    f"Session {self.session_id} terminated unexpectedly. "
+                    f"The debugged program may have exited or crashed. "
+                    f"Error: {self._extract_error_message(result)}"
+                )
+                raise RuntimeError(msg)
+            # Fall back to cached breakpoints for other errors
             return _ensure_ids(list(self._breakpoints.values()))
 
         data = result.get("data", {})

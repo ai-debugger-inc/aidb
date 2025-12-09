@@ -226,19 +226,24 @@ class ConnectionManager(Obj):
                 # Import or request creation failed - log but continue cleanup
                 self.ctx.warning(f"Failed to send disconnect request: {e}")
 
-        # Disconnect transport to interrupt blocking recv() in receiver
-        await self.transport.disconnect()
-
-        # Stop receiver if running
+        # STEP 1: Stop receiver BEFORE disconnecting transport
+        # This allows the receiver to exit its read loop gracefully rather than
+        # getting interrupted mid-read, which causes ResourceWarnings about
+        # unclosed sockets when the event loop closes during parallel tests
         if self._receiver:
             timeout = (
                 receiver_stop_timeout
                 if receiver_stop_timeout is not None
                 else RECEIVER_STOP_TIMEOUT_S
             )
+            self.ctx.debug("[DISCONNECT] Stopping receiver before transport disconnect")
             await self._receiver.stop(timeout=timeout)
+            self.ctx.debug("[DISCONNECT] Receiver stopped")
 
-        # Clear pending requests
+        # STEP 2: NOW disconnect transport (reader is no longer being used)
+        await self.transport.disconnect()
+
+        # STEP 3: Clear pending requests
         if self._request_handler:
             await self._request_handler.clear_pending_requests(
                 error=DebugConnectionError("Connection closed"),
@@ -272,13 +277,14 @@ class ConnectionManager(Obj):
         self.ctx.info("Attempting DAP reconnection...")
 
         try:
-            # Step 1: Clean disconnect from stale connection
-            # Don't send disconnect request since the connection is likely wedged
-            await self.transport.disconnect()
-
-            # Stop receiver if running
+            # Step 1: Stop receiver FIRST (before transport disconnect)
+            # This allows the receiver to exit gracefully
             if self._receiver:
                 await self._receiver.stop(timeout=RECEIVER_STOP_TIMEOUT_S)
+
+            # Step 2: Clean disconnect from stale connection
+            # Don't send disconnect request since the connection is likely wedged
+            await self.transport.disconnect()
 
             # Clear pending requests
             if self._request_handler:
