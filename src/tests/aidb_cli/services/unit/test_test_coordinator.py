@@ -76,10 +76,10 @@ class TestBuildPytestArgs:
         """Test pytest args with parallel workers."""
         result = self.service.build_pytest_args(
             suite="test",
-            parallel=4,
+            parallel=2,
         )
 
-        assert result == ["-n", "4", "--no-cov"]
+        assert result == ["-n", "2", "--dist", "loadgroup", "--no-cov"]
 
     def test_build_pytest_args_with_coverage(self):
         """Test pytest args with coverage."""
@@ -164,6 +164,8 @@ class TestBuildPytestArgs:
             "*session*",
             "-n",
             "2",
+            "--dist",
+            "loadgroup",
             "--cov=aidb_mcp",
             "--cov-report=term-missing",
             "-v",
@@ -288,7 +290,7 @@ class TestTestCoordinatorServiceIntegration:
             suite="mcp",
             markers=("integration",),
             pattern="*debug*",
-            parallel=4,
+            parallel=2,
             coverage=True,
             verbose=True,
         )
@@ -299,7 +301,9 @@ class TestTestCoordinatorServiceIntegration:
             "-k",
             "*debug*",
             "-n",
-            "4",
+            "2",
+            "--dist",
+            "loadgroup",
             "--cov=aidb_mcp",
             "--cov-report=term-missing",
             "-v",

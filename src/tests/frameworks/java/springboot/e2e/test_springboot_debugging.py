@@ -13,7 +13,6 @@ from tests._helpers.framework_base import FrameworkDebugTestBase
 from tests._helpers.parametrization import parametrize_interfaces
 
 
-@pytest.mark.xdist_group("springboot")
 class TestSpringBootDebugging(FrameworkDebugTestBase):
     """Test Spring Boot framework debugging capabilities.
 

@@ -14,7 +14,6 @@ from tests._helpers.launch_test_utils import LaunchConfigTestHelper
 from tests._helpers.parametrization import parametrize_interfaces
 
 
-@pytest.mark.xdist_group("django")
 class TestDjangoDebugging(FrameworkDebugTestBase):
     """Test Django framework debugging capabilities.
 

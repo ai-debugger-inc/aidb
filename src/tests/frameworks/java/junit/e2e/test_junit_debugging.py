@@ -12,7 +12,6 @@ from tests._helpers.framework_base import FrameworkDebugTestBase
 from tests._helpers.parametrization import parametrize_interfaces
 
 
-@pytest.mark.xdist_group("junit")
 class TestJUnitDebugging(FrameworkDebugTestBase):
     """Test JUnit framework debugging capabilities.
 

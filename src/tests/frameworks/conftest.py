@@ -1,14 +1,14 @@
 """Pytest configuration and fixtures for framework tests."""
 
-import logging
 import os
 from collections.abc import Generator
 
 import pytest
 
 from aidb_common.network import allocate_port, release_port
+from aidb_logging import get_test_logger
 
-logger = logging.getLogger(__name__)
+logger = get_test_logger(__name__)
 
 
 @pytest.fixture(autouse=True)

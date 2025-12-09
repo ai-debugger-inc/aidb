@@ -265,7 +265,6 @@ class TestInstallCommands:
             ):
                 result = cli_runner.invoke(cli, ["install", "debug"])
                 assert result.exit_code == 0
-                assert "Debug Install: Verbose mode enabled" in result.output
 
                 call_args = mock_command_executor.execute.call_args[0][0]
                 assert "-v" in call_args

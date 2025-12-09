@@ -13,7 +13,6 @@ from tests._helpers.framework_base import FrameworkDebugTestBase
 from tests._helpers.parametrization import parametrize_interfaces
 
 
-@pytest.mark.xdist_group("express")
 class TestExpressDebugging(FrameworkDebugTestBase):
     """Test Express framework debugging capabilities.
 

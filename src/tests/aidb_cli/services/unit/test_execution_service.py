@@ -114,7 +114,7 @@ class TestTestExecutionService:
             markers="unit",
             pattern="test_foo",
             pytest_args="-vv",
-            parallel=4,
+            parallel=2,
         )
 
         assert env["TEST_SUITE"] == "cli"
@@ -122,7 +122,7 @@ class TestTestExecutionService:
         assert env["TEST_MARKERS"] == "unit"
         assert env["TEST_PATTERN"] == "test_foo"
         assert env["PYTEST_ADDOPTS"] == "-vv"
-        assert env["PYTEST_PARALLEL"] == "4"
+        assert env["PYTEST_PARALLEL"] == "2"
 
     @patch("subprocess.Popen")
     @patch(
