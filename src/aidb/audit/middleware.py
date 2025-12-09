@@ -3,7 +3,6 @@
 import contextvars
 import functools
 import inspect
-import logging
 import time
 import traceback
 from collections.abc import Callable
@@ -11,8 +10,9 @@ from typing import Any
 
 from aidb.audit.events import AuditEvent, AuditLevel
 from aidb.audit.logger import get_audit_logger
+from aidb_logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def audit_operation(

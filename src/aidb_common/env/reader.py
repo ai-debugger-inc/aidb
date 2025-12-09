@@ -28,6 +28,8 @@ FALSY_VALUES = frozenset({"0", "false", "no", "off", "n", "f"})
 _TRUTHY = TRUTHY_VALUES
 _FALSY = FALSY_VALUES
 
+# NOTE: This module cannot use aidb_logging due to circular import - aidb_logging
+# uses this module's read_str() during initialization. Using stdlib logging here.
 logger = logging.getLogger(__name__)
 
 

@@ -116,6 +116,10 @@ class TestCoordinatorService(BaseService):
 
         if parallel:
             pytest_args.extend(["-n", str(parallel)])
+            # Use loadgroup distribution to respect xdist_group markers
+            # This ensures @pytest.mark.serial tests run on a single worker
+            # while other tests run in parallel on remaining workers
+            pytest_args.extend(["--dist", "loadgroup"])
 
         if coverage:
             pytest_args.extend(self._build_coverage_args(suite))

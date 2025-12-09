@@ -7,7 +7,6 @@ validation.
 
 from __future__ import annotations
 
-import logging
 import os
 from pathlib import Path
 
@@ -21,8 +20,9 @@ from aidb_common.env.reader import (
     read_str,
 )
 from aidb_common.patterns import Singleton
+from aidb_logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ConfigManager(Singleton["ConfigManager"]):

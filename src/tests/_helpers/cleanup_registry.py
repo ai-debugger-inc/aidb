@@ -6,7 +6,6 @@ files.
 """
 
 import asyncio
-import logging
 import os
 import shutil
 import signal
@@ -17,8 +16,9 @@ from pathlib import Path
 from typing import Any, Optional, Union
 
 from aidb.utils.ports import PortRegistry
+from aidb_logging import get_test_logger
 
-logger = logging.getLogger(__name__)
+logger = get_test_logger(__name__)
 
 
 class CleanupRegistry:

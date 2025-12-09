@@ -55,6 +55,8 @@ from aidb import DebugAPI
 from aidb.api.session_manager import SessionManager
 from aidb.common.context import AidbContext
 from aidb.resources.ports import PortRegistry
+from aidb_common.io import is_event_loop_error
+from aidb_logging import get_test_logger
 from tests._fixtures.logging_fixtures import (
     aidb_logs,
     all_logs,
@@ -78,6 +80,8 @@ from tests._helpers.constants import (
 if TYPE_CHECKING:
     # Only imported for typing to avoid runtime import cycles/cost
     from tests._helpers.debug_interface import DebugInterface
+
+logger = get_test_logger(__name__)
 
 
 @pytest.fixture
@@ -687,8 +691,45 @@ async def debug_interface(
 
     yield interface
 
-    # Cleanup
-    await interface.cleanup()
+    # Cleanup with robust protection against event loop mismatches
+    # These occur with pytest-xdist when fixture teardown runs on a different worker
+    await _safe_cleanup_interface(interface, timeout=10.0)
+
+
+async def _safe_cleanup_interface(
+    interface,
+    timeout: float = 10.0,
+) -> None:
+    """Clean up debug interface with event loop safety.
+
+    This function handles event loop mismatches that occur during pytest-xdist
+    parallel test execution, where async operations created on one worker's
+    event loop may be cleaned up on another.
+
+    Parameters
+    ----------
+    interface
+        Debug interface to clean up
+    timeout : float
+        Maximum time to wait for cleanup
+    """
+    try:
+        await asyncio.wait_for(interface.cleanup(), timeout=timeout)
+    except asyncio.TimeoutError:
+        logger.debug(
+            "Debug interface cleanup timed out after %.1fs (non-fatal)", timeout
+        )
+    except RuntimeError as e:
+        if is_event_loop_error(e):
+            logger.debug("Event loop mismatch during cleanup: %s", e)
+            # Try sync cleanup methods if available
+            if hasattr(interface, "_sync_cleanup"):
+                with contextlib.suppress(Exception):
+                    interface._sync_cleanup()
+        else:
+            raise
+    except Exception as e:  # noqa: S110 - cleanup should never fail tests
+        logger.debug("Debug interface cleanup error (suppressed): %s", e)
 
 
 @pytest.fixture
@@ -775,22 +816,26 @@ def debug_interface_factory(
 
     yield _create_interface
 
-    # Cleanup all created interfaces
+    # Cleanup all created interfaces with event loop safety
+    cleanup_timeout = 5.0
+
     async def cleanup_all():
         for interface in created_interfaces:
-            with contextlib.suppress(Exception):
-                await interface.cleanup()
+            await _safe_cleanup_interface(interface, timeout=cleanup_timeout)
 
-    # Run cleanup
+    # Run cleanup - handle event loop unavailability gracefully
     try:
         loop = asyncio.get_event_loop()
-        if loop.is_running():
+        if loop.is_closed():
+            logger.debug("Event loop closed, skipping async cleanup")
+        elif loop.is_running():
             # Schedule cleanup task - store reference to prevent GC
             cleanup_task = loop.create_task(cleanup_all())  # noqa: RUF006 - fire-and-forget cleanup
             del cleanup_task  # Explicitly discard reference
         else:
-            # Run cleanup directly
-            loop.run_until_complete(cleanup_all())
-    except RuntimeError:
-        # No event loop available, skip cleanup
-        pass
+            # Run cleanup directly with overall timeout
+            loop.run_until_complete(
+                asyncio.wait_for(cleanup_all(), timeout=cleanup_timeout * 2)
+            )
+    except RuntimeError as e:
+        logger.debug("Cleanup skipped (event loop unavailable): %s", e)

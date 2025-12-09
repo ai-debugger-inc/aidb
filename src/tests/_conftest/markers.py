@@ -4,7 +4,6 @@ This module provides functions for registering custom pytest markers and applyin
 to test items based on location, parametrization, and patterns.
 """
 
-import contextlib
 import subprocess
 from pathlib import Path
 
@@ -167,7 +166,6 @@ def check_marker_requirements(item) -> None:
     if "requires_docker" in marker_names and not is_docker_available():
         item.add_marker(pytest.mark.skip(reason="Docker daemon is not running"))
 
-    # Ensure serial tests run on single xdist worker
-    with contextlib.suppress(Exception):
-        if "serial" in marker_names:
-            item.add_marker(pytest.mark.xdist_group("serial"))
+    # Note: xdist_group markers for serial tests must be applied directly as decorators
+    # on test classes, not dynamically here. pytest-xdist workers collect tests
+    # independently and don't see markers added on the controller.

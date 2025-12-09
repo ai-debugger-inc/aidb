@@ -7,17 +7,17 @@ and MCP without duplication.
 from __future__ import annotations
 
 import json
-import logging
 from typing import TYPE_CHECKING, Any
 
 from aidb_common.constants import SUPPORTED_LANGUAGES, Language
 from aidb_common.io.files import FileOperationError
 from aidb_common.repo import detect_repo_root
+from aidb_logging import get_logger
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class VersionManager:

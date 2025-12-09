@@ -5,15 +5,15 @@ environment variable tagging. This provides defense-in-depth protection against 
 leaks when normal session cleanup fails.
 """
 
-import logging
 import time
 
 import psutil
 
 from aidb.api.constants import DEFAULT_WAIT_TIMEOUT_S, PROCESS_TERMINATE_TIMEOUT_S
 from aidb.resources.process_tags import ProcessTags
+from aidb_logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class OrphanProcessCleaner:

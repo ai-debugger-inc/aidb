@@ -3,7 +3,6 @@
 import asyncio
 import atexit
 import contextlib
-import logging
 import os
 import threading
 from datetime import datetime, timedelta, timezone
@@ -25,13 +24,14 @@ from aidb.api.constants import (
 from aidb.audit.events import AuditEvent
 from aidb.common import AidbContext
 from aidb_common.config import config
+from aidb_logging import get_logger
 
 if TYPE_CHECKING:
     from aiofiles.threadpool.text import (
         AsyncTextIOWrapper,  # type: ignore[import-untyped]
     )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class AuditLogger:
