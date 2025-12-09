@@ -4,10 +4,6 @@
     "url": "https://ai-debugger.com/en/latest/"
   },
   {
-    "version": "main",
-    "url": "https://ai-debugger.com/en/main/"
-  },
-  {
     "version": "0.0.8",
     "url": "https://ai-debugger.com/en/0.0.8/",
     "preferred": true
