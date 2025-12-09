@@ -11,6 +11,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
+from aidb.api.constants import LSP_SHUTDOWN_TIMEOUT_S
 from aidb.common.errors import AidbError
 from aidb.patterns.base import Obj
 
@@ -283,7 +284,7 @@ class LSPProtocol(Obj):
     async def shutdown(self):
         """Send shutdown request to the language server."""
         try:
-            await self.send_request("shutdown", timeout=5.0)
+            await self.send_request("shutdown", timeout=LSP_SHUTDOWN_TIMEOUT_S)
         except Exception as e:
             self.ctx.warning(f"Shutdown request failed: {e}")
 

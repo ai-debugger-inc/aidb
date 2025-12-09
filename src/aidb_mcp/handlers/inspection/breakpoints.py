@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from aidb_common.constants import Language
 from aidb_logging import get_mcp_logger as get_logger
 
 from ...core import BreakpointAction, ToolName
@@ -185,18 +186,20 @@ async def _handle_list_breakpoints(
     - Waiting for breakpoint verification (prevents race conditions)
     - Child session resolution (JavaScript)
     - Proper breakpoint state retrieval
+
+    Note: This handler works on terminated sessions because:
+    1. The @mcp_tool decorator allows 'list' action on terminated sessions
+    2. The API's list_breakpoints() accesses preserved breakpoint state
     """
     breakpoints = []
 
-    # Delegate to public API method
-    # Breakpoints are automatically synchronized via event handlers
+    # Get breakpoints from API (works even on terminated sessions
+    # since we preserve breakpoint state on termination)
     if api:
         response = await api.orchestration.list_breakpoints()
 
         # Convert AidbBreakpointsResponse to MCP format
         if response.breakpoints:
-            # Iterate over the breakpoint dict
-            # Note: current_breakpoints property returns a thread-safe copy
             for bp_id, bp in response.breakpoints.items():
                 bp_info = {
                     "id": bp_id,
@@ -273,7 +276,7 @@ async def _handle_watch_breakpoint(
     """
     # Validate language is Java
     language = getattr(api.session, "language", None) if api.session else None
-    if language != "java":
+    if language != Language.JAVA.value:
         return UnsupportedOperationError(
             operation="Watchpoints",
             adapter_type=f"{language or 'unknown'} adapter",
@@ -294,8 +297,8 @@ async def _handle_watch_breakpoint(
     ):
         return UnsupportedOperationError(
             operation="Set watchpoint",
-            adapter_type="java adapter",
-            language="java",
+            adapter_type="Java adapter",
+            language=Language.JAVA.value,
             error_message=(
                 "Must be paused at a breakpoint to set a watchpoint. "
                 "Set a regular breakpoint first and pause execution."
@@ -346,8 +349,8 @@ async def _handle_watch_breakpoint(
         if not data_bp_info.data_id:
             return UnsupportedOperationError(
                 operation=f"Watch '{var_name}'",
-                adapter_type="java adapter",
-                language="java",
+                adapter_type="Java adapter",
+                language=Language.JAVA.value,
                 error_message=(
                     f"Cannot set watchpoint on '{var_name}'. "
                     "The variable may not support data breakpoints."
@@ -391,7 +394,7 @@ async def _handle_unwatch_breakpoint(
     """
     # Validate language is Java
     language = getattr(api.session, "language", None) if api.session else None
-    if language != "java":
+    if language != Language.JAVA.value:
         return UnsupportedOperationError(
             operation="Watchpoints",
             adapter_type=f"{language or 'unknown'} adapter",
@@ -496,7 +499,7 @@ def _update_context_breakpoints(context, location: str, args: dict[str, Any]) ->
             context.breakpoints_set.append(bp_info)
 
 
-@mcp_tool(require_session=True, include_after=True)
+@mcp_tool(require_session=True, include_after=True, allow_on_terminated=["list"])
 async def handle_breakpoint(args: dict[str, Any]) -> dict[str, Any]:
     """Handle the unified breakpoint tool for managing breakpoints."""
     try:

@@ -13,6 +13,12 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
+from aidb.api.constants import (
+    COMMAND_CHECK_TIMEOUT_S,
+    DEFAULT_VSCODE_BRIDGE_PORT,
+    EXTENSION_INSTALL_TIMEOUT_S,
+    EXTENSION_LIST_TIMEOUT_S,
+)
 from aidb.common import AidbContext
 from aidb.common.errors import ConfigurationError, DebugConnectionError
 from aidb.patterns.base import Obj
@@ -128,7 +134,10 @@ class IDEDetector:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            await asyncio.wait_for(process.communicate(), timeout=2.0)
+            await asyncio.wait_for(
+                process.communicate(),
+                timeout=COMMAND_CHECK_TIMEOUT_S,
+            )
             return True
         except (asyncio.TimeoutError, FileNotFoundError, OSError):
             return False
@@ -154,7 +163,10 @@ class IDEDetector:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, _ = await asyncio.wait_for(process.communicate(), timeout=2.0)
+            stdout, _ = await asyncio.wait_for(
+                process.communicate(),
+                timeout=COMMAND_CHECK_TIMEOUT_S,
+            )
             if process.returncode == 0:
                 # Parse version from output (first line usually contains version)
                 stdout_text = stdout.decode() if stdout else ""
@@ -239,7 +251,7 @@ class VSCodeIntegration(Obj):
     """Integration with VS Code for task execution."""
 
     EXTENSION_ID = "aidb.aidb-vscode-bridge"
-    BRIDGE_PORT = 42042
+    BRIDGE_PORT = DEFAULT_VSCODE_BRIDGE_PORT
 
     def __init__(
         self,
@@ -344,7 +356,10 @@ class VSCodeIntegration(Obj):
                 stderr=asyncio.subprocess.PIPE,
             )
 
-            stdout, _ = await asyncio.wait_for(process.communicate(), timeout=5.0)
+            stdout, _ = await asyncio.wait_for(
+                process.communicate(),
+                timeout=EXTENSION_LIST_TIMEOUT_S,
+            )
             if process.returncode == 0:
                 stdout_text = stdout.decode() if stdout else ""
                 installed = self.EXTENSION_ID in stdout_text
@@ -396,7 +411,7 @@ class VSCodeIntegration(Obj):
                 )
                 stdout, stderr = await asyncio.wait_for(
                     process.communicate(),
-                    timeout=30.0,
+                    timeout=EXTENSION_INSTALL_TIMEOUT_S,
                 )
                 result_stdout = stdout.decode() if stdout else ""
                 result_stderr = stderr.decode() if stderr else ""
@@ -419,7 +434,7 @@ class VSCodeIntegration(Obj):
                 )
                 stdout, stderr = await asyncio.wait_for(
                     process.communicate(),
-                    timeout=30.0,
+                    timeout=EXTENSION_INSTALL_TIMEOUT_S,
                 )
                 result_stdout = stdout.decode() if stdout else ""
                 result_stderr = stderr.decode() if stderr else ""

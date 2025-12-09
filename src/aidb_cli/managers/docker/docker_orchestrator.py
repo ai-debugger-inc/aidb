@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
+from aidb_cli.core.constants import SERVICE_DISCOVERY_TIMEOUT_S
 from aidb_cli.core.paths import DockerConstants, ProjectPaths
 from aidb_cli.core.utils import CliOutput
 from aidb_cli.managers.base.orchestrator import BaseOrchestrator
@@ -369,7 +370,7 @@ class DockerOrchestrator(BaseOrchestrator):
             if service.health_check:
                 healthy = health_service.wait_for_health(
                     name,
-                    timeout=10,
+                    timeout=SERVICE_DISCOVERY_TIMEOUT_S,
                 )
                 results[name] = healthy
             else:

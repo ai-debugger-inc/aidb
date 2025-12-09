@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import os
-import socket
 from pathlib import Path
 from typing import Any
 
+from aidb.api.constants import DEFAULT_PYTHON_DEBUG_PORT
 from aidb_common.io import safe_read_json
 from aidb_common.io.files import FileOperationError
+from aidb_common.network import find_available_port as _find_available_port
+from aidb_common.network import is_port_available as _is_port_available
 from aidb_common.repo import detect_repo_root
 from aidb_logging import get_mcp_logger as get_logger
 
@@ -131,56 +133,52 @@ def find_workspace_root(start_path: str | None = None) -> str | None:
     return fallback
 
 
-def is_port_available(port: int, host: str = "localhost") -> bool:
+def is_port_available(port: int, host: str = "127.0.0.1") -> bool:
     """Check if a port is available for debugging.
+
+    Delegates to aidb_common.network.is_port_available with logging.
 
     Parameters
     ----------
     port : int
         Port number to check
     host : str, optional
-        Host to check on (default: localhost)
+        Host to check on (default: 127.0.0.1)
 
     Returns
     -------
     bool
         True if port is available, False otherwise
     """
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.settimeout(1)
-            result = s.connect_ex((host, port))
-            available = result != 0
-
-            logger.debug(
-                "Checked port availability",
-                extra={"port": port, "host": host, "available": available},
-            )
-            return available
-    except Exception as e:
-        logger.error(
-            "Failed to check port availability",
-            extra={"port": port, "host": host, "error": str(e)},
-        )
-        return False
+    available = _is_port_available(port, host)
+    logger.debug(
+        "Checked port availability",
+        extra={"port": port, "host": host, "available": available},
+    )
+    return available
 
 
 def find_available_port(
-    start_port: int = 5678,
+    start_port: int = DEFAULT_PYTHON_DEBUG_PORT,
     max_attempts: int = 10,
+    host: str = "127.0.0.1",
 ) -> int | None:
     """Find an available port for debugging.
+
+    Delegates to aidb_common.network.find_available_port with logging.
 
     Parameters
     ----------
     start_port : int, optional
-        Starting port number (default: 5678)
+        Starting port number (default: DEFAULT_PYTHON_DEBUG_PORT)
     max_attempts : int, optional
         Maximum number of ports to try (default: 10)
+    host : str, optional
+        Host to check on (default: 127.0.0.1)
 
     Returns
     -------
-    Optional[int]
+    int | None
         Available port number if found, None otherwise
     """
     logger.debug(
@@ -188,17 +186,17 @@ def find_available_port(
         extra={"start_port": start_port, "max_attempts": max_attempts},
     )
 
-    for i in range(max_attempts):
-        port = start_port + i
-        if is_port_available(port):
-            logger.info("Found available port", extra={"port": port, "attempts": i + 1})
-            return port
+    port = _find_available_port(start_port, max_attempts, host)
 
-    logger.warning(
-        "No available port found",
-        extra={"start_port": start_port, "max_attempts": max_attempts},
-    )
-    return None
+    if port:
+        logger.info("Found available port", extra={"port": port})
+    else:
+        logger.warning(
+            "No available port found",
+            extra={"start_port": start_port, "max_attempts": max_attempts},
+        )
+
+    return port
 
 
 def validate_file_path(file_path: str, workspace_root: str | None = None) -> bool:

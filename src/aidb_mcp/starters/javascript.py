@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from aidb.api.constants import DEFAULT_ADAPTER_HOST, DEFAULT_NODE_DEBUG_PORT
+from aidb_common.constants import Language
 from aidb_logging import get_mcp_logger as get_logger
 
 from .base import BaseStarter
@@ -45,7 +47,7 @@ class JavaScriptStarter(BaseStarter):
                 "framework": framework,
                 "target": target,
                 "workspace_root": workspace_root,
-                "language": "javascript",
+                "language": Language.JAVASCRIPT,
             },
         )
 
@@ -94,7 +96,7 @@ class JavaScriptStarter(BaseStarter):
         # Generic Node.js launch
         logger.debug(
             "Using generic Node.js launch config",
-            extra={"framework": framework or "none", "language": "javascript"},
+            extra={"framework": framework or "none", "language": Language.JAVASCRIPT},
         )
         return {
             "target": "node",
@@ -139,14 +141,14 @@ class JavaScriptStarter(BaseStarter):
                 "pid": pid,
                 "host": host,
                 "port": port,
-                "language": "javascript",
+                "language": Language.JAVASCRIPT,
             },
         )
 
         if mode == "remote":
             return {
-                "host": host or "localhost",
-                "port": port or 9229,
+                "host": host or DEFAULT_ADAPTER_HOST,
+                "port": port or DEFAULT_NODE_DEBUG_PORT,
                 "comment": "Start Node with: node --inspect index.js",
             }
         if mode == "local" and pid:
@@ -155,8 +157,8 @@ class JavaScriptStarter(BaseStarter):
                 "comment": "Attach to running Node.js process",
             }
         return {
-            "host": "localhost",
-            "port": 9229,
+            "host": DEFAULT_ADAPTER_HOST,
+            "port": DEFAULT_NODE_DEBUG_PORT,
             "comment": "Start Node with: node --inspect index.js",
         }
 
@@ -181,7 +183,11 @@ class JavaScriptStarter(BaseStarter):
         """
         logger.debug(
             "Getting common breakpoints for JavaScript",
-            extra={"framework": framework, "target": target, "language": "javascript"},
+            extra={
+                "framework": framework,
+                "target": target,
+                "language": Language.JAVASCRIPT,
+            },
         )
 
         if framework == "jest":
@@ -215,7 +221,7 @@ class JavaScriptStarter(BaseStarter):
         if not node_path:
             logger.warning(
                 "Node.js not found in PATH",
-                extra={"language": "javascript"},
+                extra={"language": Language.JAVASCRIPT},
             )
 
         if node_path:

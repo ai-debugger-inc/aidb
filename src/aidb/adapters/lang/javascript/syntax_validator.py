@@ -2,6 +2,12 @@
 
 from pathlib import Path
 
+from aidb.api.constants import (
+    SYNTAX_VALIDATION_EXTENDED_TIMEOUT_S,
+    SYNTAX_VALIDATION_TIMEOUT_S,
+)
+from aidb_common.constants import Language
+
 from ...base.subprocess_validator import SubprocessValidator
 from ...base.syntax_validator import SyntaxValidator
 
@@ -11,7 +17,7 @@ class JavaScriptSyntaxValidator(SyntaxValidator):
 
     def __init__(self):
         """Initialize JavaScript syntax validator."""
-        super().__init__("javascript")
+        super().__init__(Language.JAVASCRIPT.value)
 
     def _validate_syntax(self, file_path: str) -> tuple[bool, str | None]:
         """Validate JavaScript/TypeScript syntax using Node.js.
@@ -67,7 +73,7 @@ class JavaScriptSyntaxValidator(SyntaxValidator):
         """
         result = SubprocessValidator.run_validator(
             ["node", "--check", file_path],
-            timeout=5,
+            timeout=int(SYNTAX_VALIDATION_TIMEOUT_S),
             language="JavaScript",
         )
 
@@ -103,7 +109,7 @@ class JavaScriptSyntaxValidator(SyntaxValidator):
         """
         result = SubprocessValidator.run_validator(
             ["tsc", "--noEmit", "--allowJs", "--checkJs", file_path],
-            timeout=10,
+            timeout=int(SYNTAX_VALIDATION_EXTENDED_TIMEOUT_S),
             language="TypeScript",
         )
 

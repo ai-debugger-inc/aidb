@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from aidb.api.constants import INIT_WAIT_FOR_INITIALIZED_S
 from aidb.models.entities.breakpoint import HitConditionMode
 from aidb.models.start_request import StartRequestType
 
@@ -288,7 +289,7 @@ class AdapterConfig:
             InitializationOp(InitializationOpType.INITIALIZE),
             InitializationOp(
                 InitializationOpType.WAIT_FOR_INITIALIZED,
-                timeout=5.0,
+                timeout=INIT_WAIT_FOR_INITIALIZED_S,
                 optional=True,
             ),
             InitializationOp(connect_op),

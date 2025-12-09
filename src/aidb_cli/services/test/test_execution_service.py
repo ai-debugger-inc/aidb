@@ -11,13 +11,15 @@ from typing import TYPE_CHECKING, Optional
 
 import click
 
-from aidb_cli.core.constants import STREAM_WINDOW_SIZE, Icons
+from aidb_cli.core.constants import (
+    PROCESS_WAIT_TIMEOUT_S,
+    STREAM_WINDOW_SIZE,
+    Icons,
+)
 from aidb_cli.core.paths import DockerConstants, ProjectPaths
 from aidb_cli.core.utils import CliOutput
 from aidb_cli.managers.base.service import BaseService
-from aidb_cli.services.command_executor.stream_handler_service import (
-    StreamHandlerService,
-)
+from aidb_cli.services.command_executor import StreamHandler
 from aidb_cli.services.docker.docker_build_service import DockerBuildService
 from aidb_cli.services.test.pytest_logging_service import PytestLoggingService
 from aidb_logging import get_cli_logger
@@ -584,7 +586,7 @@ class TestExecutionService(BaseService):
         if logs_process:
             try:
                 logs_process.terminate()
-                logs_process.wait(timeout=5)
+                logs_process.wait(timeout=PROCESS_WAIT_TIMEOUT_S)
                 logger.debug("Stopped log streaming")
             except (
                 OSError,
@@ -804,17 +806,17 @@ class TestExecutionService(BaseService):
         try:
             # Check if we should use rolling window streaming
             if self.command_executor.should_stream():
-                # Use StreamHandlerService for rolling window UX
+                # Use StreamHandler for rolling window UX
                 # The tee in bash_cmd ensures file is written in real-time
-                stream_service = StreamHandlerService(
+                stream_handler = StreamHandler(
                     max_lines=STREAM_WINDOW_SIZE,
                     clear_on_exit=False,
-                    supports_ansi=self.command_executor._tty_service.supports_ansi,
-                    terminal_width=self.command_executor._tty_service.get_terminal_width(),
+                    supports_ansi=self.command_executor.supports_ansi,
+                    terminal_width=self.command_executor.get_terminal_width(),
                 )
 
-                # Run bash command through streaming service
-                result = stream_service.run_with_streaming(
+                # Run bash command through stream handler
+                result = stream_handler.run_with_streaming(
                     ["bash", "-c", bash_cmd],
                     cwd=self.repo_root,
                     env=command_env,
@@ -965,13 +967,26 @@ class TestExecutionService(BaseService):
             If base_env is None: returns only test vars.
             If base_env provided: returns merged environment.
         """
-        # Use provided timestamp or generate new one for session consistency
-        if timestamp is None:
-            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-        self._current_session_timestamp = timestamp
+        # Check if session ID already exists in extra_env (from parallel execution)
+        # This ensures we reuse the same session ID throughout the execution flow
+        if extra_env and "PYTEST_SESSION_ID" in extra_env:
+            session_id = extra_env["PYTEST_SESSION_ID"]
+            # Extract timestamp from session ID (format: suite-YYYYMMDD-HHMMSS)
+            parts = session_id.split("-")
+            if len(parts) >= 3:
+                timestamp = "-".join(parts[-2:])
+            else:
+                timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        else:
+            # Generate new timestamp and session ID
+            if timestamp is None:
+                timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+            session_id = self.pytest_logging.generate_session_id(
+                suite,
+                timestamp=timestamp,
+            )
 
-        # Generate session ID for container log isolation using consistent timestamp
-        session_id = self.pytest_logging.generate_session_id(suite, timestamp=timestamp)
+        self._current_session_timestamp = timestamp
         self._current_session_id = session_id
 
         # Build test-specific environment variables

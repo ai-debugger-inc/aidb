@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from aidb.common.errors import AidbError
+from aidb_common.constants import Language
 from aidb_logging import get_mcp_logger as get_logger
 
 from ..core.exceptions import ErrorCode
@@ -141,7 +142,7 @@ class SessionTerminatedError(ErrorResponse):
                 "when": "to start fresh debugging session",
                 "params_example": {
                     "target": "main.py",
-                    "language": "python",
+                    "language": Language.PYTHON,
                 },
             },
         ]

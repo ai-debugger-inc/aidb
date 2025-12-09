@@ -7,8 +7,10 @@ from typing import Any
 from aidb.adapters.base.config import AdapterCapabilities, AdapterConfig
 from aidb.adapters.base.initialize import InitializationOp, InitializationOpType
 from aidb.adapters.base.launch import BaseLaunchConfig
+from aidb.api.constants import DEFAULT_PYTHON_DEBUG_PORT, INIT_WAIT_FOR_INITIALIZED_S
 from aidb.common.errors import ConfigurationError
 from aidb.models.entities.breakpoint import HitConditionMode
+from aidb_common.constants import Language
 
 # Static capabilities from debugpy source code
 # Source: debugpy/src/debugpy/adapter/clients.py (initialize_request method)
@@ -51,12 +53,12 @@ PYTHON_CAPABILITIES = AdapterCapabilities(
 class PythonAdapterConfig(AdapterConfig):
     """Python debug adapter configuration."""
 
-    language: str = "python"
-    adapter_id: str = "python"
-    adapter_port: int = 5678
+    language: str = Language.PYTHON.value
+    adapter_id: str = Language.PYTHON.value
+    adapter_port: int = DEFAULT_PYTHON_DEBUG_PORT
     adapter_server: str = "debugpy"
     binary_identifier: str = "debugpy"  # Python module name
-    default_dap_port: int = 5678
+    default_dap_port: int = DEFAULT_PYTHON_DEBUG_PORT
     fallback_port_ranges: list[int] = field(default_factory=lambda: [6000, 7000])
     file_extensions: list[str] = field(default_factory=lambda: [".py"])
     supported_frameworks: list[str] = field(
@@ -132,13 +134,16 @@ class PythonAdapterConfig(AdapterConfig):
             # debugpy needs attach before initialized event when using
             # --wait-for-client
             InitializationOp(InitializationOpType.ATTACH, wait_for_response=False),
-            InitializationOp(InitializationOpType.WAIT_FOR_INITIALIZED, timeout=5.0),
+            InitializationOp(
+                InitializationOpType.WAIT_FOR_INITIALIZED,
+                timeout=INIT_WAIT_FOR_INITIALIZED_S,
+            ),
             InitializationOp(InitializationOpType.SET_BREAKPOINTS, optional=True),
             InitializationOp(InitializationOpType.CONFIGURATION_DONE),
             # debugpy sends attach response AFTER configurationDone
             InitializationOp(
                 InitializationOpType.WAIT_FOR_ATTACH_RESPONSE,
-                timeout=5.0,
+                timeout=INIT_WAIT_FOR_INITIALIZED_S,
             ),
         ]
 

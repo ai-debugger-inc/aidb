@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 from aidb.common.errors import AidbError
+from aidb_cli.core.constants import CliTimeouts
 from aidb_cli.core.utils import CliOutput
 from aidb_cli.managers.base.service import BaseService
 from aidb_cli.services.docs.docs_builder_service import DocsBuilderService, DocsTarget
@@ -91,7 +92,7 @@ class DocsServerService(BaseService):
         if not running:
             CliOutput.info("Docs not running, starting...")
             self.serve_docs(target, port, build_first=True)
-            time.sleep(2)
+            time.sleep(CliTimeouts.DOCS_SERVER_STARTUP_DELAY_S)
             running, detected_port = self.builder_service.get_service_status(target)
 
         final_port = detected_port or str(port or target.default_port)

@@ -12,6 +12,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from aidb.dap.client.constants import EventType
 from aidb.patterns import Obj
 
 if TYPE_CHECKING:
@@ -106,10 +107,14 @@ class StepMetrics(Obj):
             return (now - timestamp) if timestamp else None
 
         # Safely extract event flags
+        stopped_event_key = EventType.STOPPED.value
+        terminated_event_key = EventType.TERMINATED.value
         try:
-            stopped_flag = ep._event_received.get("stopped", threading.Event()).is_set()
+            default_event = threading.Event()
+            stopped_received = ep._event_received.get(stopped_event_key, default_event)
+            stopped_flag = stopped_received.is_set()
             terminated_flag = ep._event_received.get(
-                "terminated",
+                terminated_event_key,
                 threading.Event(),
             ).is_set()
         except (AttributeError, KeyError):
@@ -121,10 +126,10 @@ class StepMetrics(Obj):
             event_walls = getattr(st, "event_last_signaled_wall", {})
             processed_walls = getattr(st, "event_last_processed_wall", {})
 
-            stopped_signal_age = age(event_walls.get("stopped"))
-            stopped_processed_age = age(processed_walls.get("stopped"))
-            terminated_signal_age = age(event_walls.get("terminated"))
-            terminated_processed_age = age(processed_walls.get("terminated"))
+            stopped_signal_age = age(event_walls.get(stopped_event_key))
+            stopped_processed_age = age(processed_walls.get(stopped_event_key))
+            terminated_signal_age = age(event_walls.get(terminated_event_key))
+            terminated_processed_age = age(processed_walls.get(terminated_event_key))
             last_message_age = age(getattr(st, "last_message_received_wall", None))
         except (AttributeError, KeyError):
             stopped_signal_age = None
@@ -436,7 +441,7 @@ def instrument_step(operation_name: str):
             # Clear stopped event (but not for continue operations)
             if operation_name != "continue":
                 try:
-                    self.session.dap.clear_event("stopped")
+                    self.session.dap.clear_event(EventType.STOPPED.value)
                     _capture_metrics(self, operation_name, "clear", thread_id)
                 except (AttributeError, KeyError, TypeError) as e:
                     self.ctx.debug(f"Clear-metrics error in {operation_name}: {e}")

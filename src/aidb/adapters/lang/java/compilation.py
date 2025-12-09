@@ -7,6 +7,7 @@ import tempfile
 from pathlib import Path
 
 from aidb.adapters.base.adapter import CompilationStatus
+from aidb.api.constants import JAVA_COMPILATION_TIMEOUT_S
 from aidb.common.errors import AidbError, CompilationError
 from aidb.patterns.base import Obj
 from aidb_common.config import config
@@ -112,7 +113,7 @@ class JavaCompilationManager(Obj):
             )
             stdout_bytes, stderr_bytes = await asyncio.wait_for(
                 proc.communicate(),
-                timeout=30,
+                timeout=JAVA_COMPILATION_TIMEOUT_S,
             )
             stdout = stdout_bytes.decode("utf-8") if stdout_bytes else ""
             stderr = stderr_bytes.decode("utf-8") if stderr_bytes else ""

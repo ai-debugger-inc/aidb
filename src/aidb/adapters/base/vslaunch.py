@@ -13,6 +13,7 @@ from aidb.adapters.base.launch import BaseLaunchConfig, LaunchConfigFactory
 from aidb.adapters.base.vscode_variables import (
     VSCodeVariableResolver,
 )
+from aidb_common.constants import Language
 from aidb_common.io import safe_read_json
 from aidb_common.io.files import FileOperationError
 from aidb_common.path import normalize_path
@@ -217,15 +218,15 @@ class LaunchConfigurationManager:
         }
 
         # Language-specific defaults
-        if language == "python" or language == "debugpy":
+        if language in (Language.PYTHON, "debugpy"):
             config_data["type"] = "debugpy"  # Ensure correct type
             config_data["console"] = "integratedTerminal"
             config_data["justMyCode"] = True
-        elif language in ["node", "nodejs", "javascript", "typescript"]:
+        elif language in (Language.JAVASCRIPT, "node", "nodejs", "typescript"):
             config_data["type"] = "pwa-node"  # Use modern Node debugger
             config_data["console"] = "integratedTerminal"
             config_data["skipFiles"] = ["<node_internals>/**"]
-        elif language == "java":
+        elif language == Language.JAVA:
             config_data["type"] = "java"
             config_data["mainClass"] = file_path_obj.stem  # Use filename as class name
         elif language == "go":

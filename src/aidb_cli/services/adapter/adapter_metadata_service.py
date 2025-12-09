@@ -213,7 +213,7 @@ class AdapterMetadataService(BaseService):
             self._display_compatibility_status(adapter_aidb_version, language)
         else:
             CliOutput.plain("")
-            CliOutput.warning("❓ No metadata information available")
+            CliOutput.warning("No metadata information available")
 
     def check_version_mismatches(
         self,
@@ -282,7 +282,7 @@ class AdapterMetadataService(BaseService):
         if adapter_aidb_version == current_aidb_version:
             CliOutput.success("Version compatibility: OK")
         elif adapter_aidb_version == "unknown":
-            CliOutput.warning("❓ Version compatibility: Unknown")
+            CliOutput.warning("Version compatibility: Unknown")
         else:
             CliOutput.warning("Version compatibility: Mismatch")
             CliOutput.info(
@@ -318,7 +318,7 @@ class AdapterMetadataService(BaseService):
             if mismatched:
                 mismatched_str = ", ".join(mismatched)
                 CliOutput.warning(
-                    f"{Icons.WARNING}  Version mismatch detected for: {mismatched_str}",
+                    f"Version mismatch detected for: {mismatched_str}",
                 )
                 CliOutput.info(
                     "Consider running './dev-cli adapters download --install' "

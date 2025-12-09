@@ -4,6 +4,7 @@ This module demonstrates the dual-launch pattern for framework testing, ensuring
 API and VS Code launch.json entry points work correctly.
 """
 
+import os
 from pathlib import Path
 
 import pytest
@@ -12,6 +13,7 @@ from tests._helpers.framework_base import FrameworkDebugTestBase
 from tests._helpers.parametrization import parametrize_interfaces
 
 
+@pytest.mark.xdist_group("springboot")
 class TestSpringBootDebugging(FrameworkDebugTestBase):
     """Test Spring Boot framework debugging capabilities.
 
@@ -53,11 +55,12 @@ class TestSpringBootDebugging(FrameworkDebugTestBase):
         springboot_app : Path
             Path to Spring Boot test application
         """
+        app_port = os.environ.get("APP_PORT", "8080")
         session_info = await debug_interface.start_session(
             program="com.example.demo.DemoApplication",
             main_class="com.example.demo.DemoApplication",
             project_name="springboot-demo",
-            args=["--server.port=8080"],
+            args=[f"--server.port={app_port}"],
             cwd=str(springboot_app),
         )
 
@@ -125,11 +128,12 @@ class TestSpringBootDebugging(FrameworkDebugTestBase):
         api_interface = APIInterface(language="java")
         await api_interface.initialize()
 
+        app_port = os.environ.get("APP_PORT", "8080")
         api_session = await api_interface.start_session(
             program="com.example.demo.DemoApplication",
             main_class="com.example.demo.DemoApplication",
             project_name="springboot-demo",
-            args=["--server.port=8082"],
+            args=[f"--server.port={app_port}"],
             cwd=str(springboot_app),
         )
 
@@ -191,11 +195,12 @@ class TestSpringBootDebugging(FrameworkDebugTestBase):
             "Could not find //:bp.home.message: marker"
         )
 
+        app_port = os.environ.get("APP_PORT", "8080")
         await debug_interface.start_session(
             program="com.example.demo.DemoApplication",
             main_class="com.example.demo.DemoApplication",
             project_name="springboot-demo",
-            args=["--server.port=8083"],
+            args=[f"--server.port={app_port}"],
             cwd=str(springboot_app),
             breakpoints=[{"file": str(controller_file), "line": home_message_line}],
         )
@@ -250,11 +255,12 @@ class TestSpringBootDebugging(FrameworkDebugTestBase):
         assert calc_x_line is not None
         assert calc_y_line is not None
 
+        app_port = os.environ.get("APP_PORT", "8080")
         await debug_interface.start_session(
             program="com.example.demo.DemoApplication",
             main_class="com.example.demo.DemoApplication",
             project_name="springboot-demo",
-            args=["--server.port=8084"],
+            args=[f"--server.port={app_port}"],
             cwd=str(springboot_app),
             breakpoints=[
                 {"file": str(controller_file), "line": calc_x_line},

@@ -5,6 +5,8 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional
 
+from aidb_common.constants import Language
+
 
 class SyntaxValidator(ABC):
     """Abstract base class for language-specific syntax validators.
@@ -109,15 +111,15 @@ class SyntaxValidator(ABC):
         language = language.lower()
 
         # Import language-specific validators on demand to avoid circular imports
-        if language == "python":
+        if language == Language.PYTHON:
             from ..lang.python.syntax_validator import PythonSyntaxValidator
 
             return PythonSyntaxValidator()
-        if language in ["javascript", "js", "node"]:
+        if language in (Language.JAVASCRIPT, "js", "node"):
             from ..lang.javascript.syntax_validator import JavaScriptSyntaxValidator
 
             return JavaScriptSyntaxValidator()
-        if language == "java":
+        if language == Language.JAVA:
             from ..lang.java.syntax_validator import JavaSyntaxValidator
 
             return JavaSyntaxValidator()

@@ -10,6 +10,7 @@ from typing import Any
 
 from aidb.adapters.downloader import AdapterDownloader
 from aidb_common.config import config
+from aidb_common.constants import Language
 from aidb_logging import get_mcp_logger as get_logger
 
 from ...core import (
@@ -243,7 +244,7 @@ async def _handle_config_show(_args: dict[str, Any]) -> dict[str, Any]:
                 "language": (
                     context.session_info.language
                     if context and context.session_info
-                    else "python"
+                    else Language.PYTHON.value
                 ),
                 "mode": LaunchMode.LAUNCH.value,
             }

@@ -7,7 +7,13 @@ from typing import Any
 from aidb.adapters.base.config import AdapterCapabilities, AdapterConfig
 from aidb.adapters.base.initialize import InitializationOp, InitializationOpType
 from aidb.adapters.base.launch import BaseLaunchConfig, LaunchConfigFactory
+from aidb.api.constants import (
+    DEFAULT_NODE_DEBUG_PORT,
+    INIT_WAIT_FOR_INITIALIZED_S,
+    INIT_WAIT_FOR_LAUNCH_RESPONSE_S,
+)
 from aidb.models.entities.breakpoint import HitConditionMode
+from aidb_common.constants import Language
 
 # Static capabilities from vscode-js-debug source code
 # Source: vscode-js-debug/src/adapter/debugAdapter.ts (static capabilities method)
@@ -50,9 +56,9 @@ JAVASCRIPT_CAPABILITIES = AdapterCapabilities(
 class JavaScriptAdapterConfig(AdapterConfig):
     """JavaScript and TypeScript debug adapter configuration."""
 
-    language: str = "javascript"
-    adapter_id: str = "javascript"
-    adapter_port: int = 9229  # Default DAP server port
+    language: str = Language.JAVASCRIPT.value
+    adapter_id: str = Language.JAVASCRIPT.value
+    adapter_port: int = DEFAULT_NODE_DEBUG_PORT
     binary_identifier: str = "src/dapDebugServer.js"  # Adapter binary filename
     file_extensions: list[str] = field(
         default_factory=lambda: [
@@ -72,7 +78,7 @@ class JavaScriptAdapterConfig(AdapterConfig):
         default_factory=lambda: ["jest", "express"],
     )
     framework_examples: list[str] = field(default_factory=lambda: ["node"])
-    default_dap_port: int = 9229
+    default_dap_port: int = DEFAULT_NODE_DEBUG_PORT
     # Provide wider, non-overlapping fallback ranges to reduce contention
     # under parallel test execution. Each start adds ~100 candidates.
     fallback_port_ranges: list[int] = field(
@@ -149,7 +155,7 @@ class JavaScriptAdapterConfig(AdapterConfig):
             InitializationOp(InitializationOpType.LAUNCH, wait_for_response=False),
             InitializationOp(
                 InitializationOpType.WAIT_FOR_INITIALIZED,
-                timeout=5.0,
+                timeout=INIT_WAIT_FOR_INITIALIZED_S,
                 optional=True,
             ),
         ]
@@ -165,7 +171,7 @@ class JavaScriptAdapterConfig(AdapterConfig):
                 InitializationOp(InitializationOpType.CONFIGURATION_DONE),
                 InitializationOp(
                     InitializationOpType.WAIT_FOR_LAUNCH_RESPONSE,
-                    timeout=10.0,
+                    timeout=INIT_WAIT_FOR_LAUNCH_RESPONSE_S,
                 ),
             ],
         )
@@ -427,7 +433,7 @@ class JavaScriptLaunchConfig(BaseLaunchConfig):
 
         # Handle default port for attach requests
         if self.request == "attach" and "port" not in args:
-            args["port"] = 9229  # Default Node.js debug port
+            args["port"] = DEFAULT_NODE_DEBUG_PORT
 
         return args
 

@@ -4,11 +4,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 from aidb.session.adapter_registry import AdapterRegistry
-from aidb_cli.core.constants import Icons
 from aidb_cli.core.paths import CachePaths
 from aidb_cli.core.utils import CliOutput
 from aidb_cli.managers.base.service import BaseService
-from aidb_common.config import VersionManager
+from aidb_common.io import safe_read_json
 from aidb_logging import get_cli_logger
 
 if TYPE_CHECKING:
@@ -114,9 +113,7 @@ class AdapterDiscoveryService(BaseService):
         cache_path = self._cache_dir / language if self._cache_dir else None
         if cache_path and cache_path.exists():
             if verbose:
-                CliOutput.info(
-                    f"{Icons.SUCCESS} Found {language} adapter in cache: {cache_path}",
-                )
+                CliOutput.success(f"Found {language} adapter in cache: {cache_path}")
             return cache_path
 
         repo_adapter_path = (
@@ -127,19 +124,16 @@ class AdapterDiscoveryService(BaseService):
                 adapter_file = repo_adapter_path / f"{language}.py"
                 if not adapter_file.exists():
                     if verbose:
-                        msg = (
-                            f"{Icons.WARNING} {language} adapter source found "
-                            f"but not built: {repo_adapter_path}"
+                        CliOutput.warning(
+                            f"{language} adapter source found "
+                            f"but not built: {repo_adapter_path}",
                         )
-                        CliOutput.warning(msg)
                     return None
 
             if verbose:
-                msg = (
-                    f"{Icons.SUCCESS} Found {language} adapter in repo: "
-                    f"{repo_adapter_path}"
+                CliOutput.success(
+                    f"Found {language} adapter in repo: {repo_adapter_path}",
                 )
-                CliOutput.info(msg)
             return repo_adapter_path
 
         if verbose:
@@ -177,11 +171,11 @@ class AdapterDiscoveryService(BaseService):
 
             if found:
                 CliOutput.success(
-                    f"{Icons.SUCCESS} Found adapters: {', '.join(found)}",
+                    f"Found adapters: {', '.join(found)}",
                 )
             if missing:
                 CliOutput.warning(
-                    f"{Icons.WARNING} Missing adapters: {', '.join(missing)}",
+                    f"Missing adapters: {', '.join(missing)}",
                 )
 
         return adapters
@@ -227,7 +221,7 @@ class AdapterDiscoveryService(BaseService):
                 CliOutput.success(f"Built adapters: {', '.join(built)}")
             if missing:
                 CliOutput.warning(
-                    f"{Icons.WARNING} Missing adapters: {', '.join(missing)}",
+                    f"Missing adapters: {', '.join(missing)}",
                 )
 
         return built, missing
@@ -310,11 +304,13 @@ class AdapterDiscoveryService(BaseService):
             info["status"] = "built"
             info["path"] = str(adapter_path)
 
-            try:
-                version_manager = VersionManager()
-                info["version"] = version_manager.package_version
-            except Exception:
-                info["version"] = "unknown"
+            # Read version from adapter's metadata.json
+            metadata_path = adapter_path / "metadata.json"
+            if metadata_path.exists():
+                metadata = safe_read_json(metadata_path) or {}
+                version = metadata.get("adapter_version", "")
+                # Strip 'v' prefix if present (e.g., 'v1.104.0' -> '1.104.0')
+                info["version"] = version.lstrip("v") if version else ""
         else:
             source_path = self.find_adapter_source(
                 language,

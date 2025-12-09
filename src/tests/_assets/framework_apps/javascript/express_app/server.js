@@ -3,7 +3,8 @@ const indexRoutes = require('./routes/index');
 const apiRoutes = require('./routes/api');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+// Support both APP_PORT (AIDB convention) and PORT (standard) for port configuration
+const PORT = process.env.APP_PORT || process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

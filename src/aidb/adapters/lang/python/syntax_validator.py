@@ -2,6 +2,8 @@
 
 import ast
 
+from aidb_common.constants import Language
+
 from ...base.subprocess_validator import SubprocessValidator
 from ...base.syntax_validator import SyntaxValidator
 
@@ -11,7 +13,7 @@ class PythonSyntaxValidator(SyntaxValidator):
 
     def __init__(self):
         """Initialize Python syntax validator."""
-        super().__init__("python")
+        super().__init__(Language.PYTHON.value)
 
     def _validate_syntax(self, file_path: str) -> tuple[bool, str | None]:
         """Validate Python syntax using the ast module.

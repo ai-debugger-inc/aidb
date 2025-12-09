@@ -6,6 +6,8 @@ import shutil
 import subprocess
 from typing import TYPE_CHECKING, Any
 
+from aidb.api.constants import DEFAULT_ADAPTER_HOST, DEFAULT_PYTHON_DEBUG_PORT
+from aidb_common.constants import Language
 from aidb_common.path import get_aidb_adapters_dir
 from aidb_logging import get_mcp_logger as get_logger
 
@@ -48,7 +50,7 @@ class PythonStarter(BaseStarter):
                 "framework": framework,
                 "target": target,
                 "workspace_root": workspace_root,
-                "language": "python",
+                "language": Language.PYTHON,
             },
         )
 
@@ -155,7 +157,7 @@ class PythonStarter(BaseStarter):
         # Generic Python launch
         logger.debug(
             "Using generic Python launch config",
-            extra={"framework": framework or "none", "language": "python"},
+            extra={"framework": framework or "none", "language": Language.PYTHON},
         )
         return {
             "target": "python",
@@ -206,15 +208,18 @@ class PythonStarter(BaseStarter):
                 "pid": pid,
                 "host": host,
                 "port": port,
-                "language": "python",
+                "language": Language.PYTHON,
             },
         )
 
         if mode == "remote":
             return {
-                "host": host or "localhost",
-                "port": port or 5678,
-                "comment": "Start with: python -m debugpy --listen 5678 script.py",
+                "host": host or DEFAULT_ADAPTER_HOST,
+                "port": port or DEFAULT_PYTHON_DEBUG_PORT,
+                "comment": (
+                    "Start with: python -m debugpy "
+                    f"--listen {DEFAULT_PYTHON_DEBUG_PORT} script.py"
+                ),
             }
         if mode == "local" and pid:
             return {
@@ -223,9 +228,12 @@ class PythonStarter(BaseStarter):
             }
         # Default remote attach example
         return {
-            "host": "localhost",
-            "port": 5678,
-            "comment": "Start with: python -m debugpy --listen 5678 script.py",
+            "host": DEFAULT_ADAPTER_HOST,
+            "port": DEFAULT_PYTHON_DEBUG_PORT,
+            "comment": (
+                "Start with: python -m debugpy "
+                f"--listen {DEFAULT_PYTHON_DEBUG_PORT} script.py"
+            ),
         }
 
     def get_common_breakpoints(
@@ -249,7 +257,11 @@ class PythonStarter(BaseStarter):
         """
         logger.debug(
             "Getting common breakpoints for Python",
-            extra={"framework": framework, "target": target, "language": "python"},
+            extra={
+                "framework": framework,
+                "target": target,
+                "language": Language.PYTHON,
+            },
         )
 
         if framework == "pytest":
@@ -299,7 +311,7 @@ class PythonStarter(BaseStarter):
         if not python_path:
             logger.warning(
                 "Python interpreter not found in PATH",
-                extra={"language": "python"},
+                extra={"language": Language.PYTHON},
             )
 
         if python_path:
@@ -321,7 +333,7 @@ class PythonStarter(BaseStarter):
                 )
 
         # Check debugpy in adapter directory
-        adapter_debugpy = get_aidb_adapters_dir() / "python" / "debugpy"
+        adapter_debugpy = get_aidb_adapters_dir() / Language.PYTHON / "debugpy"
         if adapter_debugpy.exists():
             result["debugpy_available"] = True
             logger.debug(
@@ -331,7 +343,10 @@ class PythonStarter(BaseStarter):
         else:
             logger.warning(
                 "debugpy adapter not installed",
-                extra={"language": "python", "expected_path": str(adapter_debugpy)},
+                extra={
+                    "language": Language.PYTHON,
+                    "expected_path": str(adapter_debugpy),
+                },
             )
             result.setdefault("issues", []).append("debugpy adapter not installed")
             result.setdefault("warnings", []).append(
@@ -397,8 +412,8 @@ class PythonStarter(BaseStarter):
                 "comment": "Debug child processes in multiprocessing apps",
             },
             "remote_docker": {
-                "host": "localhost",
-                "port": 5678,
+                "host": DEFAULT_ADAPTER_HOST,
+                "port": DEFAULT_PYTHON_DEBUG_PORT,
                 "pathMappings": [{"localRoot": "${workspace}", "remoteRoot": "/app"}],
                 "comment": "Attach to Python running in Docker container",
             },

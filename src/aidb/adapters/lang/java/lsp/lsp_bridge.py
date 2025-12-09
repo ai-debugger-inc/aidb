@@ -11,7 +11,14 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from aidb.api.constants import (
+    LSP_HEALTH_CHECK_TIMEOUT_S,
+    LSP_MAVEN_IMPORT_TIMEOUT_S,
+    LSP_PROJECT_IMPORT_TIMEOUT_S,
+    LSP_SERVICE_READY_TIMEOUT_S,
+)
 from aidb.patterns.base import Obj
+from aidb_common.constants import Language
 from aidb_common.env import reader
 
 from .debug_session_manager import DebugSessionManager
@@ -134,7 +141,7 @@ class JavaLSPDAPBridge(Obj):
                 Path.home()
                 / ".aidb"
                 / "adapters"
-                / "java"
+                / Language.JAVA.value
                 / "jdtls"
                 / "workspaces"
                 / safe_name
@@ -172,11 +179,13 @@ class JavaLSPDAPBridge(Obj):
 
             # Wait for ServiceReady
             self.ctx.info("Waiting for JDT LS ServiceReady notification...")
-            service_ready = await self.lsp_client.wait_for_service_ready(timeout=60.0)
+            service_ready = await self.lsp_client.wait_for_service_ready(
+                timeout=LSP_SERVICE_READY_TIMEOUT_S,
+            )
             if not service_ready:
                 self.ctx.warning(
-                    "JDT LS did not send ServiceReady within 60s. "
-                    "May not be fully ready.",
+                    f"JDT LS did not send ServiceReady within "
+                    f"{LSP_SERVICE_READY_TIMEOUT_S}s. May not be fully ready.",
                 )
 
             # For Maven/Gradle projects, wait for import
@@ -193,7 +202,7 @@ class JavaLSPDAPBridge(Obj):
                     try:
                         progress_ready = (
                             await self.lsp_client.wait_for_maven_import_complete(
-                                timeout=10.0,
+                                timeout=LSP_MAVEN_IMPORT_TIMEOUT_S,
                             )
                         )
                     except Exception as e:
@@ -205,7 +214,7 @@ class JavaLSPDAPBridge(Obj):
                         lsp_client=self.lsp_client,
                         project_name=project_name,
                         project_root=project_root_path,
-                        timeout=50.0,
+                        timeout=LSP_PROJECT_IMPORT_TIMEOUT_S,
                     )
                     if not import_ready:
                         self.ctx.warning(
@@ -399,7 +408,7 @@ class JavaLSPDAPBridge(Obj):
                 _ = await self.lsp_client.execute_command(
                     "java.project.getAll",
                     [],
-                    timeout=2.0,
+                    timeout=LSP_HEALTH_CHECK_TIMEOUT_S,
                 )
                 self.ctx.debug(
                     "[POOLED] LSP health check succeeded before resolveClasspath",

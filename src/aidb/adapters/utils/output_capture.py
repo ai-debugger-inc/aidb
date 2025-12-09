@@ -4,6 +4,7 @@ import asyncio
 import collections
 from typing import TYPE_CHECKING, Any, Optional
 
+from aidb.api.constants import EVENT_QUEUE_POLL_TIMEOUT_S
 from aidb.common import acquire_lock
 from aidb.patterns import Obj
 
@@ -124,7 +125,10 @@ class AdapterOutputCapture(Obj):
             while not self._stop_event.is_set():
                 try:
                     # Read line with timeout
-                    line = await asyncio.wait_for(stream.readline(), timeout=0.1)
+                    line = await asyncio.wait_for(
+                        stream.readline(),
+                        timeout=EVENT_QUEUE_POLL_TIMEOUT_S,
+                    )
                     if not line:
                         break  # EOF
 

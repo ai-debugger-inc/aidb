@@ -6,6 +6,7 @@ This module delegates to the orchestration subpackage modules for better organiz
 import asyncio
 from typing import TYPE_CHECKING, Literal, Optional, cast
 
+from aidb.api.constants import SHORT_SLEEP_S
 from aidb.common.errors import DebugTimeoutError
 from aidb.dap.protocol.bodies import (
     RestartArguments,
@@ -104,7 +105,7 @@ class OrchestrationMixin(BaseOperations):
         """
         # Use subscription-based waiting
         if not hasattr(self.session.events, "wait_for_stopped_or_terminated_async"):
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(SHORT_SLEEP_S)
             return "stopped"
 
         # Await the result directly (edge-triggered to wait for NEXT event)

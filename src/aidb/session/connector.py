@@ -63,6 +63,7 @@ class SessionConnector(Obj):
                 adapter_port=adapter_port,
                 ctx=self.ctx,
                 log_prefix=f"[Session {self.session.id[:8]}]",
+                session_id=self.session.id,
             )
             self.ctx.debug(f"Created DAP client for {adapter_host}:{adapter_port}")
 
@@ -118,6 +119,7 @@ class SessionConnector(Obj):
                 adapter_port=adapter_port,
                 ctx=self.ctx,
                 log_prefix=f"[Child {self.session.id}]",
+                session_id=self.session.id,
             )
 
             # Connect the child's DAP client
@@ -337,6 +339,7 @@ class SessionConnector(Obj):
                     adapter_port=adapter_port,
                     ctx=self.ctx,
                     log_prefix=f"[Reconnect {self.session.id[:8]}]",
+                    session_id=self.session.id,
                 )
 
                 # Try to connect

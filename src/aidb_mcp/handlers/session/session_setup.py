@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
+from aidb_common.constants import Language
 from aidb_logging import get_mcp_logger as get_logger
 
 from ...core.constants import (
@@ -178,7 +179,7 @@ async def _create_session_for_mode(
         additional_kwargs = {k: v for k, v in args.items() if k not in known_params}
 
         # Debug logging to trace parameter flow for Java framework tests
-        if language == "java" and additional_kwargs:
+        if language == Language.JAVA and additional_kwargs:
             logger.debug(
                 "Java session creation - additional_kwargs",
                 extra={

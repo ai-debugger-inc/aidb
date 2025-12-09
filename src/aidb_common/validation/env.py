@@ -4,6 +4,8 @@ import os
 import re
 from typing import Any
 
+from aidb_common.env.reader import FALSY_VALUES, TRUTHY_VALUES
+
 
 class EnvironmentValidationError(Exception):
     """Raised when environment variable validation fails."""
@@ -171,9 +173,7 @@ def validate_env_types(specs: dict[str, dict[str, Any]]) -> None:
 
             elif var_type == "bool":
                 normalized = value.strip().lower()
-                truthy = {"1", "true", "yes", "on", "y", "t"}
-                falsy = {"0", "false", "no", "off", "n", "f"}
-                if normalized not in truthy | falsy:
+                if normalized not in TRUTHY_VALUES | FALSY_VALUES:
                     msg = (
                         f"Environment variable {var_name} is not a valid boolean value"
                     )

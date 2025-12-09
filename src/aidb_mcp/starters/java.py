@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from aidb.api.constants import DEFAULT_ADAPTER_HOST, DEFAULT_JAVA_DEBUG_PORT
+from aidb_common.constants import Language
 from aidb_logging import get_mcp_logger as get_logger
 
 from .base import BaseStarter
@@ -45,7 +47,7 @@ class JavaStarter(BaseStarter):
                 "framework": framework,
                 "target": target,
                 "workspace_root": workspace_root,
-                "language": "java",
+                "language": Language.JAVA,
             },
         )
 
@@ -107,7 +109,7 @@ class JavaStarter(BaseStarter):
         # Generic Java launch
         logger.debug(
             "Using generic Java launch config",
-            extra={"framework": framework or "none", "language": "java"},
+            extra={"framework": framework or "none", "language": Language.JAVA},
         )
         return {
             "target": "java",
@@ -158,17 +160,17 @@ class JavaStarter(BaseStarter):
                 "pid": pid,
                 "host": host,
                 "port": port,
-                "language": "java",
+                "language": Language.JAVA,
             },
         )
 
         if mode == "remote":
             return {
-                "host": host or "localhost",
-                "port": port or 5005,
+                "host": host or DEFAULT_ADAPTER_HOST,
+                "port": port or DEFAULT_JAVA_DEBUG_PORT,
                 "comment": (
                     "Start JVM with: -agentlib:jdwp=transport=dt_socket,"
-                    "server=y,suspend=n,address=5005"
+                    f"server=y,suspend=n,address={DEFAULT_JAVA_DEBUG_PORT}"
                 ),
             }
         if mode == "local" and pid:
@@ -177,11 +179,11 @@ class JavaStarter(BaseStarter):
                 "comment": "Attach to running Java process",
             }
         return {
-            "host": "localhost",
-            "port": 5005,
+            "host": DEFAULT_ADAPTER_HOST,
+            "port": DEFAULT_JAVA_DEBUG_PORT,
             "comment": (
                 "Start JVM with: -agentlib:jdwp=transport=dt_socket,"
-                "server=y,suspend=n,address=5005"
+                f"server=y,suspend=n,address={DEFAULT_JAVA_DEBUG_PORT}"
             ),
         }
 
@@ -205,7 +207,7 @@ class JavaStarter(BaseStarter):
         """
         logger.debug(
             "Getting common breakpoints for Java",
-            extra={"framework": framework, "target": target, "language": "java"},
+            extra={"framework": framework, "target": target, "language": Language.JAVA},
         )
         if framework == "junit":
             return [
@@ -312,8 +314,8 @@ class JavaStarter(BaseStarter):
         """
         return {
             "remote_container": {
-                "host": "localhost",
-                "port": 5005,
+                "host": DEFAULT_ADAPTER_HOST,
+                "port": DEFAULT_JAVA_DEBUG_PORT,
                 "comment": "Attach to Java in Docker container",
             },
             "maven_debug": {

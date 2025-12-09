@@ -9,6 +9,39 @@ from typing import Any, Literal, cast
 
 from .context import get_log_context, get_request_duration, get_session_id
 
+# Standard LogRecord fields to exclude when extracting extras
+STANDARD_LOG_RECORD_FIELDS = frozenset(
+    {
+        "name",
+        "msg",
+        "args",
+        "created",
+        "filename",
+        "funcName",
+        "levelname",
+        "levelno",
+        "lineno",
+        "module",
+        "msecs",
+        "message",
+        "pathname",
+        "process",
+        "processName",
+        "relativeCreated",
+        "stack_info",
+        "thread",
+        "threadName",
+        "exc_info",
+        "exc_text",
+        "real_module",
+        "real_funcName",
+        "real_lineno",
+        "session_id",
+        "request_id",
+        "getMessage",
+    }
+)
+
 
 class SafeFormatter(logging.Formatter):
     """Base formatter that ensures required attributes exist.
@@ -314,40 +347,9 @@ class JSONFormatter(SafeFormatter):
         dict
             Extra fields not part of standard logging
         """
-        # Standard fields to exclude
-        standard_fields = {
-            "name",
-            "msg",
-            "args",
-            "created",
-            "filename",
-            "funcName",
-            "levelname",
-            "levelno",
-            "lineno",
-            "module",
-            "msecs",
-            "message",
-            "pathname",
-            "process",
-            "processName",
-            "relativeCreated",
-            "stack_info",
-            "thread",
-            "threadName",
-            "exc_info",
-            "exc_text",
-            "real_module",
-            "real_funcName",
-            "real_lineno",
-            "session_id",
-            "request_id",
-            "getMessage",
-        }
-
         extra = {}
         for key, value in record.__dict__.items():
-            if key not in standard_fields:
+            if key not in STANDARD_LOG_RECORD_FIELDS:
                 extra[key] = value
 
         return extra

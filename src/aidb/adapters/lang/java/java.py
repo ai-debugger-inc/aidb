@@ -4,6 +4,11 @@ import asyncio
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
+from aidb.api.constants import (
+    DEFAULT_JAVA_DEBUG_PORT,
+    DEFAULT_WAIT_TIMEOUT_S,
+    SECONDS_PER_DAY,
+)
 from aidb.common.errors import AidbError
 from aidb_common.env import reader
 
@@ -316,7 +321,9 @@ class JavaAdapter(DebugAdapter):
             raise AidbError(msg)
 
         if port is None:
-            port = await self._port_manager.acquire(fallback_start=5005)
+            port = await self._port_manager.acquire(
+                fallback_start=DEFAULT_JAVA_DEBUG_PORT,
+            )
 
         # Start LSP-DAP bridge and get the actual DAP port
         try:
@@ -469,7 +476,7 @@ class JavaAdapter(DebugAdapter):
                         compilation_complete = (
                             await self._lsp_dap_bridge.lsp_client.wait_for_diagnostics(
                                 file_path=original_source,
-                                timeout=5.0,
+                                timeout=DEFAULT_WAIT_TIMEOUT_S,
                             )
                         )
 
@@ -581,7 +588,7 @@ class JavaAdapter(DebugAdapter):
 
             # Create a dummy process to satisfy the base adapter This
             # process just sleeps and is cleaned up when the session ends
-            python_code = "import time; time.sleep(86400)"
+            python_code = f"import time; time.sleep({SECONDS_PER_DAY})"
             proc = await asyncio.create_subprocess_exec(
                 sys.executable,
                 "-c",

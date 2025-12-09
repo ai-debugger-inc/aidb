@@ -4,11 +4,14 @@ import asyncio
 from typing import TYPE_CHECKING, Optional, cast
 
 from aidb.api.constants import (
+    CHILD_SESSION_WAIT_TIMEOUT_S,
     EVENT_POLL_TIMEOUT_S,
     MEDIUM_SLEEP_S,
+    PROCESS_WAIT_TIMEOUT_S,
     STACK_TRACE_TIMEOUT_S,
 )
 from aidb.common.errors import DebugTimeoutError
+from aidb.dap.client.constants import StopReason as DAPStopReason
 from aidb.dap.protocol.bodies import RestartArguments
 from aidb.dap.protocol.requests import (
     ContinueRequest,
@@ -88,12 +91,12 @@ async def _build_stopped_execution_state(session_ops) -> ExecutionStateResponse:
 
     # Map DAP stop reasons to our StopReason enum
     stop_reason_map = {
-        "breakpoint": StopReason.BREAKPOINT,
-        "step": StopReason.STEP,
-        "pause": StopReason.PAUSE,
-        "exception": StopReason.EXCEPTION,
-        "entry": StopReason.ENTRY,
-        "exit": StopReason.EXIT,
+        DAPStopReason.BREAKPOINT.value: StopReason.BREAKPOINT,
+        DAPStopReason.STEP.value: StopReason.STEP,
+        DAPStopReason.PAUSE.value: StopReason.PAUSE,
+        DAPStopReason.EXCEPTION.value: StopReason.EXCEPTION,
+        DAPStopReason.ENTRY.value: StopReason.ENTRY,
+        DAPStopReason.EXIT.value: StopReason.EXIT,
     }
     stop_reason = stop_reason_map.get(stop_reason_str, StopReason.UNKNOWN)
 
@@ -405,7 +408,7 @@ class ExecutionOperations(SessionOperationsMixin):
                 and hasattr(self._session.adapter, "requires_child_session_wait")
                 and self._session.adapter.requires_child_session_wait
             ):
-                await self._wait_for_child_session(timeout=10.0)
+                await self._wait_for_child_session(timeout=CHILD_SESSION_WAIT_TIMEOUT_S)
 
             # Determine if we should auto-wait for breakpoints
             # Default behavior: wait if breakpoints are set
@@ -533,7 +536,8 @@ class ExecutionOperations(SessionOperationsMixin):
 
             # Disconnect DAP client
             if hasattr(self.session, "dap") and self.session.dap:
-                # Adapter indicates transport-only disconnect preference (e.g., Python/JS)
+                # Adapter indicates transport-only disconnect preference
+                # (e.g., Python/JS)
                 if (
                     hasattr(self.session, "adapter")
                     and self.session.adapter
@@ -545,7 +549,7 @@ class ExecutionOperations(SessionOperationsMixin):
                 ):
                     await self.session.dap.disconnect(
                         skip_request=True,
-                        receiver_stop_timeout=0.5,
+                        receiver_stop_timeout=PROCESS_WAIT_TIMEOUT_S,
                     )
                 # Check if adapter wants to skip DisconnectRequest (pooled servers)
                 elif (

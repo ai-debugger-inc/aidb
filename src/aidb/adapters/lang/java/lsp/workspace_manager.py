@@ -9,7 +9,13 @@ import random
 import time
 from pathlib import Path
 
-from aidb.api.constants import PROCESS_TERMINATE_TIMEOUT_S
+from aidb.api.constants import (
+    DEFAULT_WAIT_TIMEOUT_S,
+    LSP_EXECUTE_COMMAND_TIMEOUT_S,
+    LSP_MAVEN_IMPORT_TIMEOUT_S,
+    LSP_PROJECT_IMPORT_TIMEOUT_S,
+    PROCESS_TERMINATE_TIMEOUT_S,
+)
 from aidb.patterns.base import Obj
 
 
@@ -115,7 +121,7 @@ class WorkspaceManager(Obj):
         ):
             try:
                 progress_ready = await lsp_client.wait_for_maven_import_complete(
-                    timeout=10.0,
+                    timeout=LSP_MAVEN_IMPORT_TIMEOUT_S,
                 )
             except Exception as e:
                 self.ctx.debug(f"Progress-based wait unavailable: {e}")
@@ -125,13 +131,14 @@ class WorkspaceManager(Obj):
                 lsp_client=lsp_client,
                 project_name=project_name,
                 project_root=project_root,
-                timeout=50.0,
+                timeout=LSP_PROJECT_IMPORT_TIMEOUT_S,
             )
 
             if not import_ready:
+                timeout_msg = f"{LSP_PROJECT_IMPORT_TIMEOUT_S}s"
                 self.ctx.warning(
-                    f"Maven/Gradle import did not complete within 60s for "
-                    f"{project_name}. Classpath resolution may fail.",
+                    f"Maven/Gradle import did not complete within {timeout_msg} "
+                    f"for {project_name}. Classpath resolution may fail.",
                 )
 
     async def wait_for_project_import(  # noqa: C901
@@ -199,7 +206,7 @@ class WorkspaceManager(Obj):
                 proj_list = await lsp_client.execute_command(
                     "java.project.getAll",
                     [],
-                    timeout=5.0,
+                    timeout=DEFAULT_WAIT_TIMEOUT_S,
                 )
                 present = False
                 if isinstance(proj_list, list):
@@ -254,7 +261,7 @@ class WorkspaceManager(Obj):
                 classpath = await lsp_client.execute_command(
                     "vscode.java.resolveClasspath",
                     [test_class, project_name or ""],
-                    timeout=8.0,
+                    timeout=LSP_EXECUTE_COMMAND_TIMEOUT_S,
                 )
 
                 # Extract classpath from result

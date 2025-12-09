@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
+from aidb_cli.core.constants import ExternalURLs
 from aidb_cli.core.paths import CachePaths
 from aidb_cli.core.utils import CliOutput
 from aidb_cli.managers.base.service import BaseService
@@ -337,9 +338,7 @@ class AdapterBuildService(BaseService):
                 check=False,
             )
             if result.returncode != 0:
-                CliOutput.error(
-                    "'act' not found. Install from: https://github.com/nektos/act",
-                )
+                CliOutput.error(ExternalURLs.ACT_INSTALL_MSG)
                 return False
             return True
         except (OSError, subprocess.SubprocessError):

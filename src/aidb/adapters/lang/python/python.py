@@ -9,6 +9,7 @@ from types import ModuleType
 from typing import TYPE_CHECKING, Any
 
 from aidb_common.config import config as env_config
+from aidb_common.constants import Language
 from aidb_common.path import get_aidb_adapters_dir
 
 from ...base import DebugAdapter
@@ -391,12 +392,12 @@ class PythonAdapter(DebugAdapter):
             Path to the adapter directory if it exists, None otherwise
         """
         # First check environment variable (used in CI)
-        env_path = env_config.get_binary_override("python")
+        env_path = env_config.get_binary_override(Language.PYTHON.value)
         if env_path and env_path.exists():
             return env_path
 
         # Fall back to default location
-        adapter_dir = get_aidb_adapters_dir() / "python"
+        adapter_dir = get_aidb_adapters_dir() / Language.PYTHON.value
         if adapter_dir.exists():
             return adapter_dir
         return None
@@ -777,7 +778,10 @@ class PythonAdapter(DebugAdapter):
             self.ctx.debug(f"Using trace manager directory: {trace_dir}")
         else:
             # Use a default directory when trace manager is not available (under log/)
-            trace_dir = self.ctx.get_storage_path("log/adapter_traces", "python")
+            trace_dir = self.ctx.get_storage_path(
+                "log/adapter_traces",
+                Language.PYTHON.value,
+            )
             Path(trace_dir).mkdir(parents=True, exist_ok=True)
             self.ctx.debug(f"Using default trace directory: {trace_dir}")
 

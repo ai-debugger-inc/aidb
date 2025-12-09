@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from aidb_common.constants import Language
 from aidb_logging import get_mcp_logger as get_logger
 
 from .java import JavaStarter
@@ -32,9 +33,9 @@ class StarterRegistry:
     def _register_builtin_starters(cls) -> None:
         """Register all built-in language starters."""
         logger.debug("Registering built-in language starters")
-        cls.register("python", PythonStarter)
-        cls.register("javascript", JavaScriptStarter)
-        cls.register("java", JavaStarter)
+        cls.register(Language.PYTHON.value, PythonStarter)
+        cls.register(Language.JAVASCRIPT.value, JavaScriptStarter)
+        cls.register(Language.JAVA.value, JavaStarter)
         logger.info(
             "Built-in starters registered",
             extra={
@@ -263,13 +264,13 @@ class StarterRegistry:
         features_dict = capabilities["features"]
 
         # Python-specific features
-        if language == "python" and hasattr(config, "justMyCode"):
+        if language == Language.PYTHON and hasattr(config, "justMyCode"):
             features_dict["justMyCode"] = config.justMyCode
             features_dict["django"] = getattr(config, "django", False)
             features_dict["flask"] = getattr(config, "flask", False)
 
         # JavaScript-specific features
-        if language == "javascript" and hasattr(config, "enable_source_maps"):
+        if language == Language.JAVASCRIPT and hasattr(config, "enable_source_maps"):
             features_dict["source_maps"] = config.enable_source_maps
 
         logger.info(

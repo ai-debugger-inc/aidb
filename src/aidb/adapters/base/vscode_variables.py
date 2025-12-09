@@ -1,45 +1,60 @@
-"""VS Code variable resolution for launch configurations."""
+"""VS Code variable resolution for launch configurations.
+
+This module resolves VS Code-style variables in launch.json configurations.
+It supports the official VS Code variable syntax plus AIDB extensions.
+
+Reference: https://code.visualstudio.com/docs/reference/variables-reference
+"""
 
 import os
 import re
+from collections.abc import Callable
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from aidb.common.errors import VSCodeVariableError
 from aidb.patterns import Obj
 
+# Type alias for variable resolver functions
+VariableResolver = Callable[["VSCodeVariableResolver", str, dict[str, Any]], str | None]
+
 
 class VSCodeVariableResolver(Obj):
     """Resolves VS Code variables in launch configurations.
 
-    Handles common VS Code variables like ${workspaceFolder}, ${env:VAR}, etc. Raises
-    helpful errors for variables that require VS Code runtime context.
-    """
+    Supports the official VS Code variable reference syntax:
+    https://code.visualstudio.com/docs/reference/variables-reference
 
-    # VS Code variables that require runtime context (cannot be resolved)
-    RUNTIME_ONLY_VARIABLES = {
-        "file",
-        "fileBasename",
-        "fileBasenameNoExtension",
-        "fileExtname",
-        "fileDirname",
-        "relativeFile",
-        "relativeFileDirname",
-        "selectedText",
-        "execPath",
-        "pathSeparator",
-        "lineNumber",
-        "selectedPosition",
-        "currentYear",
-        "currentMonth",
-        "currentDay",
-        "currentHour",
-        "currentMinute",
-        "currentSecond",
-    }
+    Supported variable categories:
+    - Predefined: ${workspaceFolder}, ${userHome}, ${pathSeparator}, etc.
+    - File-based: ${file}, ${fileBasename}, ${fileDirname}, etc. (require target)
+    - Environment: ${env:NAME} (reads from os.environ)
+    - Config: ${config:NAME} (not supported - requires VS Code settings)
+    - Command: ${command:ID} (not supported - requires VS Code runtime)
+    - Input: ${input:ID} (not supported - requires VS Code runtime)
+
+    AIDB Extensions (not in official VS Code spec):
+    - ${env:NAME:default} - Environment variable with fallback default value
+    """
 
     # Pattern to match VS Code variables: ${variableName} or ${prefix:value}
     VARIABLE_PATTERN = re.compile(r"\$\{([^}]+)\}")
+
+    # Predefined variables that can always be resolved
+    PREDEFINED_VARIABLES: dict[str, VariableResolver] = {}
+
+    # File-based variables that require a target file in context
+    FILE_VARIABLES: dict[str, VariableResolver] = {}
+
+    # Variables that require VS Code runtime (cannot be resolved)
+    UNSUPPORTED_VARIABLES = {
+        "selectedText",
+        "execPath",
+        "defaultBuildTask",
+        "lineNumber",
+        "columnNumber",
+    }
 
     def __init__(self, workspace_root: Path | None = None, ctx: Any | None = None):
         """Initialize the resolver.
@@ -62,7 +77,8 @@ class VSCodeVariableResolver(Obj):
         value : str
             String potentially containing VS Code variables
         context : dict, optional
-            Additional context for variable resolution, e.g., {'target': '/path/to/file.py'}
+            Additional context for resolution:
+            - 'target': Path to target file (resolves ${file} variables)
 
         Returns
         -------
@@ -76,102 +92,162 @@ class VSCodeVariableResolver(Obj):
         """
         context = context or {}
 
-        FILE_VARS = [
-            "file",
-            "fileBasename",
-            "fileBasenameNoExtension",
-            "fileExtname",
-            "fileDirname",
-        ]
-
-        def replacer(match):
+        def replacer(match: re.Match) -> str:
             var_expr = match.group(1)
-
-            # Handle ${file} and related variables using target from context
-            if var_expr in FILE_VARS:
-                target = context.get("target")
-                if target:
-                    target_path = Path(target)
-                    if var_expr == "file":
-                        return str(target_path.absolute())
-                    if var_expr == "fileBasename":
-                        return target_path.name
-                    if var_expr == "fileBasenameNoExtension":
-                        return target_path.stem
-                    if var_expr == "fileExtname":
-                        return target_path.suffix
-                    if var_expr == "fileDirname":
-                        return str(target_path.parent.absolute())
-
-            # Handle ${workspaceFolder} and variants
-            if var_expr == "workspaceFolder":
-                return str(self.workspace_root)
-            if var_expr == "workspaceFolderBasename":
-                return self.workspace_root.name
-
-            # Handle ${env:VARIABLE_NAME}
-            if var_expr.startswith("env:"):
-                env_var = var_expr[4:]
-                env_value = os.environ.get(env_var)
-                if env_value is None:
-                    msg = (
-                        f"Environment variable '${{env:{env_var}}}' is not set. "
-                        f"Please set the {env_var} environment variable or update "
-                        "your launch configuration to use a specific value."
-                    )
-                    raise VSCodeVariableError(msg)
-                return env_value
-
-            # Handle ${command:commandID}
-            if var_expr.startswith("command:"):
-                command_id = var_expr[8:]
-                msg = (
-                    f"Command variable '${{command:{command_id}}}' requires "
-                    "VS Code runtime context and cannot be resolved outside "
-                    "of VS Code. Please update your launch configuration to "
-                    "use a specific value instead."
-                )
+            resolved = self._resolve_variable(var_expr, context)
+            if resolved is None:
+                msg = self._get_error_message(var_expr)
                 raise VSCodeVariableError(msg)
-
-            # Check if it's a runtime-only variable
-            if var_expr in self.RUNTIME_ONLY_VARIABLES:
-                msg = (
-                    f"Variable '${{{var_expr}}}' requires VS Code runtime context "
-                    "and cannot be resolved outside of VS Code.\n\n"
-                )
-
-                # Provide specific guidance based on the variable
-                if var_expr in FILE_VARS:
-                    msg += (
-                        f"The '${{{var_expr}}}' variable represents the currently "
-                        "active file in VS Code. In MCP, you can resolve this by "
-                        "providing a 'target' parameter.\n\n"
-                        "To fix this:\n"
-                        "1. Add 'target' parameter to your session_start call:\n"
-                        "   session_start(\n"
-                        "       launch_config_name='Your Config',\n"
-                        "       target='/path/to/file.py'  # <-- Resolves ${file}\n"
-                        "   )\n\n"
-                        "2. Or update your launch configuration to use a specific "
-                        "file path instead"
-                    )
-                else:
-                    msg += (
-                        "Please update your launch configuration to use a specific "
-                        "value instead of this runtime variable."
-                    )
-
-                raise VSCodeVariableError(msg)
-
-            # Unknown variable
-            msg = (
-                f"Unknown VS Code variable '${{{var_expr}}}'. "
-                "Please update your launch configuration to use a "
-                "supported variable or specific value."
-            )
-            raise VSCodeVariableError(msg)
+            return resolved
 
         return self.VARIABLE_PATTERN.sub(replacer, value)
+
+    def _resolve_variable(
+        self,
+        var_expr: str,
+        context: dict[str, Any],
+    ) -> str | None:
+        """Resolve a single variable expression.
+
+        Parameters
+        ----------
+        var_expr : str
+            Variable expression without ${} wrapper
+        context : dict
+            Resolution context
+
+        Returns
+        -------
+        str | None
+            Resolved value or None if cannot be resolved
+        """
+        # Check predefined variables first
+        if var_expr in self.PREDEFINED_VARIABLES:
+            return self.PREDEFINED_VARIABLES[var_expr](self, var_expr, context)
+
+        # Check file-based variables
+        if var_expr in self.FILE_VARIABLES:
+            return self.FILE_VARIABLES[var_expr](self, var_expr, context)
+
+        # Handle prefixed variables (env:, config:, command:, input:)
+        if ":" in var_expr:
+            prefix, rest = var_expr.split(":", 1)
+
+            if prefix == "env":
+                return self._resolve_env(rest)
+            if prefix == "config":
+                return self._resolve_config(rest)
+            if prefix == "command":
+                return self._resolve_command(rest)
+            if prefix == "input":
+                return self._resolve_input(rest)
+
+            # Check for workspace-scoped variables (e.g., workspaceFolder:FolderName)
+            base_var = prefix
+            if base_var in self.PREDEFINED_VARIABLES:
+                # Multi-root workspace scoping - not fully supported
+                return self.PREDEFINED_VARIABLES[base_var](self, var_expr, context)
+
+        return None
+
+    def _resolve_env(self, env_expr: str) -> str | None:
+        """Resolve ${env:NAME} or ${env:NAME:default} variables.
+
+        The default value syntax is an AIDB extension not in official VS Code.
+
+        Parameters
+        ----------
+        env_expr : str
+            Environment expression (NAME or NAME:default)
+
+        Returns
+        -------
+        str | None
+            Environment variable value or default, None if not set and no default
+        """
+        # AIDB extension: support ${env:NAME:default} syntax
+        if ":" in env_expr:
+            env_var, default_value = env_expr.split(":", 1)
+            return os.environ.get(env_var, default_value)
+
+        # Standard VS Code: ${env:NAME}
+        return os.environ.get(env_expr)
+
+    def _resolve_config(self, _config_name: str) -> str | None:
+        """Resolve ${config:NAME} variables.
+
+        Not supported - requires VS Code settings context.
+        """
+        return None
+
+    def _resolve_command(self, _command_id: str) -> str | None:
+        """Resolve ${command:ID} variables.
+
+        Not supported - requires VS Code runtime.
+        """
+        return None
+
+    def _resolve_input(self, _input_id: str) -> str | None:
+        """Resolve ${input:ID} variables.
+
+        Not supported - requires VS Code runtime.
+        """
+        return None
+
+    def _get_error_message(self, var_expr: str) -> str:
+        """Get a helpful error message for an unresolvable variable."""
+        # Handle prefixed variables
+        if ":" in var_expr:
+            prefix, value = var_expr.split(":", 1)
+
+            if prefix == "env":
+                # Check if it has a nested colon (default value)
+                env_var = value.split(":", 1)[0] if ":" in value else value
+                return (
+                    f"Environment variable '${{{var_expr}}}' is not set. "
+                    f"Set the {env_var} environment variable, or use the "
+                    f"AIDB default syntax: ${{env:{env_var}:default_value}}"
+                )
+
+            if prefix == "config":
+                return (
+                    f"Config variable '${{{var_expr}}}' requires VS Code settings "
+                    "context and cannot be resolved outside VS Code. "
+                    "Replace with a specific value in your launch configuration."
+                )
+
+            if prefix == "command":
+                return (
+                    f"Command variable '${{{var_expr}}}' requires VS Code runtime "
+                    "and cannot be resolved outside VS Code. "
+                    "Replace with a specific value in your launch configuration."
+                )
+
+            if prefix == "input":
+                return (
+                    f"Input variable '${{{var_expr}}}' requires VS Code runtime "
+                    "and cannot be resolved outside VS Code. "
+                    "Replace with a specific value in your launch configuration."
+                )
+
+        # Check file-based variables
+        if var_expr in self.FILE_VARIABLES:
+            return (
+                f"Variable '${{{var_expr}}}' requires a target file. "
+                "Provide the 'target' parameter when starting the debug session."
+            )
+
+        # Check unsupported runtime variables
+        if var_expr in self.UNSUPPORTED_VARIABLES:
+            return (
+                f"Variable '${{{var_expr}}}' requires VS Code runtime context "
+                "and cannot be resolved outside VS Code."
+            )
+
+        return (
+            f"Unknown variable '${{{var_expr}}}'. "
+            "See https://code.visualstudio.com/docs/reference/variables-reference"
+        )
 
     def resolve_dict(
         self,
@@ -185,8 +261,7 @@ class VSCodeVariableResolver(Obj):
         data : dict
             Dictionary potentially containing VS Code variables in values
         context : dict, optional
-            Additional context for variable resolution,
-            e.g., {'target': '/path/to/file.py'}
+            Additional context for variable resolution
 
         Returns
         -------
@@ -198,19 +273,18 @@ class VSCodeVariableResolver(Obj):
         VSCodeVariableError
             If any variable cannot be resolved
         """
-        result = {}
+        result: dict[str, Any] = {}
         for key, value in data.items():
             if isinstance(value, str):
                 try:
                     result[key] = self.resolve(value, context)
                 except VSCodeVariableError as e:
-                    # Add context about which field had the error
                     msg = f"Error in field '{key}': {e}"
                     raise VSCodeVariableError(msg) from e
             elif isinstance(value, dict):
-                result[key] = self.resolve_dict(value, context)  # type: ignore[assignment]
+                result[key] = self.resolve_dict(value, context)
             elif isinstance(value, list):
-                result[key] = [  # type: ignore[assignment]
+                result[key] = [
                     self.resolve(item, context) if isinstance(item, str) else item
                     for item in value
                 ]
@@ -232,14 +306,7 @@ class VSCodeVariableResolver(Obj):
             True if unresolvable variables are present
         """
         matches = self.VARIABLE_PATTERN.findall(value)
-        for var_expr in matches:
-            # Check for runtime-only variables
-            if var_expr in self.RUNTIME_ONLY_VARIABLES:
-                return True
-            # Check for command variables
-            if var_expr.startswith("command:"):
-                return True
-        return False
+        return any(self._resolve_variable(var_expr, {}) is None for var_expr in matches)
 
     def validate_launch_config(self, config: Any, config_name: str = "unknown") -> None:
         """Validate a launch configuration for unresolvable VS Code variables.
@@ -260,7 +327,6 @@ class VSCodeVariableResolver(Obj):
             f"Validating launch config '{config_name}' for VS Code variables",
         )
 
-        # Check common fields that might contain variables
         fields_to_check = []
 
         if hasattr(config, "program") and config.program:
@@ -273,20 +339,264 @@ class VSCodeVariableResolver(Obj):
 
         for field_name, value in fields_to_check:
             if isinstance(value, str) and self.has_unresolvable_variables(value):
-                # Try to resolve it to get a helpful error message
                 try:
                     self.resolve(value)
                 except VSCodeVariableError as e:
-                    # Add context about the configuration
                     msg = (
-                        f"Launch configuration '{config_name}' contains "
-                        f"unresolvable VS Code variable in {field_name}: {e}\n\n"
-                        "To fix this, either:\n"
-                        "1. Update the launch configuration to use a specific value\n"
-                        "2. Run the debugger from within VS Code where these "
-                        "variables can be resolved\n"
-                        "3. Pass the target file directly when starting the "
-                        "debug session"
+                        f"Launch configuration '{config_name}' has "
+                        f"unresolvable variable in {field_name}: {e}"
                     )
                     summary = "Launch config contains unresolvable VS Code variables"
                     raise VSCodeVariableError(msg, summary=summary) from e
+
+
+# =============================================================================
+# Variable Resolver Registry
+# =============================================================================
+# Register predefined variable resolvers using decorators for clean organization
+
+
+def _predefined(name: str) -> Callable[[VariableResolver], VariableResolver]:
+    """Register a predefined variable resolver."""
+
+    def decorator(func: VariableResolver) -> VariableResolver:
+        VSCodeVariableResolver.PREDEFINED_VARIABLES[name] = func
+        return func
+
+    return decorator
+
+
+def _file_var(name: str) -> Callable[[VariableResolver], VariableResolver]:
+    """Register a file-based variable resolver."""
+
+    def decorator(func: VariableResolver) -> VariableResolver:
+        VSCodeVariableResolver.FILE_VARIABLES[name] = func
+        return func
+
+    return decorator
+
+
+# -----------------------------------------------------------------------------
+# Predefined Variables (always resolvable)
+# -----------------------------------------------------------------------------
+
+
+@_predefined("workspaceFolder")
+def _resolve_workspace_folder(
+    resolver: VSCodeVariableResolver,
+    _var_expr: str,
+    _context: dict[str, Any],
+) -> str:
+    return str(resolver.workspace_root)
+
+
+@_predefined("workspaceFolderBasename")
+def _resolve_workspace_folder_basename(
+    resolver: VSCodeVariableResolver,
+    _var_expr: str,
+    _context: dict[str, Any],
+) -> str:
+    return resolver.workspace_root.name
+
+
+@_predefined("userHome")
+def _resolve_user_home(
+    _resolver: VSCodeVariableResolver,
+    _var_expr: str,
+    _context: dict[str, Any],
+) -> str:
+    return str(Path.home())
+
+
+@_predefined("pathSeparator")
+def _resolve_path_separator(
+    _resolver: VSCodeVariableResolver,
+    _var_expr: str,
+    _context: dict[str, Any],
+) -> str:
+    return os.sep
+
+
+@_predefined("/")
+def _resolve_path_separator_short(
+    _resolver: VSCodeVariableResolver,
+    _var_expr: str,
+    _context: dict[str, Any],
+) -> str:
+    return os.sep
+
+
+@_predefined("cwd")
+def _resolve_cwd(
+    _resolver: VSCodeVariableResolver,
+    _var_expr: str,
+    _context: dict[str, Any],
+) -> str:
+    return str(Path.cwd())
+
+
+# Date/time variables - use local time for consistency with VS Code behavior
+@_predefined("currentYear")
+def _resolve_current_year(
+    _resolver: VSCodeVariableResolver,
+    _var_expr: str,
+    _context: dict[str, Any],
+) -> str:
+    return str(datetime.now(tz=timezone.utc).astimezone().year)
+
+
+@_predefined("currentMonth")
+def _resolve_current_month(
+    _resolver: VSCodeVariableResolver,
+    _var_expr: str,
+    _context: dict[str, Any],
+) -> str:
+    return f"{datetime.now(tz=timezone.utc).astimezone().month:02d}"
+
+
+@_predefined("currentDay")
+def _resolve_current_day(
+    _resolver: VSCodeVariableResolver,
+    _var_expr: str,
+    _context: dict[str, Any],
+) -> str:
+    return f"{datetime.now(tz=timezone.utc).astimezone().day:02d}"
+
+
+@_predefined("currentHour")
+def _resolve_current_hour(
+    _resolver: VSCodeVariableResolver,
+    _var_expr: str,
+    _context: dict[str, Any],
+) -> str:
+    return f"{datetime.now(tz=timezone.utc).astimezone().hour:02d}"
+
+
+@_predefined("currentMinute")
+def _resolve_current_minute(
+    _resolver: VSCodeVariableResolver,
+    _var_expr: str,
+    _context: dict[str, Any],
+) -> str:
+    return f"{datetime.now(tz=timezone.utc).astimezone().minute:02d}"
+
+
+@_predefined("currentSecond")
+def _resolve_current_second(
+    _resolver: VSCodeVariableResolver,
+    _var_expr: str,
+    _context: dict[str, Any],
+) -> str:
+    return f"{datetime.now(tz=timezone.utc).astimezone().second:02d}"
+
+
+# -----------------------------------------------------------------------------
+# File-based Variables (require target in context)
+# -----------------------------------------------------------------------------
+
+
+def _get_target_path(context: dict[str, Any]) -> Path | None:
+    """Get target path from context."""
+    target = context.get("target")
+    return Path(target) if target else None
+
+
+@_file_var("file")
+def _resolve_file(
+    _resolver: VSCodeVariableResolver,
+    _var_expr: str,
+    context: dict[str, Any],
+) -> str | None:
+    target = _get_target_path(context)
+    return str(target.absolute()) if target else None
+
+
+@_file_var("fileBasename")
+def _resolve_file_basename(
+    _resolver: VSCodeVariableResolver,
+    _var_expr: str,
+    context: dict[str, Any],
+) -> str | None:
+    target = _get_target_path(context)
+    return target.name if target else None
+
+
+@_file_var("fileBasenameNoExtension")
+def _resolve_file_basename_no_ext(
+    _resolver: VSCodeVariableResolver,
+    _var_expr: str,
+    context: dict[str, Any],
+) -> str | None:
+    target = _get_target_path(context)
+    return target.stem if target else None
+
+
+@_file_var("fileExtname")
+def _resolve_file_extname(
+    _resolver: VSCodeVariableResolver,
+    _var_expr: str,
+    context: dict[str, Any],
+) -> str | None:
+    target = _get_target_path(context)
+    return target.suffix if target else None
+
+
+@_file_var("fileDirname")
+def _resolve_file_dirname(
+    _resolver: VSCodeVariableResolver,
+    _var_expr: str,
+    context: dict[str, Any],
+) -> str | None:
+    target = _get_target_path(context)
+    return str(target.parent.absolute()) if target else None
+
+
+@_file_var("fileDirnameBasename")
+def _resolve_file_dirname_basename(
+    _resolver: VSCodeVariableResolver,
+    _var_expr: str,
+    context: dict[str, Any],
+) -> str | None:
+    target = _get_target_path(context)
+    return target.parent.name if target else None
+
+
+@_file_var("relativeFile")
+def _resolve_relative_file(
+    resolver: VSCodeVariableResolver,
+    _var_expr: str,
+    context: dict[str, Any],
+) -> str | None:
+    target = _get_target_path(context)
+    if not target:
+        return None
+    try:
+        return str(target.relative_to(resolver.workspace_root))
+    except ValueError:
+        return str(target)
+
+
+@_file_var("relativeFileDirname")
+def _resolve_relative_file_dirname(
+    resolver: VSCodeVariableResolver,
+    _var_expr: str,
+    context: dict[str, Any],
+) -> str | None:
+    target = _get_target_path(context)
+    if not target:
+        return None
+    try:
+        return str(target.parent.relative_to(resolver.workspace_root))
+    except ValueError:
+        return str(target.parent)
+
+
+@_file_var("fileWorkspaceFolder")
+def _resolve_file_workspace_folder(
+    resolver: VSCodeVariableResolver,
+    _var_expr: str,
+    context: dict[str, Any],
+) -> str | None:
+    # In single-root workspace, this is the same as workspaceFolder
+    target = _get_target_path(context)
+    return str(resolver.workspace_root) if target else None

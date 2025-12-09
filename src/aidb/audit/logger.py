@@ -12,6 +12,16 @@ from typing import TYPE_CHECKING, Optional
 
 import aiofiles  # type: ignore[import-untyped]
 
+from aidb.api.constants import (
+    AUDIT_FLUSH_TIMEOUT_S,
+    AUDIT_INIT_TIMEOUT_S,
+    AUDIT_INIT_TIMEOUT_TEST_S,
+    AUDIT_MAX_PENDING_EVENTS,
+    AUDIT_QUEUE_MAX_SIZE,
+    AUDIT_SHUTDOWN_TIMEOUT_S,
+    AUDIT_SINGLETON_RESET_TIMEOUT_S,
+    AUDIT_WORKER_TIMEOUT_S,
+)
 from aidb.audit.events import AuditEvent
 from aidb.common import AidbContext
 from aidb_common.config import config
@@ -113,7 +123,9 @@ class AuditLogger:
         self._write_lock = asyncio.Lock()
         self._loop: asyncio.AbstractEventLoop | None = None
         # Create queue immediately (will be used across threads)
-        self._queue: asyncio.Queue[AuditEvent | None] = asyncio.Queue(maxsize=1000)
+        self._queue: asyncio.Queue[AuditEvent | None] = asyncio.Queue(
+            maxsize=AUDIT_QUEUE_MAX_SIZE,
+        )
         self._init_complete = threading.Event()
         self._queue_empty_event: asyncio.Event | None = None
 
@@ -186,7 +198,10 @@ class AuditLogger:
                     if self._queue_empty_event:
                         self._queue_empty_event.clear()
 
-                event = await asyncio.wait_for(self._queue.get(), timeout=1.0)
+                event = await asyncio.wait_for(
+                    self._queue.get(),
+                    timeout=AUDIT_WORKER_TIMEOUT_S,
+                )
                 if event is None:  # Shutdown signal
                     break
                 await self._write_event(event)
@@ -337,7 +352,11 @@ class AuditLogger:
                 self._ensure_event_loop()
                 # Wait for initialization to complete
                 # Use shorter timeout in test environments
-                init_timeout = 0.5 if os.getenv("PYTEST_CURRENT_TEST") else 2.0
+                init_timeout = (
+                    AUDIT_INIT_TIMEOUT_TEST_S
+                    if os.getenv("PYTEST_CURRENT_TEST")
+                    else AUDIT_INIT_TIMEOUT_S
+                )
                 if not self._init_complete.wait(timeout=init_timeout):
                     logger.warning("Audit logger initialization timeout")
                     return
@@ -362,14 +381,17 @@ class AuditLogger:
 
         # Run async flush in the event loop
         future = asyncio.run_coroutine_threadsafe(self._flush_async(), self._loop)
-        future.result(timeout=5.0)
+        future.result(timeout=AUDIT_FLUSH_TIMEOUT_S)
 
     async def _flush_async(self) -> None:
         """Async helper for flushing."""
         if self._queue and self._queue_empty_event:
             # Wait for queue empty event with timeout
             with contextlib.suppress(asyncio.TimeoutError):
-                await asyncio.wait_for(self._queue_empty_event.wait(), timeout=1.0)
+                await asyncio.wait_for(
+                    self._queue_empty_event.wait(),
+                    timeout=AUDIT_WORKER_TIMEOUT_S,
+                )
 
         # Flush file
         async with self._write_lock:
@@ -385,7 +407,7 @@ class AuditLogger:
                     self.shutdown(),
                     self._loop,
                 )
-                future.result(timeout=5.0)
+                future.result(timeout=AUDIT_SHUTDOWN_TIMEOUT_S)
             except Exception as e:
                 msg = f"Failed to shutdown audit logger cleanly: {e}"
                 logger.warning(msg)
@@ -414,7 +436,10 @@ class AuditLogger:
 
             # Wait for worker to finish
             try:
-                await asyncio.wait_for(self._worker_task, timeout=5.0)
+                await asyncio.wait_for(
+                    self._worker_task,
+                    timeout=AUDIT_SHUTDOWN_TIMEOUT_S,
+                )
             except asyncio.TimeoutError:
                 logger.warning("Worker task timeout, cancelling")
                 self._worker_task.cancel()
@@ -424,8 +449,10 @@ class AuditLogger:
             # Process any remaining events (limit to prevent infinite loop)
             if self._queue:
                 remaining_count = 0
-                max_remaining = 10000  # Safety limit
-                while not self._queue.empty() and remaining_count < max_remaining:
+                while (
+                    not self._queue.empty()
+                    and remaining_count < AUDIT_MAX_PENDING_EVENTS
+                ):
                     try:
                         event = self._queue.get_nowait()
                         if event is not None:
@@ -482,7 +509,7 @@ class AuditLogger:
                         cls._instance.shutdown(),
                         cls._instance._loop,
                     )
-                    future.result(timeout=3.0)
+                    future.result(timeout=AUDIT_SINGLETON_RESET_TIMEOUT_S)
                 except Exception as e:
                     msg = f"Failed to shutdown audit logger singleton: {e}"
                     logger.warning(msg)

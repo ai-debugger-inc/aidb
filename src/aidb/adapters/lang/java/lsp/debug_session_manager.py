@@ -7,6 +7,12 @@ configuration, attach operations, and DAP port management.
 import json
 from typing import Any
 
+from aidb.api.constants import (
+    DEFAULT_WAIT_TIMEOUT_S,
+    INIT_CONFIGURATION_DONE_JAVA_S,
+    LSP_EXECUTE_COMMAND_TIMEOUT_S,
+    LSP_HEALTH_CHECK_TIMEOUT_S,
+)
 from aidb.common.errors import AidbError
 from aidb.patterns.base import Obj
 from aidb_common.env import reader
@@ -61,7 +67,7 @@ class DebugSessionManager(Obj):
             await lsp_client.execute_command(
                 "vscode.java.resolveClasspath",
                 ["", ""],
-                timeout=10.0,
+                timeout=LSP_EXECUTE_COMMAND_TIMEOUT_S,
             )
             self._java_debug_initialized = True
             self.ctx.debug("java-debug plugin initialized successfully")
@@ -162,7 +168,7 @@ class DebugSessionManager(Obj):
                     self.ctx.debug(f"Waiting for JDT LS compilation of {target}...")
                     compilation_complete = await lsp_client.wait_for_diagnostics(
                         file_path=target,
-                        timeout=5.0,
+                        timeout=DEFAULT_WAIT_TIMEOUT_S,
                     )
 
                     if not compilation_complete:
@@ -308,7 +314,7 @@ class DebugSessionManager(Obj):
                 _ = await lsp_client.execute_command(
                     "java.project.getAll",
                     [],
-                    timeout=2.0,
+                    timeout=LSP_HEALTH_CHECK_TIMEOUT_S,
                 )
                 self.ctx.debug("LSP poke (java.project.getAll) completed")
             except Exception as poke_err:
@@ -316,7 +322,7 @@ class DebugSessionManager(Obj):
             result = await lsp_client.execute_command(
                 "vscode.java.startDebugSession",
                 [json.dumps(debug_config)],
-                timeout=15.0,
+                timeout=INIT_CONFIGURATION_DONE_JAVA_S,
             )
             previous_dap_port = self.dap_port
             if isinstance(result, dict) and "port" in result:

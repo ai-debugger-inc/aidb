@@ -4,6 +4,7 @@ Ensures proper cleanup of Docker resources, temporary files, and test artifacts.
 """
 
 import shutil
+import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
@@ -303,7 +304,7 @@ class ResourceCleaner:
         temp_dirs = [
             self.repo_root / "tmp",
             self.repo_root / ".tmp",
-            Path("/tmp") / ProjectNames.TEST_PROJECT,  # noqa: S108
+            Path(tempfile.gettempdir()) / ProjectNames.TEST_PROJECT,
         ]
 
         for temp_dir in temp_dirs:

@@ -6,6 +6,7 @@ from typing import Any
 
 from aidb.adapters.downloader import AdapterDownloader
 from aidb.session.adapter_registry import AdapterRegistry
+from aidb_common.constants import Language
 from aidb_logging import get_mcp_logger as get_logger
 
 from ..core.constants import AdapterAction, ParamName, ToolName
@@ -248,7 +249,9 @@ def _validate_action_requirements(
             registry = AdapterRegistry()
             supported_languages = registry.get_languages()
             example_language = (
-                supported_languages[0] if supported_languages else "javascript"
+                supported_languages[0]
+                if supported_languages
+                else Language.JAVASCRIPT.value
             )
 
             return MissingParameterError(

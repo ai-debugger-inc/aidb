@@ -12,6 +12,7 @@ from tests._helpers.framework_base import FrameworkDebugTestBase
 from tests._helpers.parametrization import parametrize_interfaces
 
 
+@pytest.mark.xdist_group("flask")
 class TestFlaskDebugging(FrameworkDebugTestBase):
     """Test Flask framework debugging capabilities.
 

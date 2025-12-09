@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from aidb_common.constants import Language
 from aidb_logging import get_mcp_logger as get_logger
 
 logger = get_logger(__name__)
@@ -145,7 +146,7 @@ def get_file_extensions_for_language(language: str) -> list[str]:
 
 def get_default_language() -> str:
     """Get the default language to use when none is specified."""
-    default = "python"
+    default = Language.PYTHON.value
     logger.debug(
         "Using default language %s",
         default,

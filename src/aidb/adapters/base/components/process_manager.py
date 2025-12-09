@@ -20,8 +20,10 @@ from aidb.api.constants import (
     MAX_PROCESS_WAIT_TIME_S,
     MEDIUM_SLEEP_S,
     PROCESS_CLEANUP_MIN_AGE_S,
+    PROCESS_COMMUNICATE_TIMEOUT_S,
     PROCESS_STARTUP_DELAY_S,
     PROCESS_WAIT_TIMEOUT_S,
+    RECEIVE_POLL_TIMEOUT_S,
 )
 from aidb.common.errors import DebugAdapterError, DebugConnectionError
 from aidb.patterns.base import Obj
@@ -386,7 +388,10 @@ class ProcessManager(Obj):
 
                     # Force kill the parent
                     self._proc.kill()
-                    await asyncio.wait_for(self._proc.wait(), timeout=1)
+                    await asyncio.wait_for(
+                        self._proc.wait(),
+                        timeout=RECEIVE_POLL_TIMEOUT_S,
+                    )
 
                 # Close all subprocess transports to avoid ResourceWarnings
                 from aidb_common.io.subprocess import close_subprocess_transports
@@ -711,7 +716,7 @@ class ProcessManager(Obj):
             self.ctx.info(f"Cleaning up orphaned debug adapter process PID={proc.pid}")
             proc.terminate()
             try:
-                proc.wait(timeout=5)
+                proc.wait(timeout=PROCESS_COMMUNICATE_TIMEOUT_S)
             except psutil.TimeoutExpired:
                 proc.kill()
         except Exception as e:

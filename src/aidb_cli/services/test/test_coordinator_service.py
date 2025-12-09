@@ -233,7 +233,6 @@ class TestCoordinatorService(BaseService):
             languages = ["all"]
 
         # Extract and validate known parameters from kwargs
-        profile = kwargs.pop("profile", None)
         markers = kwargs.pop("markers", None)
         pattern = kwargs.pop("pattern", None)
         target = kwargs.pop("target", None)
@@ -250,7 +249,6 @@ class TestCoordinatorService(BaseService):
 
         return self.test_orchestrator.run_suite(
             suite=suite,
-            profile=profile,
             languages=languages,
             markers=markers,
             pattern=pattern,

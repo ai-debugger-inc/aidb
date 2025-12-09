@@ -3,6 +3,9 @@
 import re
 import tempfile
 
+from aidb.api.constants import SYNTAX_VALIDATION_EXTENDED_TIMEOUT_S
+from aidb_common.constants import Language
+
 from ...base.subprocess_validator import SubprocessValidator
 from ...base.syntax_validator import SyntaxValidator
 
@@ -12,7 +15,7 @@ class JavaSyntaxValidator(SyntaxValidator):
 
     def __init__(self):
         """Initialize Java syntax validator."""
-        super().__init__("java")
+        super().__init__(Language.JAVA.value)
 
     def _validate_syntax(self, file_path: str) -> tuple[bool, str | None]:
         """Validate Java syntax using the javac compiler.
@@ -67,7 +70,7 @@ class JavaSyntaxValidator(SyntaxValidator):
         with tempfile.TemporaryDirectory() as tmpdir:
             result = SubprocessValidator.run_validator(
                 ["javac", "-d", tmpdir, "-Xlint:all", file_path],
-                timeout=10,
+                timeout=int(SYNTAX_VALIDATION_EXTENDED_TIMEOUT_S),
                 language="Java",
             )
 

@@ -1,9 +1,15 @@
 """FastAPI test application for debugging capabilities testing."""
 
+import os
+
 import uvicorn
 from fastapi import FastAPI
 
 app = FastAPI()
+
+# Dynamic port from environment, with fallback for manual testing
+DEFAULT_PORT = 8000
+APP_PORT = int(os.environ.get("APP_PORT", DEFAULT_PORT))
 
 
 @app.get("/")
@@ -53,4 +59,4 @@ async def variable_inspection_view():
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
+    uvicorn.run(app, host="127.0.0.1", port=APP_PORT, log_level="info")

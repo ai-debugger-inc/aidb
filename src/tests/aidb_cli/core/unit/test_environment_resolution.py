@@ -262,7 +262,7 @@ class TestTestCommandIntegration:
                 "run",
                 "--suite",
                 "mcp",
-                "--pattern",
+                "-k",
                 "test_init",
                 "--failfast",
                 "--local",

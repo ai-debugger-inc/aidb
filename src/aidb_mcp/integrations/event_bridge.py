@@ -9,6 +9,8 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
+from aidb.dap.client.constants import EventType as DAPEventType
+from aidb.dap.client.constants import StopReason as DAPStopReason
 from aidb.dap.protocol.events import (
     BreakpointEvent,
     StoppedEvent,
@@ -17,7 +19,7 @@ from aidb.dap.protocol.events import (
 )
 from aidb_logging import get_mcp_logger as get_logger
 
-from ..core.constants import EventType
+from ..core.constants import EventType as MCPEventType
 from .notifications import get_notification_manager
 
 if TYPE_CHECKING:
@@ -73,13 +75,18 @@ class DAPToMCPEventBridge:
         """
         try:
             # Map DAP event to MCP notification
-            if event_type == "stopped" and isinstance(event, StoppedEvent):
+            is_stopped = event_type == DAPEventType.STOPPED.value
+            is_breakpoint = event_type == DAPEventType.BREAKPOINT.value
+            is_terminated = event_type == DAPEventType.TERMINATED.value
+            is_thread = event_type == DAPEventType.THREAD.value
+
+            if is_stopped and isinstance(event, StoppedEvent):
                 await self._handle_stopped_event(event)
-            elif event_type == "breakpoint" and isinstance(event, BreakpointEvent):
+            elif is_breakpoint and isinstance(event, BreakpointEvent):
                 await self._handle_breakpoint_event(event)
-            elif event_type == "terminated" and isinstance(event, TerminatedEvent):
+            elif is_terminated and isinstance(event, TerminatedEvent):
                 await self._handle_terminated_event(event)
-            elif event_type == "thread" and isinstance(event, ThreadEvent):
+            elif is_thread and isinstance(event, ThreadEvent):
                 await self._handle_thread_event(event)
         except Exception as e:
             logger.error("Error forwarding DAP event to MCP: %s", e)
@@ -92,7 +99,7 @@ class DAPToMCPEventBridge:
         event : StoppedEvent
             The stopped event from DAP
         """
-        if event.body and event.body.reason == "breakpoint":
+        if event.body and event.body.reason == DAPStopReason.BREAKPOINT.value:
             # This is a breakpoint hit
             location = (
                 event.body.hitBreakpointIds[0]
@@ -103,7 +110,7 @@ class DAPToMCPEventBridge:
             # Get the notification manager and emit directly
             manager = get_notification_manager()
             await manager.emit(
-                EventType.BREAKPOINT_HIT.value,
+                MCPEventType.BREAKPOINT_HIT.value,
                 {
                     "session_id": self.session_id,
                     "location": f"Breakpoint {location}",
@@ -117,7 +124,7 @@ class DAPToMCPEventBridge:
             )
             logger.info("Notified MCP about breakpoint hit: %s", location)
 
-        elif event.body and event.body.reason == "exception":
+        elif event.body and event.body.reason == DAPStopReason.EXCEPTION.value:
             # Exception occurred
             await self._handle_exception_from_stopped(event)
 
@@ -131,7 +138,7 @@ class DAPToMCPEventBridge:
         """
         manager = get_notification_manager()
         await manager.emit(
-            EventType.EXCEPTION.value,
+            MCPEventType.EXCEPTION.value,
             {
                 "session_id": self.session_id,
                 "exception_type": "Exception",
@@ -139,7 +146,9 @@ class DAPToMCPEventBridge:
                     event.body.description if event.body else "Exception occurred"
                 ),
                 "thread_id": event.body.threadId if event.body else None,
-                "reason": event.body.reason if event.body else "exception",
+                "reason": (
+                    event.body.reason if event.body else DAPStopReason.EXCEPTION.value
+                ),
                 "all_threads_stopped": (
                     event.body.allThreadsStopped if event.body else False
                 ),
@@ -171,7 +180,7 @@ class DAPToMCPEventBridge:
         """
         manager = get_notification_manager()
         await manager.emit(
-            EventType.TERMINATED.value,
+            MCPEventType.TERMINATED.value,
             {
                 "session_id": self.session_id,
                 "message": "Program terminated",
@@ -193,7 +202,7 @@ class DAPToMCPEventBridge:
         """
         manager = get_notification_manager()
         await manager.emit(
-            EventType.THREAD_EVENT.value,
+            MCPEventType.THREAD_EVENT.value,
             {
                 "session_id": self.session_id,
                 "thread_id": event.body.threadId if event.body else None,
@@ -229,7 +238,12 @@ def register_event_bridge(session_id: str, event_processor: Any) -> DAPToMCPEven
 
     # Register listeners for important event types
     # Always include "terminated" for auto-subscription
-    event_types = ["stopped", "breakpoint", "terminated", "thread"]
+    event_types = [
+        DAPEventType.STOPPED.value,
+        DAPEventType.BREAKPOINT.value,
+        DAPEventType.TERMINATED.value,
+        DAPEventType.THREAD.value,
+    ]
 
     for event_type in event_types:
         listener = bridge.create_dap_listener(event_type)

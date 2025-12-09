@@ -159,6 +159,8 @@ async def _handle_session_list(_args: dict[str, Any]) -> dict[str, Any]:
 
 async def _handle_session_stop(args: dict[str, Any]) -> dict[str, Any]:
     """Handle session stop action."""
+    from ...session.manager_lifecycle import cleanup_session_async
+
     session_id = get_session_id_from_args(args, ParamName.SESSION_ID)
     if not session_id:
         return no_session(operation="stop")
@@ -185,6 +187,11 @@ async def _handle_session_stop(args: dict[str, Any]) -> dict[str, Any]:
     # This is critical for pooled resources like JDT LS bridges
     if api and hasattr(api, "stop"):
         await api.stop()
+
+    # Clean up session from MCP registries to prevent orphaned receivers
+    # This removes the session from _DEBUG_SESSIONS and _SESSION_CONTEXTS,
+    # ensuring all resources (including background receivers) are released
+    await cleanup_session_async(session_id, force=True)
 
     return SessionStopResponse(
         session_id=session_id,

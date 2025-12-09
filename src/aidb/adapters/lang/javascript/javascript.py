@@ -9,6 +9,12 @@ import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from aidb.api.constants import (
+    INIT_WAIT_FOR_INITIALIZED_S,
+    INIT_WAIT_FOR_LAUNCH_RESPONSE_S,
+    MEDIUM_SLEEP_S,
+    PROCESS_COMMUNICATE_TIMEOUT_S,
+)
 from aidb.common.errors import AidbError, ConfigurationError, DebugAdapterError
 from aidb.models.start_request import StartRequestType
 from aidb_common.config import config
@@ -36,7 +42,7 @@ class JavaScriptAdapter(DebugAdapter):
     """
 
     config: JavaScriptAdapterConfig  # Override parent type annotation
-    post_launch_delay = 0.5  # Reduced from 3.0 to avoid test timeouts
+    post_launch_delay = MEDIUM_SLEEP_S  # Reduced from 3.0 to avoid test timeouts
 
     # -----------------------
     # Public API / Lifecycle
@@ -706,7 +712,7 @@ class JavaScriptAdapter(DebugAdapter):
                 InitializationOp(InitializationOpType.LAUNCH, wait_for_response=False),
                 InitializationOp(
                     InitializationOpType.WAIT_FOR_INITIALIZED,
-                    timeout=5.0,
+                    timeout=INIT_WAIT_FOR_INITIALIZED_S,
                     optional=True,
                 ),
                 # Set breakpoints AFTER initialized but BEFORE
@@ -721,7 +727,7 @@ class JavaScriptAdapter(DebugAdapter):
                 InitializationOp(InitializationOpType.CONFIGURATION_DONE),
                 InitializationOp(
                     InitializationOpType.WAIT_FOR_LAUNCH_RESPONSE,
-                    timeout=10.0,
+                    timeout=INIT_WAIT_FOR_LAUNCH_RESPONSE_S,
                 ),
             ]
 
@@ -973,7 +979,10 @@ class JavaScriptAdapter(DebugAdapter):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            await asyncio.wait_for(proc.communicate(), timeout=5.0)
+            await asyncio.wait_for(
+                proc.communicate(),
+                timeout=PROCESS_COMMUNICATE_TIMEOUT_S,
+            )
             self._ts_node_available = proc.returncode == 0
         except (subprocess.SubprocessError, FileNotFoundError):
             self._ts_node_available = False
@@ -991,7 +1000,10 @@ class JavaScriptAdapter(DebugAdapter):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=5.0)
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(),
+                timeout=PROCESS_COMMUNICATE_TIMEOUT_S,
+            )
             if proc.returncode == 0:
                 return stdout.decode().strip() if stdout else ""
         except (subprocess.SubprocessError, FileNotFoundError, AidbError):

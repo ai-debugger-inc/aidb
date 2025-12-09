@@ -4,6 +4,7 @@ This module demonstrates the dual-launch pattern for framework testing, ensuring
 API and VS Code launch.json entry points work correctly.
 """
 
+import os
 from pathlib import Path
 
 import pytest
@@ -13,6 +14,7 @@ from tests._helpers.launch_test_utils import LaunchConfigTestHelper
 from tests._helpers.parametrization import parametrize_interfaces
 
 
+@pytest.mark.xdist_group("django")
 class TestDjangoDebugging(FrameworkDebugTestBase):
     """Test Django framework debugging capabilities.
 
@@ -56,9 +58,10 @@ class TestDjangoDebugging(FrameworkDebugTestBase):
         """
         manage_py = django_app / "manage.py"
 
+        app_port = os.environ.get("APP_PORT", "8000")
         session_info = await debug_interface.start_session(
             program=str(manage_py),
-            args=["runserver", "8000", "--noreload"],
+            args=["runserver", app_port, "--noreload"],
             cwd=str(django_app),
         )
 
@@ -128,9 +131,10 @@ class TestDjangoDebugging(FrameworkDebugTestBase):
         api_interface = APIInterface(language="python")
         await api_interface.initialize()
 
+        app_port = os.environ.get("APP_PORT", "8000")
         api_session = await api_interface.start_session(
             program=str(manage_py),
-            args=["runserver", "8002", "--noreload"],
+            args=["runserver", app_port, "--noreload"],
             cwd=str(django_app),
         )
 
@@ -183,9 +187,10 @@ class TestDjangoDebugging(FrameworkDebugTestBase):
 
         manage_py = django_app / "manage.py"
 
+        app_port = os.environ.get("APP_PORT", "8000")
         await debug_interface.start_session(
             program=str(manage_py),
-            args=["runserver", "8003", "--noreload"],
+            args=["runserver", app_port, "--noreload"],
             cwd=str(django_app),
         )
 
@@ -233,9 +238,10 @@ class TestDjangoDebugging(FrameworkDebugTestBase):
 
         manage_py = django_app / "manage.py"
 
+        app_port = os.environ.get("APP_PORT", "8000")
         await debug_interface.start_session(
             program=str(manage_py),
-            args=["runserver", "8004", "--noreload"],
+            args=["runserver", app_port, "--noreload"],
             cwd=str(django_app),
         )
 
