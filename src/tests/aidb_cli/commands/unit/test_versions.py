@@ -1,6 +1,5 @@
 """Tests for version management commands."""
 
-from pathlib import Path
 from unittest.mock import Mock, PropertyMock, patch
 
 import pytest
@@ -230,14 +229,9 @@ class TestVersionsCommands:
 
     def test_check_consistency_success(self, cli_runner, mock_repo_root):
         """Test check-consistency when validation passes."""
-        validation_script = mock_repo_root / "scripts/utils/validate_docker_versions.py"
-        validation_script.parent.mkdir(parents=True, exist_ok=True)
-        validation_script.touch()
+        from aidb_cli.services.version import ConsistencyReport
 
-        mock_command_executor = Mock()
-        mock_result = Mock()
-        mock_result.returncode = 0
-        mock_command_executor.execute.return_value = mock_result
+        mock_report = ConsistencyReport(mismatches=[], files_checked=["test.yaml"])
 
         with patch(
             "aidb_cli.cli.detect_repo_root",
@@ -245,25 +239,33 @@ class TestVersionsCommands:
         ):
             with patch("aidb_cli.cli.ConfigManager"):
                 with patch(
-                    "aidb_cli.cli.Context.command_executor",
-                    new_callable=PropertyMock,
-                    return_value=mock_command_executor,
-                ):
+                    "aidb_cli.services.version.VersionConsistencyService",
+                ) as mock_service_class:
+                    mock_service = Mock()
+                    mock_service.check_all.return_value = mock_report
+                    mock_service_class.return_value = mock_service
+
                     result = cli_runner.invoke(cli, ["versions", "check-consistency"])
                     assert result.exit_code == 0
-                    assert "Version check passed!" in result.output
-                    mock_command_executor.execute.assert_called_once()
+                    assert "Version consistency check passed!" in result.output
 
     def test_check_consistency_failure(self, cli_runner, mock_repo_root):
         """Test check-consistency when validation fails."""
-        validation_script = mock_repo_root / "scripts/utils/validate_docker_versions.py"
-        validation_script.parent.mkdir(parents=True, exist_ok=True)
-        validation_script.touch()
+        from aidb_cli.services.version import ConsistencyReport, VersionMismatch
 
-        mock_command_executor = Mock()
-        mock_result = Mock()
-        mock_result.returncode = 1
-        mock_command_executor.execute.return_value = mock_result
+        mock_report = ConsistencyReport(
+            mismatches=[
+                VersionMismatch(
+                    file="docker-compose.yaml",
+                    line=10,
+                    variable="PYTHON_VERSION",
+                    expected="3.12",
+                    found="3.11",
+                    severity="error",
+                ),
+            ],
+            files_checked=["docker-compose.yaml"],
+        )
 
         with patch(
             "aidb_cli.cli.detect_repo_root",
@@ -271,35 +273,33 @@ class TestVersionsCommands:
         ):
             with patch("aidb_cli.cli.ConfigManager"):
                 with patch(
-                    "aidb_cli.cli.Context.command_executor",
-                    new_callable=PropertyMock,
-                    return_value=mock_command_executor,
-                ):
+                    "aidb_cli.services.version.VersionConsistencyService",
+                ) as mock_service_class:
+                    mock_service = Mock()
+                    mock_service.check_all.return_value = mock_report
+                    mock_service_class.return_value = mock_service
+
                     result = cli_runner.invoke(cli, ["versions", "check-consistency"])
                     assert result.exit_code == 1
                     assert "Version inconsistencies detected!" in result.output
-                    assert "Run './dev-cli versions show'" in result.output
 
-    def test_check_consistency_script_not_found(self, cli_runner, mock_repo_root):
-        """Test check-consistency when validation script doesn't exist."""
-        with patch(
-            "aidb_cli.cli.detect_repo_root",
-            return_value=mock_repo_root,
-        ):
-            result = cli_runner.invoke(cli, ["versions", "check-consistency"])
-            assert result.exit_code == 0
-            assert "Validation script not found" in result.output
+    def test_check_consistency_with_warnings(self, cli_runner, mock_repo_root):
+        """Test check-consistency with warnings only passes."""
+        from aidb_cli.services.version import ConsistencyReport, VersionMismatch
 
-    def test_check_consistency_command_execution(self, cli_runner, mock_repo_root):
-        """Test check-consistency executes correct command."""
-        validation_script = mock_repo_root / "scripts/utils/validate_docker_versions.py"
-        validation_script.parent.mkdir(parents=True, exist_ok=True)
-        validation_script.touch()
-
-        mock_command_executor = Mock()
-        mock_result = Mock()
-        mock_result.returncode = 0
-        mock_command_executor.execute.return_value = mock_result
+        mock_report = ConsistencyReport(
+            mismatches=[
+                VersionMismatch(
+                    file="Dockerfile.java",
+                    line=18,
+                    variable="JAVA_VERSION",
+                    expected="21",
+                    found="21",
+                    severity="warning",
+                ),
+            ],
+            files_checked=["Dockerfile.java"],
+        )
 
         with patch(
             "aidb_cli.cli.detect_repo_root",
@@ -307,21 +307,16 @@ class TestVersionsCommands:
         ):
             with patch("aidb_cli.cli.ConfigManager"):
                 with patch(
-                    "aidb_cli.cli.Context.command_executor",
-                    new_callable=PropertyMock,
-                    return_value=mock_command_executor,
-                ):
+                    "aidb_cli.services.version.VersionConsistencyService",
+                ) as mock_service_class:
+                    mock_service = Mock()
+                    mock_service.check_all.return_value = mock_report
+                    mock_service_class.return_value = mock_service
+
                     result = cli_runner.invoke(cli, ["versions", "check-consistency"])
+                    # Warnings only = exit 0
                     assert result.exit_code == 0
-
-                    call_args = mock_command_executor.execute.call_args
-                    cmd = call_args[0][0]
-                    kwargs = call_args[1]
-
-                    assert cmd[0] == "python"
-                    assert str(validation_script) in cmd[1]
-                    assert kwargs["cwd"] == mock_repo_root
-                    assert kwargs["check"] is False
+                    assert "1 warning(s)" in result.output
 
     def test_info_valid_language(self, cli_runner, mock_repo_root):
         """Test info command with valid language."""
@@ -333,9 +328,8 @@ class TestVersionsCommands:
         ]
         mock_build_manager.get_adapter_info.return_value = {
             "status": "built",
-            "type": "pip package (debugpy)",
             "version": "1.8.0",
-            "location": "/usr/local/lib/python3.12/site-packages/debugpy",
+            "path": "/cache/adapters/python",
         }
 
         mock_config_manager = Mock()
@@ -360,7 +354,7 @@ class TestVersionsCommands:
                     assert "Python Adapter Information" in result.output
                     assert "Configured Version: 1.8.0" in result.output
                     assert "Build Status: built" in result.output
-                    assert "Type: pip package (debugpy)" in result.output
+                    assert "Installed Version: 1.8.0" in result.output
 
     def test_info_unsupported_language(self, cli_runner, mock_repo_root):
         """Test info command with unsupported language."""
@@ -390,9 +384,8 @@ class TestVersionsCommands:
         mock_build_manager.get_supported_languages.return_value = ["python"]
         mock_build_manager.get_adapter_info.return_value = {
             "status": "not built",
-            "type": "pip package (debugpy)",
-            "version": "not installed",
-            "location": "not installed",
+            "version": "",
+            "path": None,
         }
 
         mock_config_manager = Mock()
@@ -422,9 +415,8 @@ class TestVersionsCommands:
         mock_build_manager.get_supported_languages.return_value = ["javascript"]
         mock_build_manager.get_adapter_info.return_value = {
             "status": "built",
-            "type": "npm package (js-debug)",
             "version": "1.84.0",
-            "location": "/cache/adapters/javascript",
+            "path": "/cache/adapters/javascript",
         }
 
         mock_config_manager = Mock()

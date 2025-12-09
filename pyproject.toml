@@ -92,6 +92,11 @@ dev = [
   "wheel>=0.45.1,<1.0.0",
 ]
 
+# CI validation (minimal deps for version consistency checks in release workflow)
+ci-validation = [
+  "click>=8.0.0,<9.0.0",
+]
+
 # Public documentation dependencies (readthedocs.io)
 docs = [
   "linkify-it-py>=2.0.3,<3.0.0",
@@ -279,39 +284,18 @@ markers = [
   "e2e: End-to-end workflows",
   "smoke: Quick validation tests (<60s total)",
 
-  # Language/environment markers
+  # Language markers (auto-applied by location)
   "language_python: Mark test to run in Python container",
   "language_javascript: Mark test to run in JavaScript container",
   "language_java: Mark test to run in Java container",
-  "require_language: Test requires specific language runtime",
 
   # Infrastructure requirements
   "requires_docker: Needs Docker environment",
-  "requires_rsa: Tests requiring RSA cryptographic operations",
-  "docker_only: Test runs only in Docker environment",
-  "skip_docker: Test should skip in Docker environment",
 
   # Execution characteristics
   "serial: Tests that must run serially (no parallelization)",
   "slow: Takes >5 seconds",
-  "flaky: Known intermittent issues",
   "performance: Performance tests (timing-sensitive)",
-
-  # Component/feature markers
-  "adapter: Adapter-specific tests",
-  "protocol: Protocol-related tests for DAP and communication",
-  "mcp_unit: Unit tests for individual MCP tools",
-  "mcp_integration: Integration tests with MCP server",
-  "mcp_e2e: End-to-end MCP workflow tests",
-
-  # Specialized test types
-  "stress: API stress tests with high concurrent load",
-  "concurrent: Tests for concurrent operations and race conditions",
-  "binary_download: Test for binary download functionality",
-  "race_conditions: Tests for race condition scenarios",
-  "parallel_subscriptions: Tests for parallel subscription updates",
-  "rate_limiting: Tests for rate limiting functionality",
-  "transaction_isolation: Tests for database transaction isolation",
 
   # pytest-xdist
   "xdist_group(name): Group tests to run on the same worker (pytest-xdist)",
