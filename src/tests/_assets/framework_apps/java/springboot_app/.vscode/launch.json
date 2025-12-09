@@ -7,7 +7,7 @@
       "request": "launch",
       "mainClass": "com.example.demo.DemoApplication",
       "projectName": "springboot-demo",
-      "args": "--server.port=8080",
+      "args": "--server.port=${env:APP_PORT:8080}",
       "console": "integratedTerminal"
     },
     {
@@ -16,7 +16,7 @@
       "request": "launch",
       "mainClass": "com.example.demo.DemoApplication",
       "projectName": "springboot-demo",
-      "args": "--server.port=8081",
+      "args": "--server.port=${env:APP_PORT:8081}",
       "console": "integratedTerminal"
     }
   ]

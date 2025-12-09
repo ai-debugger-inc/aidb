@@ -24,6 +24,11 @@ on:
         type: string
         required: false
         default: ''
+      parallel-workers:
+        description: Number of parallel pytest workers (0 = disabled, 4 = recommended)
+        type: string
+        required: false
+        default: '4'
 
 env:
   IS_GITHUB: ${{ vars.IS_GITHUB || 'false' }}  # Use repo variable, default to false for ACT
@@ -66,3 +71,4 @@ jobs:
           coverage-flags: shared-${{ inputs.language }}
           skip-coverage: ${{ inputs.skip-coverage }}
           artifact-suffix: ${{ inputs.language }}
+          parallel-workers: ${{ inputs.parallel-workers }}

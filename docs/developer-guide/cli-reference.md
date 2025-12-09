@@ -39,10 +39,12 @@ The AIDB developer CLI (`./dev-cli`) provides commands for testing, Docker manag
 - `-s, --suite` — Test suite (shared, mcp, cli, frameworks, etc.)
 - `-l, --language` — Language filter (python, javascript, java)
 - `-t, --target` — Specific test path (repeatable)
-- `-p, --pattern` — pytest `-k` pattern
+- `-k` — pytest `-k` pattern expression
+- `-n, --parallel` — Number of parallel test workers
 - `--local` — Run locally instead of Docker
-- `-x, --failfast` — Stop on first failure
+- `-x, --failfast, --exitfirst` — Stop on first failure
 - `--lf, --last-failed` — Rerun failed tests only
+- `--ff, --failed-first` — Run failed tests first
 - `-c, --coverage` — Enable coverage reporting
 - `-v` — Verbose output
 
@@ -50,8 +52,9 @@ The AIDB developer CLI (`./dev-cli`) provides commands for testing, Docker manag
 ```bash
 ./dev-cli test run -s shared -v                    # Shared tests, verbose
 ./dev-cli test run -s mcp --local -x               # MCP tests, local, stop on fail
-./dev-cli test run -s cli -p "test_docs*"          # Pattern matching
+./dev-cli test run -s cli -k "test_docs*"          # Pattern matching
 ./dev-cli test run -t src/tests/aidb/test_api.py  # Specific file
+./dev-cli test run -s shared -n 4                  # Run with 4 parallel workers
 ```
 
 ### adapters

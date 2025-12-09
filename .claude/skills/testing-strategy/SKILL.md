@@ -24,10 +24,10 @@ ______________________________________________________________________
 **All tests MUST be run via `./dev-cli test run`:**
 
 ```bash
-./dev-cli test run -s {suite} [-p 'pattern'] [-l {lang}]
+./dev-cli test run -s {suite} [-k 'pattern'] [-l {lang}]
 ```
 
-- Multiple `-p` and `-l` flags supported
+- Multiple `-k` and `-l` flags supported
 - **NEVER use `--local`** - suites know their natural execution environment; forcing local causes unexpected behavior
 - Direct `pytest` invocation is NOT supported
 

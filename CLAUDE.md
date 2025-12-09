@@ -97,10 +97,10 @@ Skills are automatically loaded based on context detection:
 **All tests MUST be run via `./dev-cli test run`:**
 
 ```bash
-./dev-cli test run -s {suite} [-p 'pattern'] [-l {lang}]
+./dev-cli test run -s {suite} [-k 'pattern'] [-l {lang}]
 ```
 
-- Multiple `-p` and `-l` flags are supported
+- Multiple `-k` and `-l` flags are supported
 - **NEVER use `--local`** - suites already know their natural execution environment (local or Docker); forcing local can cause unexpected behavior
 
 For testing strategy, test organization, and execution guidance, use the `testing-strategy` skill (auto-activates on testing topics).

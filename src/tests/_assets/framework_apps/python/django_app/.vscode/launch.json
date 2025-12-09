@@ -8,7 +8,7 @@
       "program": "${workspaceFolder}/manage.py",
       "args": [
         "runserver",
-        "8000",
+        "${env:APP_PORT:8000}",
         "--noreload"
       ],
       "django": true,
@@ -22,7 +22,7 @@
       "program": "${workspaceFolder}/manage.py",
       "args": [
         "runserver",
-        "8001",
+        "${env:APP_PORT:8001}",
         "--noreload"
       ],
       "django": true,

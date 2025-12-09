@@ -15,7 +15,7 @@
         "--no-debugger",
         "--no-reload",
         "--port",
-        "5000"
+        "${env:APP_PORT:5000}"
       ],
       "jinja": true,
       "console": "integratedTerminal",
@@ -35,7 +35,7 @@
         "--no-debugger",
         "--no-reload",
         "--port",
-        "5001"
+        "${env:APP_PORT:5001}"
       ],
       "jinja": true,
       "console": "integratedTerminal",

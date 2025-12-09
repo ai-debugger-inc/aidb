@@ -7,7 +7,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/server.js",
       "env": {
-        "PORT": "3000"
+        "APP_PORT": "${env:APP_PORT:3000}"
       },
       "console": "integratedTerminal",
       "skipFiles": ["<node_internals>/**"]
@@ -18,7 +18,7 @@
       "request": "launch",
       "program": "${workspaceFolder}/server.js",
       "env": {
-        "PORT": "3001"
+        "APP_PORT": "${env:APP_PORT:3001}"
       },
       "console": "integratedTerminal",
       "skipFiles": ["<node_internals>/**"]
