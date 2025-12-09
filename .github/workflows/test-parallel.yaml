@@ -51,7 +51,7 @@ on:
         description: 'Number of parallel pytest workers (0 = disabled, 4 = recommended)'
         type: string
         required: false
-        default: '4'
+        default: '2'
 
 env:
   IS_GITHUB: ${{ vars.IS_GITHUB || 'false' }}  # Use repo variable, default to false for ACT
@@ -102,7 +102,7 @@ jobs:
       debug_logging: ${{ inputs.debug_logging || true }}
       needs-adapters: false
       needs-docker: false
-      parallel-workers: ${{ inputs.parallel-workers || '4' }}
+      parallel-workers: ${{ inputs.parallel-workers || '2' }}
 
   test-shared:
     needs: [load-versions, build-adapters, build-docker-images]
@@ -123,7 +123,7 @@ jobs:
       skip-coverage: ${{ inputs.skip_coverage || false }}
       debug_logging: ${{ inputs.debug_logging || true }}
       all-adapter-languages: ${{ needs.load-versions.outputs.adapter-languages }}
-      parallel-workers: ${{ inputs.parallel-workers || '4' }}
+      parallel-workers: ${{ inputs.parallel-workers || '2' }}
 
   test-shared-utils:
     needs: [load-versions, build-adapters, build-docker-images]
@@ -155,7 +155,7 @@ jobs:
         with:
           suite: ${{ matrix.suite }}
           skip-coverage: ${{ inputs.skip_coverage || false }}
-          parallel-workers: ${{ inputs.parallel-workers || '4' }}
+          parallel-workers: ${{ inputs.parallel-workers || '2' }}
 
   test-mcp:
     needs: [load-versions, build-adapters, build-docker-images]
@@ -175,7 +175,7 @@ jobs:
       needs-adapters: true
       needs-docker: true
       all-adapter-languages: ${{ needs.load-versions.outputs.adapter-languages }}
-      parallel-workers: ${{ inputs.parallel-workers || '4' }}
+      parallel-workers: ${{ inputs.parallel-workers || '2' }}
 
   test-core:
     needs: [load-versions, build-adapters]
@@ -195,7 +195,7 @@ jobs:
       needs-adapters: true
       needs-docker: false
       all-adapter-languages: ${{ needs.load-versions.outputs.adapter-languages }}
-      parallel-workers: ${{ inputs.parallel-workers || '4' }}
+      parallel-workers: ${{ inputs.parallel-workers || '2' }}
 
   # Framework tests - matrix strategy across languages
   test-frameworks:
@@ -220,7 +220,7 @@ jobs:
       skip-coverage: ${{ inputs.skip_coverage || false }}
       debug_logging: ${{ inputs.debug_logging || true }}
       all-adapter-languages: ${{ needs.load-versions.outputs.adapter-languages }}
-      parallel-workers: ${{ inputs.parallel-workers || '4' }}
+      parallel-workers: ${{ inputs.parallel-workers || '2' }}
 
   test-launch:
     needs: [load-versions, build-adapters, build-docker-images]
@@ -241,7 +241,7 @@ jobs:
       skip-coverage: ${{ inputs.skip_coverage || false }}
       debug_logging: ${{ inputs.debug_logging || true }}
       all-adapter-languages: ${{ needs.load-versions.outputs.adapter-languages }}
-      parallel-workers: ${{ inputs.parallel-workers || '4' }}
+      parallel-workers: ${{ inputs.parallel-workers || '2' }}
 
   test-ci-cd:
     needs: [load-versions, build-adapters, build-docker-images]
@@ -260,4 +260,4 @@ jobs:
       debug_logging: ${{ inputs.debug_logging || true }}
       needs-adapters: false
       needs-docker: false
-      parallel-workers: ${{ inputs.parallel-workers || '4' }}
+      parallel-workers: ${{ inputs.parallel-workers || '2' }}

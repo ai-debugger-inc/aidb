@@ -9,6 +9,7 @@ from aidb.api.constants import RECEIVE_POLL_TIMEOUT_S
 from aidb.common.errors import DebugConnectionError
 from aidb.dap.protocol.base import ProtocolMessage
 from aidb.patterns import Obj
+from aidb_common.io import is_event_loop_error
 
 if TYPE_CHECKING:
     from aidb.interfaces.context import IContext
@@ -102,29 +103,57 @@ class DAPTransport(Obj):
         Uses async_lock to prevent racing with send_message() during cleanup. Explicitly
         closes both writer and reader transports to avoid ResourceWarnings about
         unclosed sockets when the event loop closes.
+
+        This method is resilient to event loop mismatches that can occur during
+        pytest-xdist parallel test execution - if async lock acquisition fails,
+        it falls back to synchronous cleanup.
         """
-        async with self.async_lock:
-            if self._writer:
-                try:
-                    self._writer.close()
-                    await self._writer.wait_closed()
-                except Exception as e:
-                    self.ctx.debug(f"Failed to close DAP transport writer: {e}")
-                self._writer = None
+        # Try async cleanup first, fall back to sync if event loop is mismatched
+        try:
+            async with self.async_lock:
+                await self._close_streams()
+        except RuntimeError as e:
+            if is_event_loop_error(e):
+                # Event loop mismatch - do sync cleanup without lock
+                self._close_streams_sync()
+            else:
+                raise
 
-            # Explicitly close the reader's underlying transport to prevent
-            # ResourceWarnings about unclosed sockets during parallel test execution
-            if self._reader:
-                try:
-                    # Access the underlying transport from the StreamReader
-                    transport = getattr(self._reader, "_transport", None)
-                    if transport and not transport.is_closing():
-                        transport.close()
-                except Exception as e:
-                    self.ctx.debug(f"Failed to close reader transport: {e}")
-                self._reader = None
+    async def _close_streams(self) -> None:
+        """Close streams asynchronously (requires valid event loop)."""
+        if self._writer:
+            try:
+                self._writer.close()
+                await self._writer.wait_closed()
+            except Exception as e:
+                self.ctx.debug(f"Failed to close DAP transport writer: {e}")
+            self._writer = None
 
-            self.ctx.debug("Disconnected from DAP adapter")
+        self._close_reader_transport()
+
+    def _close_streams_sync(self) -> None:
+        """Close streams synchronously (event loop unavailable)."""
+        if self._writer:
+            try:
+                self._writer.close()
+                # Can't await wait_closed() without event loop - just close
+            except Exception as e:
+                self.ctx.debug(f"Failed to close DAP transport writer (sync): {e}")
+            self._writer = None
+
+        self._close_reader_transport()
+
+    def _close_reader_transport(self) -> None:
+        """Close reader's underlying transport (works sync or async)."""
+        if self._reader:
+            try:
+                # Access the underlying transport from the StreamReader
+                transport = getattr(self._reader, "_transport", None)
+                if transport and not transport.is_closing():
+                    transport.close()
+            except Exception as e:
+                self.ctx.debug(f"Failed to close reader transport: {e}")
+            self._reader = None
 
     async def send_message(self, message: ProtocolMessage) -> None:
         """Send a DAP protocol message.

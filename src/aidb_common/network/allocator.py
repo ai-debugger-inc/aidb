@@ -12,6 +12,7 @@ Key features:
 """
 
 import contextlib
+import errno
 import fcntl
 import json
 import os
@@ -23,6 +24,10 @@ from pathlib import Path
 from aidb_logging import get_logger
 
 logger = get_logger(__name__)
+
+# Lock acquisition timeout - prevents indefinite blocking under heavy parallel load
+LOCK_TIMEOUT_S = 30.0
+LOCK_RETRY_INTERVAL_S = 0.1
 
 # Default registry location
 DEFAULT_REGISTRY_DIR = Path.home() / ".aidb"
@@ -74,14 +79,60 @@ class CrossProcessPortAllocator:
 
     @contextlib.contextmanager
     def _lock(self) -> Generator[None, None, None]:
-        """Acquire exclusive lock on registry.
+        """Acquire exclusive lock on registry with timeout.
 
-        Uses fcntl.flock() for cross-process synchronization. The lock is held for the
-        duration of the context.
+        Uses fcntl.flock() with LOCK_NB (non-blocking) and retry loop for
+        cross-process synchronization. The lock is held for the duration of
+        the context.
+
+        Raises
+        ------
+        TimeoutError
+            If lock cannot be acquired within LOCK_TIMEOUT_S seconds.
         """
         # Use 'a+' to create if not exists, but not truncate
         with self.lock_file.open("a+") as f:
-            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+            start_time = time.monotonic()
+            acquired = False
+            retry_count = 0
+
+            while time.monotonic() - start_time < LOCK_TIMEOUT_S:
+                try:
+                    # Try non-blocking lock acquisition
+                    fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    acquired = True
+                    break
+                except OSError as e:
+                    if e.errno in (errno.EWOULDBLOCK, errno.EAGAIN):
+                        # Lock held by another process, wait and retry
+                        retry_count += 1
+                        if retry_count % 50 == 0:  # Log every 5 seconds
+                            logger.warning(
+                                "Port registry lock contention: %d retries (%.1fs)",
+                                retry_count,
+                                time.monotonic() - start_time,
+                            )
+                        time.sleep(LOCK_RETRY_INTERVAL_S)
+                    else:
+                        raise
+
+            if not acquired:
+                elapsed = time.monotonic() - start_time
+                msg = (
+                    f"Port registry lock timeout after {elapsed:.1f}s - "
+                    f"heavy parallel load detected"
+                )
+                logger.warning(msg)
+                raise TimeoutError(msg)
+
+            lock_elapsed = time.monotonic() - start_time
+            if lock_elapsed > 0.5:
+                logger.warning(
+                    "Slow port registry lock: %.2fs (retries=%d)",
+                    lock_elapsed,
+                    retry_count,
+                )
+
             try:
                 yield
             finally:

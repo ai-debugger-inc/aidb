@@ -9,11 +9,12 @@ aidb.resources.ports.
 """
 
 import contextlib
-import logging
 import socket
 from collections.abc import Generator
 
-logger = logging.getLogger(__name__)
+from aidb_logging import get_logger
+
+logger = get_logger(__name__)
 
 # Default port ranges for different use cases
 DEFAULT_PORT_RANGE_START = 10000

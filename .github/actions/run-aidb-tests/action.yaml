@@ -22,7 +22,7 @@ inputs:
   parallel-workers:
     description: Number of parallel pytest workers (0 = disabled, 4 = recommended)
     required: false
-    default: '4'
+    default: '2'
 runs:
   using: composite
   steps:
