@@ -7,7 +7,7 @@ from typing import Any
 
 from aidb_logging import get_mcp_logger as get_logger
 
-from ..core.constants import EXECUTION_TOOLS, ParamName
+from ..core.constants import EXECUTION_TOOLS
 from ..core.exceptions import ErrorCode
 from ..core.performance import TraceSpan
 from ..core.performance_types import SpanType
@@ -16,6 +16,7 @@ from ..core.types import ErrorContext
 # Central registry for cross-package access
 from ..registry import load_tool_mapping
 from ..responses.errors import ErrorResponse
+from ..session.manager_state import get_session_id_from_args
 
 # Import all handlers
 from .adapter_download import HANDLERS as ADAPTER_DOWNLOAD_HANDLERS
@@ -50,8 +51,8 @@ async def _cleanup_cancelled_tool(name: str, args: dict[str, Any]) -> None:
         Arguments passed to the tool
     """
     try:
-        # Get session ID if available
-        session_id = args.get(ParamName.SESSION_ID) or args.get("_session_id")
+        # Get session ID if available (uses canonical resolution pattern)
+        session_id = get_session_id_from_args(args)
 
         if session_id and name in EXECUTION_TOOLS:
             # For debug operations, ensure session state is consistent
@@ -148,7 +149,7 @@ async def handle_tool(name: str, args: dict[str, Any]) -> dict[str, Any]:
             span.metadata["handler_name"] = handler.__name__
 
         # Execute handler with its own tracing and cancellation handling
-        session_id = args.get(ParamName.SESSION_ID) or args.get("_session_id")
+        session_id = get_session_id_from_args(args)
         logger.info(
             "Executing tool: %s",
             name,

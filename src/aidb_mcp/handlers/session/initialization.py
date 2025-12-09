@@ -17,33 +17,14 @@ from ...core.decorators import mcp_tool
 from ...responses.base import Response
 from ...responses.errors import ErrorResponse, InitRequiredError
 from ...responses.helpers import internal_error, invalid_parameter, missing_parameter
+from ...session.manager_state import (
+    is_initialized,
+    set_init_context,
+)
 from ...starters.registry import StarterRegistry
 from ...tools.validation import validate_language
 
 logger = get_logger(__name__)
-
-# Module-level tracking for init state
-# This is global so init doesn't create sessions
-_INIT_CONTEXT = {
-    "initialized": False,
-    "language": None,
-    "framework": None,
-    "mode": None,
-}
-
-
-def reset_init_context():
-    """Reset the global init context.
-
-    Used by tests for isolation.
-    """
-    global _INIT_CONTEXT
-    _INIT_CONTEXT = {
-        "initialized": False,
-        "language": None,
-        "framework": None,
-        "mode": None,
-    }
 
 
 def _validate_initialization() -> dict[str, Any] | None:
@@ -54,7 +35,7 @@ def _validate_initialization() -> dict[str, Any] | None:
     dict, optional
         Error response if initialization not called, None if valid
     """
-    if not _INIT_CONTEXT["initialized"]:
+    if not is_initialized():
         return InitRequiredError(
             error_message=(
                 "You must call init first to initialize the debugging "
@@ -87,11 +68,12 @@ def _get_adapter_capabilities(language: str) -> dict[str, Any]:
         Capability summary for the language
     """
     try:
-        from aidb.session.adapter_registry import AdapterRegistry
-        from aidb_common.discovery.adapters import get_supported_hit_conditions
+        from aidb_common.discovery.adapters import (
+            get_adapter_config,
+            get_supported_hit_conditions,
+        )
 
-        registry = AdapterRegistry()
-        config = registry.get_adapter_config(language.lower())
+        config = get_adapter_config(language)
 
         if config:
             caps = config.capabilities
@@ -196,14 +178,13 @@ async def _check_adapter_availability(language: str) -> dict[str, Any]:
         Adapter availability status and suggestions
     """
     try:
+        from aidb_common.discovery.adapters import get_supported_languages
+
         downloader = AdapterDownloader()
         installed = downloader.list_installed_adapters()
 
-        # Get supported languages from registry for validation
-        from aidb.session.adapter_registry import AdapterRegistry
-
-        registry = AdapterRegistry()
-        supported_languages = registry.get_languages()
+        # Get supported languages from utility for validation
+        supported_languages = get_supported_languages()
 
         # Simple mapping - language name equals adapter name
         adapter_name = (
@@ -289,11 +270,13 @@ async def handle_init(args: dict[str, Any]) -> dict[str, Any]:
         launch_config_name = args.get(ParamName.LAUNCH_CONFIG_NAME)
         verbose = args.get(ParamName.VERBOSE, False)
 
-        # Track init state globally
-        _INIT_CONTEXT["initialized"] = True
-        _INIT_CONTEXT["language"] = language
-        _INIT_CONTEXT["framework"] = framework
-        _INIT_CONTEXT["mode"] = mode
+        # Track init state globally (thread-safe)
+        set_init_context(
+            initialized=True,
+            language=language,
+            framework=framework,
+            mode=mode,
+        )
 
         # Get the appropriate starter for the language
         starter = StarterRegistry.get_starter(language)

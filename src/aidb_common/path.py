@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import overload
 
@@ -123,3 +124,106 @@ def normalize_path(
         return_path = not input_was_str
 
     return path_obj if return_path else str(path_obj)
+
+
+def expand_vscode_variables(path: str, workspace_root: str | None = None) -> str:
+    """Expand common VS Code-style variables in a path string.
+
+    This is a lightweight expansion for the most common variables used in
+    debugging configurations. For full VS Code variable resolution including
+    file-based variables (${file}, ${fileBasename}, etc.), command variables,
+    and input variables, use VSCodeVariableResolver from
+    aidb.adapters.base.vscode_variables.
+
+    Supported variables:
+    - ${workspaceFolder}, ${workspaceRoot}, ${workspace_root} → workspace_root or cwd
+    - ${cwd} → current working directory
+    - ${home}, ${userHome} → user home directory
+    - Environment variables via os.path.expandvars (e.g., $HOME, ${PATH})
+
+    Parameters
+    ----------
+    path : str
+        Path string potentially containing VS Code variables
+    workspace_root : str, optional
+        Workspace root directory for resolving workspace variables.
+        Defaults to current working directory.
+
+    Returns
+    -------
+    str
+        Path with variables expanded
+    """
+    if not path:
+        return path
+
+    workspace = workspace_root or str(Path.cwd())
+
+    # Common VS Code variables
+    replacements = {
+        "${workspaceFolder}": workspace,
+        "${workspaceRoot}": workspace,
+        "${workspace_root}": workspace,
+        "${cwd}": str(Path.cwd()),
+        "${home}": str(Path.home()),
+        "${userHome}": str(Path.home()),
+    }
+
+    result = path
+    for var, value in replacements.items():
+        if var in result:
+            result = result.replace(var, value)
+
+    # Also expand environment variables (e.g., $HOME, ${PATH})
+    return os.path.expandvars(result)
+
+
+def resolve_path(
+    path: str,
+    *,
+    workspace_root: str | None = None,
+    expand_vscode: bool = True,
+    normalize: bool = True,
+) -> str:
+    """Resolve a path by expanding variables, resolving relative paths, and normalizing.
+
+    This is a convenience function that combines VS Code variable expansion,
+    relative path resolution, and path normalization into a single operation.
+
+    Parameters
+    ----------
+    path : str
+        Path to resolve (may contain VS Code variables or be relative)
+    workspace_root : str, optional
+        Workspace root for resolving workspace variables and relative paths.
+        Defaults to current working directory.
+    expand_vscode : bool, optional
+        Whether to expand VS Code-style variables. Default True.
+    normalize : bool, optional
+        Whether to normalize the path (resolve ~, symlinks if exists).
+        Default True.
+
+    Returns
+    -------
+    str
+        Fully resolved absolute path
+    """
+    if not path:
+        return path
+
+    result = path
+
+    # Step 1: Expand VS Code variables
+    if expand_vscode:
+        result = expand_vscode_variables(result, workspace_root)
+
+    # Step 2: Resolve relative paths against workspace_root
+    result_path = Path(result)
+    if not result_path.is_absolute() and workspace_root:
+        result = str(Path(workspace_root) / result_path)
+
+    # Step 3: Normalize (expand ~, resolve symlinks if exists)
+    if normalize:
+        result = str(normalize_path(result))
+
+    return result

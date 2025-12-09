@@ -41,6 +41,8 @@ class JavaScriptStarter(BaseStarter):
         Dict[str, Any]
             Launch configuration example
         """
+        from .framework_registry import get_default_config, get_framework_config
+
         logger.debug(
             "Generating JavaScript launch example",
             extra={
@@ -51,63 +53,17 @@ class JavaScriptStarter(BaseStarter):
             },
         )
 
-        if framework == "jest":
-            return {
-                "target": "npm",
-                "args": ["test", "--", "--runInBand", "--no-coverage"],
-                "cwd": "${workspace_root}",
-                "comment": "Debug Jest tests",
-                "breakpoints": [
-                    {
-                        "file": "/path/to/src/utils/calculator.js",
-                        "line": 15,
-                    },  # Source code being tested
-                    {
-                        "file": "/path/to/src/services/api.js",
-                        "line": 42,
-                    },  # Service functions
-                    {
-                        "file": "/path/to/lib/validation.js",
-                        "line": 78,
-                    },  # Validation logic
-                ],
-            }
-        if framework == "mocha":
-            return {
-                "target": "mocha",
-                "args": ["--inspect-brk", "test/**/*.test.js"],
-                "cwd": "${workspace_root}",
-                "comment": "Debug Mocha tests",
-                "breakpoints": [
-                    {
-                        "file": "/path/to/src/controllers/user.js",
-                        "line": 25,
-                    },  # Business logic
-                    {
-                        "file": "/path/to/src/models/database.js",
-                        "line": 67,
-                    },  # Database operations
-                    {
-                        "file": "/path/to/utils/helpers.js",
-                        "line": 34,
-                    },  # Helper functions
-                ],
-            }
-        # Generic Node.js launch
+        # Try to get framework-specific config
+        config = get_framework_config(Language.JAVASCRIPT.value, framework)
+        if config:
+            return config.to_launch_example()
+
+        # Fall back to default
         logger.debug(
             "Using generic Node.js launch config",
             extra={"framework": framework or "none", "language": Language.JAVASCRIPT},
         )
-        return {
-            "target": "node",
-            "args": ["index.js"],
-            "cwd": "${workspace_root}",
-            "breakpoints": [
-                {"file": "/path/to/lib/server.js", "line": 45},  # Server setup
-                {"file": "/path/to/routes/api.js", "line": 78},  # API routes
-                {"file": "/path/to/middleware/auth.js", "line": 23},  # Authentication
-            ],
-        }
+        return get_default_config(Language.JAVASCRIPT.value).to_launch_example()
 
     def get_attach_example(
         self,

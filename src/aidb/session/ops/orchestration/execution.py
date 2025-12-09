@@ -25,6 +25,7 @@ from aidb.models import (
     ExecutionStateResponse,
     StartResponse,
 )
+from aidb_common.io import is_event_loop_error
 
 from ..base import SessionOperationsMixin
 from ..decorators import requires_capability
@@ -502,91 +503,15 @@ class ExecutionOperations(SessionOperationsMixin):
             Response containing session termination status
         """
         try:
-            # Send terminate request if supported and not already terminated
-            if self.session.supports_terminate() and not self.session.dap.is_terminated:
-                request = TerminateRequest(seq=0)  # seq will be set by client
-                try:
-                    # Use adapter-specific timeout (Java: 5s, Python/JS: 1s)
-                    timeout = self.session.adapter.config.terminate_request_timeout
-                    response = await self.session.dap.send_request(
-                        request,
-                        timeout=timeout,
-                    )
-                    response.ensure_success()
-                except (asyncio.TimeoutError, asyncio.CancelledError):
-                    # Timeout or cancellation - session already terminated
-                    # CancelledError: Session terminated, cancelled pending requests
-                    # TimeoutError: Terminated event arrived, flag not yet updated
-                    self.ctx.debug(
-                        "Terminate request timed out or cancelled - "
-                        "session already terminated",
-                    )
-                except Exception as e:
-                    # If terminate request fails but session is already
-                    # terminated, ignore
-                    if self.session.dap.is_terminated:
-                        self.ctx.debug(
-                            "Terminate request failed but session already "
-                            f"terminated: {e}",
-                        )
-                    else:
-                        self.ctx.warning(f"Terminate request failed: {e}")
-            elif self.session.dap.is_terminated:
-                self.ctx.debug("Session already terminated, skipping terminate request")
+            await self._send_terminate_request()
+            dap_error = await self._disconnect_dap_client()
+            adapter_error = await self._stop_adapter()
 
-            # Disconnect DAP client
-            if hasattr(self.session, "dap") and self.session.dap:
-                # Adapter indicates transport-only disconnect preference
-                # (e.g., Python/JS)
-                if (
-                    hasattr(self.session, "adapter")
-                    and self.session.adapter
-                    and getattr(
-                        self.session.adapter,
-                        "prefers_transport_only_disconnect",
-                        False,
-                    )
-                ):
-                    await self.session.dap.disconnect(
-                        skip_request=True,
-                        receiver_stop_timeout=PROCESS_WAIT_TIMEOUT_S,
-                    )
-                # Check if adapter wants to skip DisconnectRequest (pooled servers)
-                elif (
-                    hasattr(self.session, "adapter")
-                    and self.session.adapter
-                    and not self.session.adapter.should_send_disconnect_request
-                ):
-                    # For pooled adapters (Java), send a non-terminating
-                    # DisconnectRequest to let the server finalize state,
-                    # then close the transport. This avoids the java-debug
-                    # deadlock we saw with terminateDebuggee=True while also
-                    # preventing LSP startDebugSession timeouts on reuse.
-                    self.ctx.debug(
-                        "Adapter pooled - sending non-terminating DisconnectRequest",
-                    )
-                    try:
-                        await self.session.dap.disconnect(
-                            terminate_debuggee=False,
-                            suspend_debuggee=False,
-                            skip_request=False,
-                        )
-                    except Exception as e:
-                        # Non-fatal; fall back to closing transport only
-                        self.ctx.debug(
-                            f"Non-terminating DisconnectRequest failed: {e}, "
-                            "closing transport only",
-                        )
-                        await self.session.dap.disconnect(skip_request=True)
-                else:
-                    await self.session.dap.disconnect()
-
-            # Stop adapter (terminates process and releases resources)
-            if hasattr(self.session, "adapter") and hasattr(
-                self.session.adapter,
-                "stop",
-            ):
-                await self.session.adapter.stop()
+            # Report any non-event-loop errors that occurred
+            if dap_error:
+                raise dap_error
+            if adapter_error:
+                raise adapter_error
 
             return AidbStopResponse(
                 success=True,
@@ -599,3 +524,82 @@ class ExecutionOperations(SessionOperationsMixin):
                 success=False,
                 message=f"Failed to stop: {e}",
             )
+
+    async def _send_terminate_request(self) -> None:
+        """Send terminate request if supported."""
+        if self.session.dap.is_terminated:
+            self.ctx.debug("Session already terminated, skipping terminate request")
+            return
+
+        if not self.session.supports_terminate():
+            return
+
+        request = TerminateRequest(seq=0)  # seq will be set by client
+        try:
+            timeout = self.session.adapter.config.terminate_request_timeout
+            response = await self.session.dap.send_request(request, timeout=timeout)
+            response.ensure_success()
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            self.ctx.debug(
+                "Terminate request timed out or cancelled - session already terminated",
+            )
+        except Exception as e:
+            if self.session.dap.is_terminated:
+                self.ctx.debug(f"Terminate request failed but session terminated: {e}")
+            else:
+                self.ctx.warning(f"Terminate request failed: {e}")
+
+    async def _disconnect_dap_client(self) -> Exception | None:
+        """Disconnect DAP client, returning any non-event-loop error."""
+        if not (hasattr(self.session, "dap") and self.session.dap):
+            return None
+
+        try:
+            await self._perform_dap_disconnect()
+        except RuntimeError as e:
+            if is_event_loop_error(e):
+                self.ctx.debug(f"DAP disconnect skipped (event loop mismatch): {e}")
+            else:
+                return e
+        return None
+
+    async def _perform_dap_disconnect(self) -> None:
+        """Perform the appropriate DAP disconnect based on adapter type."""
+        adapter = getattr(self.session, "adapter", None)
+
+        # Transport-only disconnect (Python/JS)
+        if adapter and getattr(adapter, "prefers_transport_only_disconnect", False):
+            await self.session.dap.disconnect(
+                skip_request=True,
+                receiver_stop_timeout=PROCESS_WAIT_TIMEOUT_S,
+            )
+        # Pooled adapters (Java) - non-terminating disconnect
+        elif adapter and not adapter.should_send_disconnect_request:
+            self.ctx.debug("Adapter pooled - sending non-terminating disconnect")
+            try:
+                await self.session.dap.disconnect(
+                    terminate_debuggee=False,
+                    suspend_debuggee=False,
+                    skip_request=False,
+                )
+            except Exception as e:
+                self.ctx.debug(f"Non-terminating disconnect failed: {e}, closing only")
+                await self.session.dap.disconnect(skip_request=True)
+        # Standard disconnect
+        else:
+            await self.session.dap.disconnect()
+
+    async def _stop_adapter(self) -> Exception | None:
+        """Stop adapter, returning any non-event-loop error."""
+        adapter = getattr(self.session, "adapter", None)
+        if not (adapter and hasattr(adapter, "stop")):
+            return None
+
+        try:
+            await self.session.adapter.stop()
+        except RuntimeError as e:
+            if is_event_loop_error(e):
+                self.ctx.debug(f"Adapter stop skipped (event loop mismatch): {e}")
+            else:
+                return e
+        return None

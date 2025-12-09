@@ -19,7 +19,6 @@ from ...core.decorators import mcp_tool
 from ...core.performance import timed
 from ...responses.helpers import (
     internal_error,
-    invalid_action,
     no_session,
 )
 from ...responses.session import (
@@ -362,6 +361,8 @@ async def _handle_session_restart(args: dict[str, Any]) -> dict[str, Any]:
 @mcp_tool(require_session=False, include_after=False, record_history=False)
 async def handle_session_management(args: dict[str, Any]) -> dict[str, Any]:
     """Handle session management operations (status, list, cleanup, etc)."""
+    from ..dispatch import dispatch_action
+
     action_str = args.get(ParamName.ACTION, SessionAction.STATUS.value)
     logger.info(
         "Session management handler invoked",
@@ -372,32 +373,31 @@ async def handle_session_management(args: dict[str, Any]) -> dict[str, Any]:
         },
     )
 
-    # Convert to enum
-    try:
-        action = SessionAction(action_str)
-    except ValueError:
-        action = SessionAction.STATUS
+    action_handlers = {
+        SessionAction.STATUS: _handle_session_status,
+        SessionAction.LIST: _handle_session_list,
+        SessionAction.STOP: _handle_session_stop,
+        SessionAction.RESTART: _handle_session_restart,
+    }
 
-    try:
-        # Dispatch to action handlers
-        action_handlers = {
-            SessionAction.STATUS: _handle_session_status,
-            SessionAction.LIST: _handle_session_list,
-            SessionAction.STOP: _handle_session_stop,
-            SessionAction.RESTART: _handle_session_restart,
-        }
+    handler, error, handler_args = dispatch_action(
+        args,
+        SessionAction,
+        action_handlers,
+        default_action=SessionAction.STATUS,
+        tool_name=ToolName.SESSION,
+    )
 
-        handler = action_handlers.get(action)
-        if handler:
-            return await handler(args)
-        valid_actions = [a.value for a in SessionAction]
-        return invalid_action(
-            action=action.value,
-            valid_actions=valid_actions,
-            tool_name=ToolName.SESSION,
+    if error or handler is None:
+        return error or internal_error(
+            operation="session",
+            exception="No handler found",
         )
 
+    try:
+        return await handler(*handler_args)
     except Exception as e:
+        action = args.get(ParamName.ACTION, SessionAction.STATUS.value)
         logger.error("Session management failed: %s", e)
         return internal_error(operation=f"session_{action}", exception=e)
 

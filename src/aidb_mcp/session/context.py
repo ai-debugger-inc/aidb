@@ -71,6 +71,9 @@ class MCPSessionContext:
     # Source path resolution for remote debugging
     source_paths: list[str] = field(default_factory=list)
 
+    # Event bridge subscription IDs for cleanup
+    event_subscription_ids: list[str] = field(default_factory=list)
+
     def reset(self):
         """Reset the context to initial state."""
         logger.debug(
@@ -112,6 +115,9 @@ class MCPSessionContext:
 
         # Reset source paths
         self.source_paths = []
+
+        # Reset event subscription IDs
+        self.event_subscription_ids = []
 
     def update_position(self, frame: AidbStackFrame | None = None):
         """Update current position from a stack frame."""

@@ -17,7 +17,6 @@ logger = get_logger(__name__)
 
 def get_supported_languages() -> list[str]:
     """Get list of all languages with registered adapters."""
-    logger.debug("Querying adapter registry for supported languages")
     try:
         from aidb.session.adapter_registry import AdapterRegistry
 
@@ -25,7 +24,7 @@ def get_supported_languages() -> list[str]:
         if hasattr(registry, "_configs"):
             languages = list(registry._configs.keys())
             result = [lang.lower() for lang in languages] if languages else []
-            logger.info(
+            logger.debug(
                 "Retrieved supported languages from adapter registry",
                 extra={"language_count": len(result), "languages": result},
             )
@@ -406,6 +405,158 @@ def get_adapter_for_validation(language: str) -> Any | None:
     except Exception as e:
         logger.warning(
             "Failed to get adapter for validation",
+            extra={"language": language, "error": str(e)},
+        )
+        return None
+
+
+def get_supported_frameworks(language: str) -> list[str]:
+    """Get list of supported frameworks for a language.
+
+    Parameters
+    ----------
+    language : str
+        The language to get frameworks for
+
+    Returns
+    -------
+    list[str]
+        List of supported framework names
+    """
+    logger.debug(
+        "Getting supported frameworks for language",
+        extra={"language": language},
+    )
+    try:
+        from aidb.session.adapter_registry import AdapterRegistry
+
+        registry = AdapterRegistry()
+        frameworks = registry.get_supported_frameworks(language.lower())
+        logger.debug(
+            "Retrieved supported frameworks",
+            extra={"language": language, "framework_count": len(frameworks)},
+        )
+        return frameworks
+    except Exception as e:
+        logger.exception(
+            "Failed to get supported frameworks",
+            extra={"language": language, "error": str(e)},
+        )
+        return []
+
+
+def get_popular_frameworks(language: str) -> list[str]:
+    """Get list of popular/example frameworks for a language.
+
+    Parameters
+    ----------
+    language : str
+        The language to get popular frameworks for
+
+    Returns
+    -------
+    list[str]
+        List of popular framework names
+    """
+    logger.debug(
+        "Getting popular frameworks for language",
+        extra={"language": language},
+    )
+    try:
+        from aidb.session.adapter_registry import AdapterRegistry
+
+        registry = AdapterRegistry()
+        frameworks = registry.get_popular_frameworks(language.lower())
+        logger.debug(
+            "Retrieved popular frameworks",
+            extra={"language": language, "framework_count": len(frameworks)},
+        )
+        return frameworks
+    except Exception as e:
+        logger.exception(
+            "Failed to get popular frameworks",
+            extra={"language": language, "error": str(e)},
+        )
+        return []
+
+
+def get_adapter_config(language: str) -> Any | None:
+    """Get adapter configuration for a language.
+
+    Parameters
+    ----------
+    language : str
+        The language to get config for
+
+    Returns
+    -------
+    AdapterConfig | None
+        The adapter configuration or None if not found
+    """
+    logger.debug(
+        "Getting adapter config for language",
+        extra={"language": language},
+    )
+    try:
+        from aidb.session.adapter_registry import AdapterRegistry
+
+        registry = AdapterRegistry()
+        config = registry.get_adapter_config(language.lower())
+        if config:
+            logger.debug(
+                "Retrieved adapter config",
+                extra={"language": language, "adapter_id": config.adapter_id},
+            )
+        else:
+            logger.debug(
+                "No adapter config found",
+                extra={"language": language},
+            )
+        return config
+    except Exception as e:
+        logger.exception(
+            "Failed to get adapter config",
+            extra={"language": language, "error": str(e)},
+        )
+        return None
+
+
+def get_adapter_class(language: str) -> type | None:
+    """Get adapter class for a language.
+
+    Parameters
+    ----------
+    language : str
+        The language to get adapter class for
+
+    Returns
+    -------
+    type[DebugAdapter] | None
+        The adapter class or None if not found
+    """
+    logger.debug(
+        "Getting adapter class for language",
+        extra={"language": language},
+    )
+    try:
+        from aidb.session.adapter_registry import AdapterRegistry
+
+        registry = AdapterRegistry()
+        adapter_class = registry.get_adapter_class(language.lower())
+        if adapter_class:
+            logger.debug(
+                "Retrieved adapter class",
+                extra={"language": language, "class_name": adapter_class.__name__},
+            )
+        else:
+            logger.debug(
+                "No adapter class found",
+                extra={"language": language},
+            )
+        return adapter_class
+    except Exception as e:
+        logger.exception(
+            "Failed to get adapter class",
             extra={"language": language, "error": str(e)},
         )
         return None

@@ -432,21 +432,11 @@ def determine_detailed_status(
             stop_reason,
         )
 
-    # Fallback to MCP context (legacy behavior)
+    # Fallback to MCP context (when api.session is not available)
     if not context:
         return DetailedExecutionStatus.UNKNOWN
 
-    # Check if debugger is terminated (legacy check)
-    if (
-        api
-        and hasattr(api, "session")
-        and api.session
-        and hasattr(api.session, "dap")
-        and api.session.dap.is_terminated
-    ):
-        return DetailedExecutionStatus.TERMINATED
-
-    # Legacy MCP context checks as fallback
+    # MCP context-based checks as fallback
     if context.is_paused:
         reason_str = None
         if stop_reason:

@@ -7,7 +7,6 @@ detection, and breakpoint parsing.
 from __future__ import annotations
 
 import uuid
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from aidb_common.path import normalize_path
@@ -18,8 +17,8 @@ from ...core.decorators import with_thread_safety
 from ...core.exceptions import ErrorCode
 from ...responses.errors import ErrorResponse
 from ...session import get_or_create_session
+from ...session.manager_state import get_init_language
 from ...utils import get_adapter_for_validation, get_language_from_file
-from .initialization import _INIT_CONTEXT
 
 if TYPE_CHECKING:
     from ...core.types import BreakpointSpec
@@ -48,17 +47,11 @@ def _validate_and_detect_mode(
         mode = LaunchMode.LAUNCH
         # Skip path normalization for module mode - target is a module name
         if not module:
-            # Use same heuristic as SyntaxValidator to detect file vs identifier
+            # Use centralized TargetClassifier to detect file vs identifier
             # Identifiers (module names, class names) pass through unchanged
-            from aidb.session.adapter_registry import get_all_cached_file_extensions
+            from aidb.adapters.base.target_classifier import TargetClassifier
 
-            known_extensions = get_all_cached_file_extensions()
-            suffix_lower = Path(target).suffix.lower()
-            has_known_extension = suffix_lower in known_extensions
-            has_path_separator = ("/" in target) or ("\\" in target)
-            is_file_path = has_known_extension or has_path_separator
-
-            if is_file_path:
+            if TargetClassifier.is_file_path(target):
                 target = normalize_path(target, strict=True, return_path=False)
             # else: pass target through as-is (module/class identifier)
         return mode, target, None, None, None
@@ -167,8 +160,9 @@ def _determine_language(args: dict[str, Any], target: str | None) -> str | None:
     language = args.get(ParamName.LANGUAGE)
 
     # Use language from init context if not provided
-    if not language and _INIT_CONTEXT["language"]:
-        language = _INIT_CONTEXT["language"]
+    init_language = get_init_language()
+    if not language and init_language:
+        language = init_language
 
     # Auto-detect language from target if still not provided
     if not language and target:

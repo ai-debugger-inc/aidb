@@ -44,6 +44,8 @@ class PythonStarter(BaseStarter):
         Dict[str, Any]
             Launch configuration example
         """
+        from .framework_registry import get_default_config, get_framework_config
+
         logger.debug(
             "Generating Python launch example",
             extra={
@@ -54,127 +56,17 @@ class PythonStarter(BaseStarter):
             },
         )
 
-        if framework == "pytest":
-            return {
-                "target": "pytest",
-                "module": True,
-                "args": ["-xvs", "tests/test_example.py::TestClass::test_method"],
-                "env": {"PYTEST_CURRENT_TEST": "true"},
-                "cwd": "${workspace_root}",
-                "breakpoints": [
-                    {
-                        "file": "/path/to/src/calculator.py",
-                        "line": 15,
-                    },  # Source code being tested
-                    {
-                        "file": "/path/to/src/utils/validator.py",
-                        "line": 42,
-                    },  # Utility functions
-                ],
-            }
-        if framework == "unittest":
-            return {
-                "target": "unittest",
-                "module": True,
-                "args": ["tests.test_module.TestCase.test_method"],
-                "cwd": "${workspace_root}",
-            }
-        if framework == "django":
-            return {
-                "target": "python",
-                "args": ["manage.py", "runserver", "--noreload"],
-                "env": {"DJANGO_SETTINGS_MODULE": "myproject.settings"},
-                "cwd": "${workspace_root}",
-                "breakpoints": [
-                    {
-                        "file": "/path/to/myapp/views.py",
-                        "line": 25,
-                    },  # API endpoint logic
-                    {
-                        "file": "/path/to/myapp/models.py",
-                        "line": 78,
-                    },  # Database model methods
-                    {"file": "/path/to/core/utils.py", "line": 156},  # Business logic
-                ],
-            }
-        if framework == "flask":
-            return {
-                "target": "python",
-                "args": ["app.py"],
-                "env": {"FLASK_APP": "app.py", "FLASK_ENV": "development"},
-                "cwd": "${workspace_root}",
-                "breakpoints": [
-                    {
-                        "file": "/path/to/routes/api.py",
-                        "line": 45,
-                    },  # API route handlers
-                    {"file": "/path/to/models/user.py", "line": 78},  # Database models
-                    {
-                        "file": "/path/to/utils/auth.py",
-                        "line": 23,
-                    },  # Authentication logic
-                ],
-            }
-        if framework == "fastapi":
-            return {
-                "target": "uvicorn",
-                "module": True,
-                "args": ["main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"],  # noqa: B104
-                "cwd": "${workspace_root}",
-                "breakpoints": [
-                    {"file": "/path/to/routers/users.py", "line": 32},  # User endpoints
-                    {
-                        "file": "/path/to/core/database.py",
-                        "line": 15,
-                    },  # Database connections
-                    {
-                        "file": "/path/to/services/auth.py",
-                        "line": 89,
-                    },  # Authentication service
-                ],
-            }
-        if framework == "pyramid":
-            return {
-                "target": "pserve",
-                "module": True,
-                "args": ["development.ini", "--reload"],
-                "cwd": "${workspace_root}",
-            }
-        if framework == "asyncio":
-            return {
-                "target": "python",
-                "args": ["async_script.py"],
-                "env": {"PYTHONASYNCIODEBUG": "1"},
-                "cwd": "${workspace_root}",
-            }
-        if framework == "behave":
-            return {
-                "target": "behave",
-                "module": True,
-                "args": ["features/example.feature", "--no-capture"],
-                "cwd": "${workspace_root}",
-            }
-        # Generic Python launch
+        # Try to get framework-specific config
+        config = get_framework_config(Language.PYTHON.value, framework)
+        if config:
+            return config.to_launch_example()
+
+        # Fall back to default
         logger.debug(
             "Using generic Python launch config",
             extra={"framework": framework or "none", "language": Language.PYTHON},
         )
-        return {
-            "target": "python",
-            "args": ["main.py"],
-            "cwd": "${workspace_root}",
-            "breakpoints": [
-                {"file": "/path/to/utils/helper.py", "line": 25},  # Utility functions
-                {
-                    "file": "/path/to/config/settings.py",
-                    "line": 10,
-                },  # Configuration loading
-                {
-                    "file": "/path/to/data/processor.py",
-                    "line": 67,
-                },  # Data processing logic
-            ],
-        }
+        return get_default_config(Language.PYTHON.value).to_launch_example()
 
     def get_attach_example(
         self,

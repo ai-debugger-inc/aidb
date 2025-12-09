@@ -134,3 +134,11 @@ _state_lock = TrackedRLock("MCP_STATE_LOCK")  # Reentrant lock for nested calls
 _DEBUG_SESSIONS: dict[str, DebugAPI] = {}
 _SESSION_CONTEXTS: dict[str, MCPSessionContext] = {}
 _DEFAULT_SESSION_ID: str | None = None  # Track the default session
+
+# Init context for tracking init tool state (thread-safe with _state_lock)
+_INIT_CONTEXT: dict[str, bool | str | None] = {
+    "initialized": False,
+    "language": None,
+    "framework": None,
+    "mode": None,
+}

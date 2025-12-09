@@ -6,7 +6,13 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from aidb.session.adapter_registry import AdapterRegistry
+from aidb_common.constants import Language
+from aidb_common.discovery.adapters import (
+    get_popular_frameworks as _get_popular_frameworks,
+)
+from aidb_common.discovery.adapters import (
+    get_supported_frameworks as _get_supported_frameworks,
+)
 from aidb_common.io import safe_read_json
 from aidb_common.io.files import FileOperationError
 from aidb_common.path import normalize_path
@@ -63,8 +69,7 @@ class BaseStarter(ABC):
         List[str]
             List of supported framework names
         """
-        registry = AdapterRegistry()
-        return registry.get_supported_frameworks(self.language)
+        return _get_supported_frameworks(self.language)
 
     def get_popular_frameworks(self) -> list[str]:
         """Get list of popular frameworks to show as examples.
@@ -74,8 +79,7 @@ class BaseStarter(ABC):
         List[str]
             List of popular framework names (2-3 max)
         """
-        registry = AdapterRegistry()
-        return registry.get_popular_frameworks(self.language)
+        return _get_popular_frameworks(self.language)
 
     def normalize_framework(self, framework: str | None) -> str | None:
         """Normalize and fuzzy match framework name.
@@ -617,15 +621,15 @@ class BaseStarter(ABC):
 
         # General entrypoint guidance based on language
         language_tips = {
-            "python": (
+            Language.PYTHON.value: (
                 "Python debugging: target is entry script (main.py, app.py), "
                 "set breakpoints in modules where bugs occur (models/, utils/)."
             ),
-            "javascript": (
+            Language.JAVASCRIPT.value: (
                 "Node.js debugging: target starts app (index.js, server.js), "
                 "set breakpoints in route handlers, services, or utility modules."
             ),
-            "java": (
+            Language.JAVA.value: (
                 "Java debugging: target is your main class or JAR file, "
                 "set breakpoints in service classes, utilities, or business logic."
             ),

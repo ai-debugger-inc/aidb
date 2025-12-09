@@ -5,11 +5,13 @@ from pathlib import Path
 import pytest
 
 from aidb_common.path import (
+    expand_vscode_variables,
     get_aidb_adapters_dir,
     get_aidb_cache_dir,
     get_aidb_home,
     get_aidb_log_dir,
     normalize_path,
+    resolve_path,
 )
 
 
@@ -213,3 +215,103 @@ class TestNormalizePathWithRealPaths:
         result = normalize_path("..")
         assert isinstance(result, str)
         assert Path(result).is_dir()
+
+
+class TestExpandVscodeVariables:
+    """Test expand_vscode_variables function."""
+
+    def test_expands_workspace_folder(self, tmp_path: Path) -> None:
+        """Test that ${workspaceFolder} is expanded."""
+        result = expand_vscode_variables(
+            "${workspaceFolder}/src/main.py",
+            workspace_root=str(tmp_path),
+        )
+        assert str(tmp_path) in result
+        assert "${workspaceFolder}" not in result
+
+    def test_expands_workspace_root(self, tmp_path: Path) -> None:
+        """Test that ${workspaceRoot} is expanded."""
+        result = expand_vscode_variables(
+            "${workspaceRoot}/src/main.py",
+            workspace_root=str(tmp_path),
+        )
+        assert str(tmp_path) in result
+        assert "${workspaceRoot}" not in result
+
+    def test_expands_cwd(self) -> None:
+        """Test that ${cwd} is expanded."""
+        result = expand_vscode_variables("${cwd}/test.py")
+        assert "${cwd}" not in result
+        assert str(Path.cwd()) in result
+
+    def test_expands_home(self) -> None:
+        """Test that ${home} is expanded."""
+        result = expand_vscode_variables("${home}/.config/test")
+        assert "${home}" not in result
+        assert str(Path.home()) in result
+
+    def test_expands_user_home(self) -> None:
+        """Test that ${userHome} is expanded."""
+        result = expand_vscode_variables("${userHome}/.config/test")
+        assert "${userHome}" not in result
+        assert str(Path.home()) in result
+
+    def test_defaults_workspace_to_cwd(self) -> None:
+        """Test that workspace defaults to cwd when not specified."""
+        result = expand_vscode_variables("${workspaceFolder}/test.py")
+        assert str(Path.cwd()) in result
+
+    def test_returns_empty_for_empty_input(self) -> None:
+        """Test that empty string is returned for empty input."""
+        assert expand_vscode_variables("") == ""
+
+    def test_returns_input_with_no_variables(self) -> None:
+        """Test that input without variables is returned unchanged."""
+        path = "/usr/local/bin/python"
+        assert expand_vscode_variables(path) == path
+
+
+class TestResolvePath:
+    """Test resolve_path function."""
+
+    def test_resolves_relative_path(self, tmp_path: Path) -> None:
+        """Test that relative paths are resolved against workspace."""
+        result = resolve_path("src/main.py", workspace_root=str(tmp_path))
+        assert Path(result).is_absolute()
+        assert str(tmp_path) in result
+
+    def test_expands_vscode_variables(self, tmp_path: Path) -> None:
+        """Test that VS Code variables are expanded."""
+        result = resolve_path(
+            "${workspaceFolder}/src/main.py",
+            workspace_root=str(tmp_path),
+        )
+        assert "${workspaceFolder}" not in result
+        assert str(tmp_path) in result
+
+    def test_skip_vscode_expansion(self, tmp_path: Path) -> None:
+        """Test that VS Code expansion can be skipped."""
+        result = resolve_path(
+            "${workspaceFolder}/test.py",
+            workspace_root=str(tmp_path),
+            expand_vscode=False,
+        )
+        assert "${workspaceFolder}" in result
+
+    def test_skip_normalization(self, tmp_path: Path) -> None:
+        """Test that normalization can be skipped."""
+        result = resolve_path(
+            str(tmp_path / "test.py"),
+            normalize=False,
+        )
+        assert isinstance(result, str)
+
+    def test_returns_empty_for_empty_input(self) -> None:
+        """Test that empty string is returned for empty input."""
+        assert resolve_path("") == ""
+
+    def test_absolute_path_preserved(self, tmp_path: Path) -> None:
+        """Test that absolute paths are preserved."""
+        abs_path = str(tmp_path / "absolute.py")
+        result = resolve_path(abs_path)
+        assert result == abs_path or Path(result) == Path(abs_path)

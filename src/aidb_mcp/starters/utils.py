@@ -7,10 +7,12 @@ from pathlib import Path
 from typing import Any
 
 from aidb.api.constants import DEFAULT_PYTHON_DEBUG_PORT
+from aidb_common.constants import Language
 from aidb_common.io import safe_read_json
 from aidb_common.io.files import FileOperationError
 from aidb_common.network import find_available_port as _find_available_port
 from aidb_common.network import is_port_available as _is_port_available
+from aidb_common.path import resolve_path
 from aidb_common.repo import detect_repo_root
 from aidb_logging import get_mcp_logger as get_logger
 
@@ -241,6 +243,12 @@ def validate_file_path(file_path: str, workspace_root: str | None = None) -> boo
 def expand_path_variables(path: str, workspace_root: str | None = None) -> str:
     """Expand path variables and resolve relative paths against workspace_root.
 
+    This function delegates to aidb_common.path.resolve_path() which handles:
+    - VS Code variable expansion (${workspaceFolder}, ${cwd}, ${home}, etc.)
+    - Environment variable expansion ($HOME, ${PATH}, etc.)
+    - Relative path resolution against workspace_root
+    - Path normalization (~ expansion, symlink resolution)
+
     Parameters
     ----------
     path : str
@@ -254,31 +262,7 @@ def expand_path_variables(path: str, workspace_root: str | None = None) -> str:
         Fully resolved absolute path
     """
     original = path
-
-    # Common VS Code variables
-    replacements = {
-        "${workspaceFolder}": workspace_root or str(Path.cwd()),
-        "${workspaceRoot}": workspace_root or str(Path.cwd()),
-        "${workspace_root}": workspace_root or str(Path.cwd()),
-        "${cwd}": str(Path.cwd()),
-        "${home}": str(Path.home()),
-        "${userHome}": str(Path.home()),
-    }
-
-    result = path
-    replaced_vars = []
-    for var, value in replacements.items():
-        if var in result:
-            replaced_vars.append(var)
-            result = result.replace(var, value)
-
-    # Handle environment variables
-    result = os.path.expandvars(result)
-
-    # Resolve relative paths against workspace_root
-    resolved_path = Path(result)
-    if not resolved_path.is_absolute() and workspace_root:
-        result = str(Path(workspace_root) / resolved_path)
+    result = resolve_path(path, workspace_root=workspace_root)
 
     if result != original:
         logger.debug(
@@ -286,7 +270,6 @@ def expand_path_variables(path: str, workspace_root: str | None = None) -> str:
             extra={
                 "original": original,
                 "expanded": result,
-                "replaced_vars": replaced_vars,
                 "workspace_root": workspace_root,
             },
         )
@@ -346,13 +329,17 @@ def get_file_language(file_path: str) -> str | None:
     Optional[str]
         Detected language or None
     """
-    extension_map = {
-        ".py": "python",
-        ".js": "javascript",
-        ".jsx": "javascript",
-        ".ts": "javascript",
-        ".tsx": "javascript",
-        ".java": "java",
+    # Map file extensions to languages
+    # Supported languages use Language enum for consistency
+    extension_map: dict[str, str] = {
+        # Supported languages (use Language enum)
+        ".py": Language.PYTHON.value,
+        ".js": Language.JAVASCRIPT.value,
+        ".jsx": Language.JAVASCRIPT.value,
+        ".ts": Language.JAVASCRIPT.value,
+        ".tsx": Language.JAVASCRIPT.value,
+        ".java": Language.JAVA.value,
+        # Unsupported languages (detection only, no debugging support)
         ".go": "go",
         ".cs": "csharp",
         ".cpp": "cpp",

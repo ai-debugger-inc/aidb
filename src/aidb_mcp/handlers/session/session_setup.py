@@ -6,7 +6,7 @@ startup verification.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import asyncio
 from typing import TYPE_CHECKING, Any
 
 from aidb_common.constants import Language
@@ -23,6 +23,8 @@ from ...integrations.notifications import get_notification_manager
 from ...responses.errors import SessionStartFailedError
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from ...core.types import BreakpointSpec
 
 logger = get_logger(__name__)
@@ -52,22 +54,16 @@ def create_mcp_child_bridge_callback(
         Callback function that accepts a child session and registers event bridge
     """
 
-    def callback(child_session: Any) -> None:
-        """Register MCP event bridge with child session's event processor.
-
-        Parameters
-        ----------
-        child_session : Any
-            The child session (from AIDB) that was just created
-        """
+    async def _register_bridge_async(child_session: Any) -> None:
+        """Async helper to register event bridge with child session."""
         try:
-            if hasattr(child_session, "dap") and hasattr(
-                child_session.dap,
-                "_event_processor",
-            ):
-                event_processor = child_session.dap._event_processor
-                bridge = register_event_bridge(session_id, event_processor)
+            if child_session.events:
+                bridge, sub_ids = await register_event_bridge(
+                    session_id,
+                    child_session.events,
+                )
                 session_context.event_bridge = bridge  # type: ignore[attr-defined]
+                session_context.event_subscription_ids = sub_ids  # type: ignore[attr-defined]
 
                 child_id = (
                     child_session.id if hasattr(child_session, "id") else "unknown"
@@ -77,12 +73,12 @@ def create_mcp_child_bridge_callback(
                     extra={
                         "session_id": session_id,
                         "child_session_id": child_id,
-                        "has_event_processor": True,
+                        "subscription_count": len(sub_ids),
                     },
                 )
             else:
                 logger.warning(
-                    "Child session missing EventProcessor for bridge registration",
+                    "Child session missing events API for bridge registration",
                     extra={
                         "session_id": session_id,
                         "child_session_id": getattr(
@@ -100,6 +96,17 @@ def create_mcp_child_bridge_callback(
                     "session_id": session_id,
                 },
             )
+
+    def callback(child_session: Any) -> None:
+        """Register MCP event bridge with child session's public event API.
+
+        Parameters
+        ----------
+        child_session : Any
+            The child session (from AIDB) that was just created
+        """
+        # Schedule async registration - the callback is sync but registration is async
+        asyncio.create_task(_register_bridge_async(child_session))
 
     return callback
 
@@ -305,25 +312,22 @@ async def _setup_event_bridge(
             )
             return
 
-        # Register with parent session's event processor
-        if hasattr(session, "dap") and hasattr(
-            session.dap,
-            "_event_processor",
-        ):
-            event_processor = session.dap._event_processor
-            bridge = register_event_bridge(session_id, event_processor)
+        # Register with parent session's public event API
+        if session.events:
+            bridge, sub_ids = await register_event_bridge(session_id, session.events)
             session_context.event_bridge = bridge  # type: ignore[attr-defined]
+            session_context.event_subscription_ids = sub_ids  # type: ignore[attr-defined]
 
             logger.info(
                 "Registered DAP->MCP event bridge with parent session",
                 extra={
                     "session_id": session_id,
-                    "has_event_processor": True,
+                    "subscription_count": len(sub_ids),
                 },
             )
         else:
             logger.warning(
-                "Could not access EventProcessor for event bridge registration",
+                "Could not access events API for event bridge registration",
                 extra={"session_id": session_id},
             )
     except Exception as e:

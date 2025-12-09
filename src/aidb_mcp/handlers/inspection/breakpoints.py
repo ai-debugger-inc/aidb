@@ -18,11 +18,9 @@ from ...responses import BreakpointListResponse, BreakpointMutationResponse
 from ...responses.errors import InternalError, UnsupportedOperationError
 from ...responses.helpers import (
     internal_error,
-    invalid_action,
     invalid_parameter,
     missing_parameter,
 )
-from ...tools.actions import normalize_action
 
 if TYPE_CHECKING:
     from ...core.types import BreakpointSpec
@@ -237,9 +235,9 @@ async def _handle_clear_all_breakpoints(
     """Handle CLEAR_ALL breakpoint action."""
     cleared_count = 0
 
-    # Count breakpoints before clearing
-    if api and hasattr(api.session, "_breakpoint_store"):
-        cleared_count = len(api.session._breakpoint_store)
+    # Count breakpoints before clearing (use public property)
+    if api and api.session:
+        cleared_count = api.session.breakpoint_count
 
     # Clear all breakpoints via the API
     if api:
@@ -412,16 +410,10 @@ async def _handle_unwatch_breakpoint(
     logger.info("Removing watchpoint", extra={"variable_name": var_name})
 
     try:
-        # Clear all data breakpoints (DAP doesn't have per-watchpoint removal)
-        # The setDataBreakpoints request replaces all data breakpoints
-        # To remove, we'd need to track active watchpoints and re-send without this one
-        # For now, we clear all data breakpoints
-        from aidb.dap.protocol.bodies import SetDataBreakpointsArguments
-        from aidb.dap.protocol.requests import SetDataBreakpointsRequest
-
-        args_dap = SetDataBreakpointsArguments(breakpoints=[])
-        request = SetDataBreakpointsRequest(seq=0, arguments=args_dap)
-        await api.session.dap.send_request(request)
+        # Clear all data breakpoints using the proper API layer
+        # DAP's setDataBreakpoints replaces all data breakpoints
+        # For per-watchpoint removal, we'd need to track and re-send without this one
+        await api.orchestration.clear_data_breakpoints()
 
         return BreakpointMutationResponse(
             action="unwatch",
@@ -502,69 +494,54 @@ def _update_context_breakpoints(context, location: str, args: dict[str, Any]) ->
 @mcp_tool(require_session=True, include_after=True, allow_on_terminated=["list"])
 async def handle_breakpoint(args: dict[str, Any]) -> dict[str, Any]:
     """Handle the unified breakpoint tool for managing breakpoints."""
+    from ..dispatch import dispatch_action
+
+    raw_action = args.get(ParamName.ACTION, BreakpointAction.SET.value)
+    logger.info(
+        "Breakpoint handler invoked",
+        extra={
+            "action": raw_action,
+            "tool": ToolName.BREAKPOINT,
+        },
+    )
+
+    # Get session components from decorator
+    api = args.get("_api")
+    context = args.get("_context")
+
+    # The decorator guarantees these are present
+    if not api:
+        return InternalError(
+            error_message="Debug API not available",
+        ).to_mcp_response()
+
+    action_handlers = {
+        BreakpointAction.SET: _handle_set_breakpoint,
+        BreakpointAction.REMOVE: _handle_remove_breakpoint,
+        BreakpointAction.LIST: _handle_list_breakpoints,
+        BreakpointAction.CLEAR_ALL: _handle_clear_all_breakpoints,
+        BreakpointAction.WATCH: _handle_watch_breakpoint,
+        BreakpointAction.UNWATCH: _handle_unwatch_breakpoint,
+    }
+
+    handler, error, handler_args = dispatch_action(
+        args,
+        BreakpointAction,
+        action_handlers,
+        default_action=BreakpointAction.SET,
+        tool_name=ToolName.BREAKPOINT,
+        handler_args=(api, context),
+        normalize=True,
+    )
+
+    if error or handler is None:
+        return error or internal_error(
+            operation="breakpoint",
+            exception="No handler found",
+        )
+
     try:
-        raw_action = args.get(ParamName.ACTION, BreakpointAction.SET.value)
-        action = normalize_action(raw_action, "breakpoint")
-
-        # Convert to enum
-        try:
-            action_enum = BreakpointAction(action)
-        except ValueError:
-            action_enum = None
-
-        logger.info(
-            "Breakpoint handler invoked",
-            extra={
-                "action": raw_action,
-                "normalized_action": action,
-                "tool": ToolName.BREAKPOINT,
-            },
-        )
-
-        # Validate action
-        if not action_enum:
-            logger.warning(
-                "Invalid breakpoint action",
-                extra={
-                    "action": raw_action,
-                    "valid_actions": [a.name for a in BreakpointAction],
-                },
-            )
-            return invalid_action(
-                action=raw_action,
-                valid_actions=[a.value for a in BreakpointAction],
-                tool_name=ToolName.BREAKPOINT,
-            )
-
-        # Get session components from decorator
-        api = args.get("_api")
-        context = args.get("_context")
-
-        # The decorator guarantees these are present
-        if not api:
-            return InternalError(
-                error_message="Debug API not available",
-            ).to_mcp_response()
-
-        # Dispatch to action handlers
-        action_handlers = {
-            BreakpointAction.SET: _handle_set_breakpoint,
-            BreakpointAction.REMOVE: _handle_remove_breakpoint,
-            BreakpointAction.LIST: _handle_list_breakpoints,
-            BreakpointAction.CLEAR_ALL: _handle_clear_all_breakpoints,
-            BreakpointAction.WATCH: _handle_watch_breakpoint,
-            BreakpointAction.UNWATCH: _handle_unwatch_breakpoint,
-        }
-
-        handler = action_handlers.get(action_enum)
-        if handler:
-            return await handler(api, context, args)
-        return invalid_action(
-            action=action,
-            valid_actions=[a.value for a in BreakpointAction],
-            tool_name=ToolName.BREAKPOINT,
-        )
-
+        return await handler(*handler_args)
     except Exception as e:
         logger.exception("Breakpoint operation failed: %s", e)
         return internal_error(operation="breakpoint", exception=e)

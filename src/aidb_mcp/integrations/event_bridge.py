@@ -1,7 +1,8 @@
-"""Bridge between DAP EventProcessor and MCP NotificationManager.
+"""Bridge between DAP PublicEventAPI and MCP NotificationManager.
 
 This module provides direct event propagation from DAP to MCP, eliminating the need for
-polling.
+polling. It uses the public Session.events API to subscribe to DAP events without
+accessing internal implementation details.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ from ..core.constants import EventType as MCPEventType
 from .notifications import get_notification_manager
 
 if TYPE_CHECKING:
+    from aidb.dap.client.public_events import PublicEventAPI, StubPublicEventAPI
     from aidb.dap.protocol.base import Event
 
 logger = get_logger(__name__)
@@ -216,25 +218,29 @@ class DAPToMCPEventBridge:
         logger.debug("Thread event: %s", event.body if event.body else "no body")
 
 
-def register_event_bridge(session_id: str, event_processor: Any) -> DAPToMCPEventBridge:
-    """Register event bridge between DAP and MCP.
+async def register_event_bridge(
+    session_id: str,
+    events: PublicEventAPI | StubPublicEventAPI,
+) -> tuple[DAPToMCPEventBridge, list[str]]:
+    """Register event bridge between DAP and MCP using the public event API.
 
-    This function creates a bridge and registers listeners with the DAP
-    EventProcessor to forward events directly to MCP notifications.
+    This function creates a bridge and registers listeners using the session's
+    public event API, avoiding direct access to internal EventProcessor.
 
     Parameters
     ----------
     session_id : str
         The session ID
-    event_processor : EventProcessor
-        The DAP EventProcessor instance
+    events : PublicEventAPI | StubPublicEventAPI
+        The session's public event API (from session.events)
 
     Returns
     -------
-    DAPToMCPEventBridge
-        The created bridge instance
+    tuple[DAPToMCPEventBridge, list[str]]
+        The created bridge instance and list of subscription IDs for cleanup
     """
     bridge = DAPToMCPEventBridge(session_id)
+    subscription_ids: list[str] = []
 
     # Register listeners for important event types
     # Always include "terminated" for auto-subscription
@@ -247,11 +253,13 @@ def register_event_bridge(session_id: str, event_processor: Any) -> DAPToMCPEven
 
     for event_type in event_types:
         listener = bridge.create_dap_listener(event_type)
-        event_processor.subscribe(event_type, listener)
+        sub_id = await events.subscribe_to_event(event_type, listener)
+        subscription_ids.append(sub_id)
         logger.info(
-            "Registered MCP bridge for %s events in session %s",
+            "Registered MCP bridge for %s events in session %s (sub_id=%s)",
             event_type,
             session_id,
+            sub_id,
         )
 
-    return bridge
+    return bridge, subscription_ids

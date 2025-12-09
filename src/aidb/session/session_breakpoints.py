@@ -48,6 +48,17 @@ class SessionBreakpointsMixin:
         # dict.copy() is atomic in CPython, writes are protected by lock
         return AidbBreakpointsResponse(breakpoints=self._breakpoint_store.copy())
 
+    @property
+    def breakpoint_count(self) -> int:
+        """Get the number of breakpoints currently in the store.
+
+        Returns
+        -------
+        int
+            Number of breakpoints in the internal store
+        """
+        return len(self._breakpoint_store)
+
     async def _update_breakpoints_from_response(
         self,
         source_path: str,
@@ -326,9 +337,9 @@ class SessionBreakpointsMixin:
                 if hasattr(self.dap, "is_connected") and not self.dap.is_connected:
                     self.ctx.debug("Skipping loadedSource handling: DAP not connected")
                     return
-        except Exception:
+        except Exception as e:
             # Best-effort guard; continue if checks not available
-            pass
+            self.ctx.debug(f"Guard check failed, proceeding anyway: {e}")
 
         loaded_event = cast("LoadedSourceEvent", event)
         if not loaded_event.body or not loaded_event.body.source:
@@ -424,8 +435,9 @@ class SessionBreakpointsMixin:
                         f"Skipping rebind for {source_path}: DAP not connected",
                     )
                     return
-        except Exception:
-            pass
+        except Exception as e:
+            # Best-effort guard; continue if checks not available
+            self.ctx.debug(f"Rebind guard check failed, proceeding anyway: {e}")
 
         # Find all breakpoints for this source in the store
         # Use current_breakpoints property to get thread-safe copy

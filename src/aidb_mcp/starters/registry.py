@@ -129,12 +129,10 @@ class StarterRegistry:
 
         try:
             # Import here to avoid circular dependencies
-            from aidb.session.adapter_registry import AdapterRegistry
+            from aidb_common.discovery.adapters import get_adapter_class
 
             # Get the adapter class without creating an instance
-            # Need to use an instance of AdapterRegistry, not the class itself
-            registry = AdapterRegistry()
-            adapter_class = registry.get_adapter_class(language)
+            adapter_class = get_adapter_class(language)
             if not adapter_class:
                 logger.debug("No adapter class found %s", extra={"language": language})
                 return None

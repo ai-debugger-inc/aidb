@@ -39,23 +39,15 @@ class SyntaxValidator(ABC):
             (is_valid, error_message) where is_valid is True if syntax is correct,
             and error_message contains details if validation fails
         """
-        # Determine if target is a file path or identifier using same heuristic as Session
-        from aidb.session.adapter_registry import get_all_cached_file_extensions
+        # Use centralized TargetClassifier to determine file path vs identifier
+        from aidb.adapters.base.target_classifier import TargetClassifier
 
-        known_extensions = get_all_cached_file_extensions()
-        path = Path(file_path)
-        suffix_lower = path.suffix.lower()
-        has_known_extension = suffix_lower in known_extensions
-        has_path_separator = ("/" in file_path) or ("\\" in file_path)
-
-        is_file_path = has_known_extension or has_path_separator
-
-        if not is_file_path:
-            # Target is an identifier (class name, module, etc.) - skip syntax validation
-            # Identifiers don't have file syntax to validate
+        if not TargetClassifier.is_file_path(file_path):
+            # Target is an identifier (class/module) - skip syntax validation
             return True, None
 
         # Target is a file path - validate it
+        path = Path(file_path)
         if not path.exists():
             return False, f"File not found: {file_path}"
 

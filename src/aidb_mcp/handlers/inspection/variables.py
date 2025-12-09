@@ -16,7 +16,6 @@ from ...responses import VariableGetResponse, VariableSetResponse
 from ...responses.errors import InternalError, UnsupportedOperationError
 from ...responses.helpers import (
     internal_error,
-    invalid_action,
     missing_parameter,
     not_paused,
 )
@@ -177,81 +176,66 @@ async def _handle_patch_variable(
 )
 async def handle_variable(args: dict[str, Any]) -> dict[str, Any]:
     """Handle variable - unified get/set variable operations."""
+    from ..dispatch import dispatch_action
+
+    raw_action = args.get(ParamName.ACTION, VariableAction.GET.value)
+    logger.info(
+        "Variable handler invoked",
+        extra={
+            "action": raw_action,
+            "tool": ToolName.VARIABLE,
+        },
+    )
+
+    # Get session components from decorator
+    session_id = args.get("_session_id")
+    api = args.get("_api")
+    context = args.get("_context")
+
+    # The decorator guarantees these are present
+    if not api or not context:
+        return InternalError(
+            error_message="Debug API or context not available",
+        ).to_mcp_response()
+
+    action_handlers = {
+        VariableAction.GET: _handle_get_variable,
+        VariableAction.SET: _handle_set_variable,
+        VariableAction.PATCH: _handle_patch_variable,
+    }
+
+    handler, error, handler_args = dispatch_action(
+        args,
+        VariableAction,
+        action_handlers,
+        default_action=VariableAction.GET,
+        tool_name=ToolName.VARIABLE,
+        handler_args=(api, session_id),
+        normalize=True,
+    )
+
+    if error or handler is None:
+        return error or internal_error(
+            operation="variable",
+            exception="No handler found",
+        )
+
+    # Check paused state for GET and SET actions
+    action_str = normalize_action(raw_action, "variable")
+    if action_str in [VariableAction.GET.value, VariableAction.SET.value]:
+        pause_error = _check_paused_state(api, context)
+        if pause_error:
+            return pause_error
+
     try:
-        raw_action = args.get(ParamName.ACTION, VariableAction.GET.value)
-        action = normalize_action(raw_action, "variable")
-
-        # Convert to enum
-        try:
-            action_enum = VariableAction(action)
-        except ValueError:
-            action_enum = None
-
-        logger.info(
-            "Variable handler invoked",
-            extra={
-                "action": raw_action,
-                "normalized_action": action,
-                "tool": ToolName.VARIABLE,
-            },
-        )
-
-        # Validate action
-        if not action_enum:
-            logger.warning(
-                "Invalid variable action",
-                extra={
-                    "action": raw_action,
-                    "valid_actions": [a.name for a in VariableAction],
-                },
-            )
-            return invalid_action(
-                action=raw_action,
-                valid_actions=[a.value for a in VariableAction],
-                tool_name=ToolName.VARIABLE,
-            )
-
-        # Get session components from decorator
-        session_id = args.get("_session_id")
-        api = args.get("_api")
-        context = args.get("_context")
-
-        # The decorator guarantees these are present
-        if not api or not context:
-            return InternalError(
-                error_message="Debug API or context not available",
-            ).to_mcp_response()
-
-        # Check paused state for GET and SET actions
-        if action_enum in [VariableAction.GET, VariableAction.SET]:
-            pause_error = _check_paused_state(api, context)
-            if pause_error:
-                return pause_error
-
-        # Dispatch to action handlers
-        action_handlers = {
-            VariableAction.GET: _handle_get_variable,
-            VariableAction.SET: _handle_set_variable,
-            VariableAction.PATCH: _handle_patch_variable,
-        }
-
-        handler = action_handlers.get(action_enum)
-        if handler:
-            return await handler(api, session_id, args)
-
-        return invalid_action(
-            action=action,
-            valid_actions=[a.value for a in VariableAction],
-            tool_name=ToolName.VARIABLE,
-        )
-
+        return await handler(*handler_args)
     except Exception as e:
         logger.exception(
             "Variable operation failed",
             extra={
                 "error": str(e),
                 "error_type": type(e).__name__,
-                "action": action if "action" in locals() else raw_action,
+                "action": raw_action,
             },
         )
         return internal_error(operation="variable", exception=e)

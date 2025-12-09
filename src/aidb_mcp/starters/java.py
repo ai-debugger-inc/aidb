@@ -41,6 +41,8 @@ class JavaStarter(BaseStarter):
         Dict[str, Any]
             Launch configuration example
         """
+        from .framework_registry import get_default_config, get_framework_config
+
         logger.debug(
             "Generating Java launch example",
             extra={
@@ -51,82 +53,17 @@ class JavaStarter(BaseStarter):
             },
         )
 
-        if framework == "junit":
-            return {
-                "target": "mvn",
-                "args": ["test", "-Dtest=TestClass#testMethod"],
-                "cwd": "${workspace_root}",
-                "comment": "Debug JUnit test",
-                "breakpoints": [
-                    {
-                        "file": (
-                            "/path/to/src/main/java/com/example/service/UserService.java"
-                        ),
-                        "line": 42,
-                    },  # Business logic
-                    {
-                        "file": (
-                            "/path/to/src/main/java/com/example/util/ValidationUtils.java"
-                        ),
-                        "line": 78,
-                    },  # Utilities
-                    {
-                        "file": (
-                            "/path/to/src/main/java/com/example/repository/UserRepository.java"
-                        ),
-                        "line": 23,
-                    },  # Data access
-                ],
-            }
-        if framework == "spring":
-            return {
-                "target": "java",
-                "args": ["-jar", "target/app.jar"],
-                "env": {"SPRING_PROFILES_ACTIVE": "debug"},
-                "cwd": "${workspace_root}",
-                "comment": "Debug Spring Boot application",
-                "breakpoints": [
-                    {
-                        "file": (
-                            "/path/to/src/main/java/com/example/controller/ApiController.java"
-                        ),
-                        "line": 35,
-                    },  # REST endpoints
-                    {
-                        "file": (
-                            "/path/to/src/main/java/com/example/service/BusinessService.java"
-                        ),
-                        "line": 89,
-                    },  # Business logic
-                    {
-                        "file": (
-                            "/path/to/src/main/java/com/example/config/AppConfig.java"
-                        ),
-                        "line": 15,
-                    },  # Configuration
-                ],
-            }
-        # Generic Java launch
+        # Try to get framework-specific config
+        config = get_framework_config(Language.JAVA.value, framework)
+        if config:
+            return config.to_launch_example()
+
+        # Fall back to default
         logger.debug(
             "Using generic Java launch config",
             extra={"framework": framework or "none", "language": Language.JAVA},
         )
-        return {
-            "target": "java",
-            "args": ["Main"],
-            "cwd": "${workspace_root}",
-            "breakpoints": [
-                {"file": "/path/to/src/Utils.java", "line": 25},  # Utility classes
-                {
-                    "file": "/path/to/src/DataProcessor.java",
-                    "line": 67,
-                },  # Data processing
-                {
-                    "file": "/path/to/src/Config.java",
-                    "line": 10,
-                },  # Configuration handling
-            ],
-        }
+        return get_default_config(Language.JAVA.value).to_launch_example()
 
     def get_attach_example(
         self,
