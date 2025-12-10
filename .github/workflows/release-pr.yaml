@@ -38,7 +38,7 @@ jobs:
         run: pip install -e .[ci-validation]
 
       - name: Check version consistency
-        run: ./dev-cli versions check-consistency
+        run: python -m aidb_cli versions check-consistency
 
       - name: Extract and validate version
         id: extract
