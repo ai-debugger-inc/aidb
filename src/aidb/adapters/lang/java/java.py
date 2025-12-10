@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
 from aidb.api.constants import (
+    DEFAULT_ADAPTER_HOST,
     DEFAULT_JAVA_DEBUG_PORT,
     DEFAULT_WAIT_TIMEOUT_S,
     SECONDS_PER_DAY,
@@ -123,9 +124,9 @@ class JavaAdapter(DebugAdapter):
         self,
         session: "ISession",
         ctx=None,
-        adapter_host="localhost",
+        adapter_host=DEFAULT_ADAPTER_HOST,
         adapter_port=None,
-        target_host="localhost",
+        target_host=DEFAULT_ADAPTER_HOST,
         target_port=None,
         config: JavaAdapterConfig | None = None,
         # Java-specific parameters

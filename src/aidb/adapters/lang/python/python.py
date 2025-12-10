@@ -8,6 +8,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, Any
 
+from aidb.api.constants import DEFAULT_ADAPTER_HOST
 from aidb_common.config import config as env_config
 from aidb_common.constants import Language
 from aidb_common.path import get_aidb_adapters_dir
@@ -40,9 +41,9 @@ class PythonAdapter(DebugAdapter):
         self,
         session: "ISession",
         ctx=None,
-        adapter_host="localhost",
+        adapter_host=DEFAULT_ADAPTER_HOST,
         adapter_port=None,
-        target_host="localhost",
+        target_host=DEFAULT_ADAPTER_HOST,
         target_port=None,
         config: PythonAdapterConfig | None = None,
         module: bool = False,

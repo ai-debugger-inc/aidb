@@ -15,6 +15,7 @@ import psutil
 from aidb.adapters.utils.output_capture import AdapterOutputCapture
 from aidb.api.constants import (
     BACKOFF_MULTIPLIER,
+    DEFAULT_ADAPTER_HOST,
     EVENT_POLL_TIMEOUT_S,
     INITIAL_RETRY_DELAY_S,
     MAX_PROCESS_WAIT_TIME_S,
@@ -57,7 +58,7 @@ class ProcessManager(Obj):
     def __init__(
         self,
         ctx: Optional["IContext"] = None,
-        adapter_host: str = "localhost",
+        adapter_host: str = DEFAULT_ADAPTER_HOST,
         config: Optional["AdapterConfig"] = None,
     ):
         """Initialize process manager.

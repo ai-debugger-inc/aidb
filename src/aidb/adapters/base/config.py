@@ -5,7 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from aidb.api.constants import INIT_WAIT_FOR_INITIALIZED_S
+from aidb.api.constants import (
+    INIT_WAIT_FOR_INITIALIZED_S,
+    PROCESS_TERMINATE_TIMEOUT_S,
+    PROCESS_WAIT_TIMEOUT_S,
+)
 from aidb.models.entities.breakpoint import HitConditionMode
 from aidb.models.start_request import StartRequestType
 
@@ -255,9 +259,9 @@ class AdapterConfig:
     supported_hit_conditions: set[HitConditionMode] = field(default_factory=set)
 
     # Timeout configurations (seconds)
-    terminate_request_timeout: float = 1.0  # DAP terminate request timeout
-    process_termination_timeout: float = 1.0  # ProcessRegistry cleanup timeout
-    process_manager_timeout: float = 0.5  # ProcessManager wait timeout
+    terminate_request_timeout: float = PROCESS_TERMINATE_TIMEOUT_S  # DAP terminate
+    process_termination_timeout: float = PROCESS_TERMINATE_TIMEOUT_S  # Registry cleanup
+    process_manager_timeout: float = PROCESS_WAIT_TIMEOUT_S  # ProcessManager wait
 
     # Process names to check when adapter spawns detached processes
     # (e.g., debugpy spawns adapter with PPID=1, not as child)

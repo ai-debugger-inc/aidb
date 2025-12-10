@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from aidb.api.constants import (
+    DEFAULT_ADAPTER_HOST,
     INIT_WAIT_FOR_INITIALIZED_S,
     INIT_WAIT_FOR_LAUNCH_RESPONSE_S,
     MEDIUM_SLEEP_S,
@@ -52,9 +53,9 @@ class JavaScriptAdapter(DebugAdapter):
         self,
         session: "ISession",
         ctx=None,
-        adapter_host="localhost",
+        adapter_host=DEFAULT_ADAPTER_HOST,
         adapter_port=None,
-        target_host="localhost",
+        target_host=DEFAULT_ADAPTER_HOST,
         target_port=None,
         config: JavaScriptAdapterConfig | None = None,
         runtime_executable: str | None = None,
