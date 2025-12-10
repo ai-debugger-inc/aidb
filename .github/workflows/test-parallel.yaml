@@ -1,6 +1,11 @@
 name: Tests (Parallel)
+# Can be triggered manually via Actions UI (workflow_dispatch) to run tests without the release workflow
+# Also runs nightly at midnight UTC with coverage enabled for codecov reporting
 
 on:
+  schedule:
+    # Run nightly at midnight UTC
+    - cron: '0 0 * * *'
   workflow_dispatch:
     inputs:
       suite:
@@ -261,3 +266,30 @@ jobs:
       needs-adapters: false
       needs-docker: false
       parallel-workers: ${{ inputs.parallel-workers || '2' }}
+
+  # Upload coverage to codecov (for nightly runs and manual runs with coverage)
+  upload-coverage:
+    name: Upload Coverage to Codecov
+    needs: [load-versions, test-cli, test-shared, test-shared-utils, test-mcp, test-core, test-frameworks, test-launch, test-ci-cd]
+    runs-on: ubuntu-latest
+    if: always() && (inputs.skip_coverage != true)
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Download all coverage files
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-*
+          path: coverage/
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Upload combined coverage to codecov
+        uses: codecov/codecov-action@v4
+        with:
+          directory: coverage/
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        continue-on-error: true
