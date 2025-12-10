@@ -37,6 +37,12 @@ class TestTargetEnvMerge:
             ):
                 return ["test"]
 
+            def _create_target_resolver(self):
+                return None
+
+            def _create_source_path_resolver(self):
+                return None
+
         # Mock the session and required components
         mock_session = MagicMock()
         mock_session.id = "test-session"
@@ -254,6 +260,12 @@ class TestPrepareEnvironmentPipeline:
                 self, target, adapter_host, adapter_port, args=None
             ):
                 return ["test"]
+
+            def _create_target_resolver(self):
+                return None
+
+            def _create_source_path_resolver(self):
+                return None
 
         mock_session = MagicMock()
         mock_session.id = "test-session"
