@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from aidb.api.constants import DEFAULT_ADAPTER_HOST, DEFAULT_NODE_DEBUG_PORT
+from aidb_common.constants import Language
 from aidb_logging import get_mcp_logger as get_logger
 
 from .base import BaseStarter
@@ -39,73 +41,29 @@ class JavaScriptStarter(BaseStarter):
         Dict[str, Any]
             Launch configuration example
         """
+        from .framework_registry import get_default_config, get_framework_config
+
         logger.debug(
             "Generating JavaScript launch example",
             extra={
                 "framework": framework,
                 "target": target,
                 "workspace_root": workspace_root,
-                "language": "javascript",
+                "language": Language.JAVASCRIPT,
             },
         )
 
-        if framework == "jest":
-            return {
-                "target": "npm",
-                "args": ["test", "--", "--runInBand", "--no-coverage"],
-                "cwd": "${workspace_root}",
-                "comment": "Debug Jest tests",
-                "breakpoints": [
-                    {
-                        "file": "/path/to/src/utils/calculator.js",
-                        "line": 15,
-                    },  # Source code being tested
-                    {
-                        "file": "/path/to/src/services/api.js",
-                        "line": 42,
-                    },  # Service functions
-                    {
-                        "file": "/path/to/lib/validation.js",
-                        "line": 78,
-                    },  # Validation logic
-                ],
-            }
-        if framework == "mocha":
-            return {
-                "target": "mocha",
-                "args": ["--inspect-brk", "test/**/*.test.js"],
-                "cwd": "${workspace_root}",
-                "comment": "Debug Mocha tests",
-                "breakpoints": [
-                    {
-                        "file": "/path/to/src/controllers/user.js",
-                        "line": 25,
-                    },  # Business logic
-                    {
-                        "file": "/path/to/src/models/database.js",
-                        "line": 67,
-                    },  # Database operations
-                    {
-                        "file": "/path/to/utils/helpers.js",
-                        "line": 34,
-                    },  # Helper functions
-                ],
-            }
-        # Generic Node.js launch
+        # Try to get framework-specific config
+        config = get_framework_config(Language.JAVASCRIPT.value, framework)
+        if config:
+            return config.to_launch_example()
+
+        # Fall back to default
         logger.debug(
             "Using generic Node.js launch config",
-            extra={"framework": framework or "none", "language": "javascript"},
+            extra={"framework": framework or "none", "language": Language.JAVASCRIPT},
         )
-        return {
-            "target": "node",
-            "args": ["index.js"],
-            "cwd": "${workspace_root}",
-            "breakpoints": [
-                {"file": "/path/to/lib/server.js", "line": 45},  # Server setup
-                {"file": "/path/to/routes/api.js", "line": 78},  # API routes
-                {"file": "/path/to/middleware/auth.js", "line": 23},  # Authentication
-            ],
-        }
+        return get_default_config(Language.JAVASCRIPT.value).to_launch_example()
 
     def get_attach_example(
         self,
@@ -139,14 +97,14 @@ class JavaScriptStarter(BaseStarter):
                 "pid": pid,
                 "host": host,
                 "port": port,
-                "language": "javascript",
+                "language": Language.JAVASCRIPT,
             },
         )
 
         if mode == "remote":
             return {
-                "host": host or "localhost",
-                "port": port or 9229,
+                "host": host or DEFAULT_ADAPTER_HOST,
+                "port": port or DEFAULT_NODE_DEBUG_PORT,
                 "comment": "Start Node with: node --inspect index.js",
             }
         if mode == "local" and pid:
@@ -155,8 +113,8 @@ class JavaScriptStarter(BaseStarter):
                 "comment": "Attach to running Node.js process",
             }
         return {
-            "host": "localhost",
-            "port": 9229,
+            "host": DEFAULT_ADAPTER_HOST,
+            "port": DEFAULT_NODE_DEBUG_PORT,
             "comment": "Start Node with: node --inspect index.js",
         }
 
@@ -181,7 +139,11 @@ class JavaScriptStarter(BaseStarter):
         """
         logger.debug(
             "Getting common breakpoints for JavaScript",
-            extra={"framework": framework, "target": target, "language": "javascript"},
+            extra={
+                "framework": framework,
+                "target": target,
+                "language": Language.JAVASCRIPT,
+            },
         )
 
         if framework == "jest":
@@ -215,7 +177,7 @@ class JavaScriptStarter(BaseStarter):
         if not node_path:
             logger.warning(
                 "Node.js not found in PATH",
-                extra={"language": "javascript"},
+                extra={"language": Language.JAVASCRIPT},
             )
 
         if node_path:

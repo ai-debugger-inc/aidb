@@ -11,6 +11,9 @@ from aidb_common.env import reader
 if TYPE_CHECKING:
     from aidb_logging.context import LoggingContext
 
+# Valid log levels (including custom TRACE)
+VALID_LOG_LEVELS = frozenset({"TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"})
+
 
 def get_log_file_path(
     component: str,
@@ -96,9 +99,7 @@ def get_log_level(default: str = "INFO") -> str:
     'WARNING'
     """
     level = reader.read_str("AIDB_LOG_LEVEL", default=default)
-    # Validate level
-    valid_levels = {"TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
-    return level.upper() if level.upper() in valid_levels else default.upper()
+    return level.upper() if level.upper() in VALID_LOG_LEVELS else default.upper()
 
 
 def should_use_file_logging() -> bool:

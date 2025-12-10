@@ -108,7 +108,7 @@ class VariableOperations(APIOperationBase):
 
         Returns
         -------
-        EvaluateResponseModel
+        EvaluationResult
             Result of the evaluation
         """
         return await self.session.debug.evaluate(
@@ -253,3 +253,96 @@ class VariableOperations(APIOperationBase):
             frame_id,
             context=EVALUATION_CONTEXT_WATCH,
         )
+
+    @audit_operation(component="api.introspection", operation="get_children")
+    async def get_children(
+        self,
+        variables_reference: int,
+    ) -> AidbVariablesResponse:
+        """Get child variables for a given variable reference.
+
+        This retrieves the expandable children of a complex variable (objects,
+        arrays, etc.) using the variable's variablesReference.
+
+        This operation is automatically audited when audit logging is enabled.
+
+        Parameters
+        ----------
+        variables_reference : int
+            Reference to the parent variable (from AidbVariable.id)
+
+        Returns
+        -------
+        AidbVariablesResponse
+            Child variables of the parent variable
+        """
+        return await self.session.debug.get_child_variables(variables_reference)
+
+    @audit_operation(component="api.introspection", operation="resolve_variable")
+    async def resolve_variable(
+        self,
+        var_name: str,
+        frame_id: int | None = None,
+    ) -> tuple[int, str | None]:
+        """Resolve a variable name to its variablesReference.
+
+        Handles nested names like "user.email" by traversing the object tree.
+        Searches in locals first, then globals.
+
+        This operation is automatically audited when audit logging is enabled.
+
+        Parameters
+        ----------
+        var_name : str
+            Variable name, optionally with dot notation for nested access
+            (e.g., "user", "user.email", "data.items[0].name")
+        frame_id : int, optional
+            Frame to search in, by default None (top frame)
+
+        Returns
+        -------
+        tuple[int, str | None]
+            A tuple of (variables_reference, error_message).
+            On success: (reference_id, None)
+            On failure: (0, error_message)
+
+        Examples
+        --------
+        >>> ref, err = await api.introspection.resolve_variable("user")
+        >>> if err:
+        ...     print(f"Error: {err}")
+        ... else:
+        ...     print(f"Found variable with reference: {ref}")
+        """
+        locals_response = await self.locals(frame_id=frame_id)
+        var_parts = var_name.split(".")
+        current_vars = locals_response.variables
+
+        for i, part in enumerate(var_parts):
+            if part not in current_vars:
+                # Try globals for the first part only
+                if i == 0:
+                    globals_response = await self.globals(frame_id=frame_id)
+                    if part in globals_response.variables:
+                        current_vars = globals_response.variables
+                    else:
+                        return (0, f"Variable '{part}' not found in locals or globals")
+                else:
+                    return (0, f"Field '{part}' not found on variable")
+
+            var = current_vars[part]
+            if i == len(var_parts) - 1:
+                # Final variable - return its reference
+                if var.id:
+                    return (var.id, None)
+                return (0, f"Variable '{var_name}' has no reference (primitive type)")
+
+            # Need to traverse deeper
+            if var.has_children and var.id:
+                # Expand children for nested access
+                children_response = await self.get_children(var.id)
+                current_vars = children_response.variables
+            else:
+                return (0, f"Variable '{part}' has no expandable children")
+
+        return (0, f"Could not resolve variable reference for '{var_name}'")

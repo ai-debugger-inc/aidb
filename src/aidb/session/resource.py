@@ -8,8 +8,14 @@ from typing import TYPE_CHECKING, Any, Optional
 
 import psutil
 
+from aidb.api.constants import (
+    DEFAULT_REQUEST_TIMEOUT_S,
+    PROCESS_TERMINATE_TIMEOUT_S,
+    RECEIVE_POLL_TIMEOUT_S,
+)
 from aidb.common import acquire_lock
 from aidb.patterns import Obj
+from aidb_common.constants import Language
 
 if TYPE_CHECKING:
     from aidb.interfaces.context import IContext
@@ -137,7 +143,9 @@ class ResourceManager(Obj):
         import asyncio
 
         language = (
-            self.session.language if hasattr(self.session, "language") else "python"
+            self.session.language
+            if hasattr(self.session, "language")
+            else Language.PYTHON.value
         )
 
         # Get adapter config for port settings
@@ -156,11 +164,11 @@ class ResourceManager(Obj):
                     default_port=adapter_config.default_dap_port,
                     fallback_ranges=adapter_config.fallback_port_ranges,
                 ),
-                timeout=30.0,
+                timeout=DEFAULT_REQUEST_TIMEOUT_S,
             )
         except asyncio.TimeoutError as e:
             error_msg = (
-                f"Port acquisition timed out after 30s "
+                f"Port acquisition timed out after {DEFAULT_REQUEST_TIMEOUT_S}s "
                 f"(language={language}, start_port={start_port})"
             )
             self.ctx.error(error_msg)
@@ -490,7 +498,7 @@ class ResourceManager(Obj):
             try:
                 await asyncio.wait_for(
                     asyncio.create_task(asyncio.to_thread(proc.wait)),
-                    timeout=2.0,
+                    timeout=PROCESS_TERMINATE_TIMEOUT_S,
                 )
                 return 1
             except asyncio.TimeoutError:
@@ -677,14 +685,15 @@ class ResourceManager(Obj):
 
         try:
             args = getattr(proc, "args", None)
+            timeout_s = PROCESS_TERMINATE_TIMEOUT_S
             self.ctx.debug(
                 f"Sending SIGTERM to main process "
-                f"{proc.pid}; args={args}; waiting up to 2.0s",
+                f"{proc.pid}; args={args}; waiting up to {timeout_s}s",
             )
             proc.terminate()
 
             # Wait for termination
-            await asyncio.wait_for(proc.wait(), timeout=2.0)
+            await asyncio.wait_for(proc.wait(), timeout=PROCESS_TERMINATE_TIMEOUT_S)
 
             self.ctx.debug(f"Successfully terminated main process {proc.pid}")
             return True
@@ -697,12 +706,12 @@ class ResourceManager(Obj):
                 try:
                     self.ctx.debug(
                         f"Sending SIGKILL to main process "
-                        f"{proc.pid}; waiting up to 1.0s",
+                        f"{proc.pid}; waiting up to {RECEIVE_POLL_TIMEOUT_S}s",
                     )
                     proc.kill()
 
                     # Wait for kill to complete
-                    await asyncio.wait_for(proc.wait(), timeout=1.0)
+                    await asyncio.wait_for(proc.wait(), timeout=RECEIVE_POLL_TIMEOUT_S)
                     self.ctx.debug(f"Force-killed main process {proc.pid}")
                     return True
                 except (asyncio.TimeoutError, OSError) as e:

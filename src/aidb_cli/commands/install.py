@@ -259,7 +259,7 @@ def debug(
         msg = f"Install script not found: {install_script}"
         raise FileNotFoundError(msg)
 
-    output.plain(f"{Icons.DEBUG} Debug Install: Verbose mode enabled.")
+    output.debug("Debug Install: Verbose mode enabled.")
 
     cmd = [str(install_script), "-v"]
 

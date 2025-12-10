@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from aidb.models.entities.breakpoint import HitConditionMode
+from aidb_common.constants import Language
 from aidb_logging import get_mcp_logger as get_logger
 
 from ...core import BreakpointAction, ToolName
@@ -18,12 +18,9 @@ from ...responses import BreakpointListResponse, BreakpointMutationResponse
 from ...responses.errors import InternalError, UnsupportedOperationError
 from ...responses.helpers import (
     internal_error,
-    invalid_action,
     invalid_parameter,
     missing_parameter,
 )
-from ...tools.actions import normalize_action
-from ...utils import get_supported_hit_conditions, supports_hit_condition
 
 if TYPE_CHECKING:
     from ...core.types import BreakpointSpec
@@ -57,9 +54,14 @@ async def _handle_set_breakpoint(api, context, args: dict[str, Any]) -> dict[str
     # Validate hit condition if provided
     hit_condition = args.get(ParamName.HIT_CONDITION)
     if hit_condition:
-        validation_result = _validate_hit_condition(api, hit_condition)
-        if validation_result:
-            return validation_result
+        is_valid, error_msg = api.orchestration.validate_hit_condition(hit_condition)
+        if not is_valid:
+            return invalid_parameter(
+                param_name="hit_condition",
+                expected_type="valid hit condition format",
+                received_value=hit_condition,
+                error_message=error_msg or "Invalid hit condition",
+            )
 
     # Parse and validate location
     parsed = _parse_breakpoint_location(location)
@@ -182,18 +184,20 @@ async def _handle_list_breakpoints(
     - Waiting for breakpoint verification (prevents race conditions)
     - Child session resolution (JavaScript)
     - Proper breakpoint state retrieval
+
+    Note: This handler works on terminated sessions because:
+    1. The @mcp_tool decorator allows 'list' action on terminated sessions
+    2. The API's list_breakpoints() accesses preserved breakpoint state
     """
     breakpoints = []
 
-    # Delegate to public API method
-    # Breakpoints are automatically synchronized via event handlers
+    # Get breakpoints from API (works even on terminated sessions
+    # since we preserve breakpoint state on termination)
     if api:
         response = await api.orchestration.list_breakpoints()
 
         # Convert AidbBreakpointsResponse to MCP format
         if response.breakpoints:
-            # Iterate over the breakpoint dict
-            # Note: current_breakpoints property returns a thread-safe copy
             for bp_id, bp in response.breakpoints.items():
                 bp_info = {
                     "id": bp_id,
@@ -231,9 +235,9 @@ async def _handle_clear_all_breakpoints(
     """Handle CLEAR_ALL breakpoint action."""
     cleared_count = 0
 
-    # Count breakpoints before clearing
-    if api and hasattr(api.session, "_breakpoint_store"):
-        cleared_count = len(api.session._breakpoint_store)
+    # Count breakpoints before clearing (use public property)
+    if api and api.session:
+        cleared_count = api.session.breakpoint_count
 
     # Clear all breakpoints via the API
     if api:
@@ -258,44 +262,172 @@ async def _handle_clear_all_breakpoints(
     ).to_mcp_response()
 
 
-def _validate_hit_condition(api, hit_condition: str) -> dict[str, Any] | None:
-    """Validate hit condition for the current language.
+async def _handle_watch_breakpoint(
+    api,
+    _context,
+    args: dict[str, Any],
+) -> dict[str, Any]:
+    """Handle WATCH breakpoint action (data breakpoint / watchpoint).
 
-    Returns error response or None.
+    Watchpoints break when a variable is read or written. Only supported for Java
+    debugging.
     """
-    # Get the language from session
-    language = getattr(api.session, "language", "python") if api.session else "python"
+    # Validate language is Java
+    language = getattr(api.session, "language", None) if api.session else None
+    if language != Language.JAVA.value:
+        return UnsupportedOperationError(
+            operation="Watchpoints",
+            adapter_type=f"{language or 'unknown'} adapter",
+            language=language or "unknown",
+            error_message=(
+                "Watchpoints (data breakpoints) are only supported for Java. "
+                "Python and JavaScript runtimes do not support hardware watchpoints."
+            ),
+        ).to_mcp_response()
 
-    if not supports_hit_condition(language, hit_condition):
-        try:
-            mode, _ = HitConditionMode.parse(hit_condition)
-            supported = get_supported_hit_conditions(language)
-            logger.info(
-                "Unsupported hit condition",
-                extra={
-                    "language": language,
-                    "hit_condition": hit_condition,
-                    "supported": supported,
-                },
+    # Validate we're paused
+    session = api.session if api and hasattr(api, "session") else None
+    if (
+        session
+        and hasattr(session, "state")
+        and hasattr(session.state, "is_paused")
+        and not session.state.is_paused()
+    ):
+        return UnsupportedOperationError(
+            operation="Set watchpoint",
+            adapter_type="Java adapter",
+            language=Language.JAVA.value,
+            error_message=(
+                "Must be paused at a breakpoint to set a watchpoint. "
+                "Set a regular breakpoint first and pause execution."
+            ),
+        ).to_mcp_response()
+
+    # Get required parameters
+    var_name = args.get(ParamName.NAME)
+    if not var_name:
+        return missing_parameter(
+            param_name=ParamName.NAME,
+            param_description="Provide 'name' parameter with variable name",
+            example_value="user.email",
+        )
+
+    access_type = args.get(ParamName.ACCESS_TYPE, "write")
+    condition = args.get(ParamName.CONDITION)
+    hit_condition = args.get(ParamName.HIT_CONDITION)
+
+    logger.info(
+        "Setting watchpoint",
+        extra={
+            "variable_name": var_name,
+            "access_type": access_type,
+            "has_condition": bool(condition),
+            "has_hit_condition": bool(hit_condition),
+        },
+    )
+
+    try:
+        # Step 1: Resolve variable to get variablesReference
+        var_ref, error_msg = await api.introspection.resolve_variable(var_name)
+        if error_msg:
+            return invalid_parameter(
+                param_name=ParamName.NAME,
+                expected_type="variable name in current scope",
+                received_value=var_name,
+                error_message=error_msg,
             )
+
+        # Step 2: Get data breakpoint info
+        var_parts = var_name.split(".")
+        data_bp_info = await api.session.debug.get_data_breakpoint_info(
+            variable_reference=var_ref,
+            name=var_parts[-1],
+        )
+
+        if not data_bp_info.data_id:
             return UnsupportedOperationError(
-                operation=f"Hit condition '{hit_condition}'",
-                adapter_type=f"{language} adapter",
-                language=language,
+                operation=f"Watch '{var_name}'",
+                adapter_type="Java adapter",
+                language=Language.JAVA.value,
                 error_message=(
-                    f"The {language} adapter doesn't support "
-                    f"{mode.name} hit conditions. "
-                    f"Supported: {', '.join(supported)}"
+                    f"Cannot set watchpoint on '{var_name}'. "
+                    "The variable may not support data breakpoints."
                 ),
             ).to_mcp_response()
-        except ValueError as e:
-            return invalid_parameter(
-                param_name="hit_condition",
-                expected_type="valid hit condition format",
-                received_value=hit_condition,
-                error_message=str(e),
-            )
-    return None
+
+        # Step 3: Set the data breakpoint
+        response = await api.orchestration.data_breakpoint(
+            data_id=data_bp_info.data_id,
+            access_type=access_type,
+            condition=condition,
+            hit_condition=hit_condition,
+        )
+
+        return BreakpointMutationResponse(
+            action="watch",
+            location=var_name,
+            affected_count=1 if response.success else 0,
+            condition=condition,
+            hit_condition=hit_condition,
+            verified=response.success,
+        ).to_mcp_response()
+
+    except Exception as e:
+        logger.exception("Failed to set watchpoint: %s", e)
+        return internal_error(
+            operation="watch",
+            exception=e,
+            summary=f"Failed to set watchpoint on '{var_name}'",
+        )
+
+
+async def _handle_unwatch_breakpoint(
+    api,
+    _context,
+    args: dict[str, Any],
+) -> dict[str, Any]:
+    """Handle UNWATCH breakpoint action (remove data breakpoint).
+
+    Removes a previously set watchpoint.
+    """
+    # Validate language is Java
+    language = getattr(api.session, "language", None) if api.session else None
+    if language != Language.JAVA.value:
+        return UnsupportedOperationError(
+            operation="Watchpoints",
+            adapter_type=f"{language or 'unknown'} adapter",
+            language=language or "unknown",
+            error_message="Watchpoints are only supported for Java debugging.",
+        ).to_mcp_response()
+
+    var_name = args.get(ParamName.NAME)
+    if not var_name:
+        return missing_parameter(
+            param_name=ParamName.NAME,
+            param_description="Provide 'name' parameter with watchpoint name to remove",
+        )
+
+    logger.info("Removing watchpoint", extra={"variable_name": var_name})
+
+    try:
+        # Clear all data breakpoints using the proper API layer
+        # DAP's setDataBreakpoints replaces all data breakpoints
+        # For per-watchpoint removal, we'd need to track and re-send without this one
+        await api.orchestration.clear_data_breakpoints()
+
+        return BreakpointMutationResponse(
+            action="unwatch",
+            location=var_name,
+            affected_count=1,
+        ).to_mcp_response()
+
+    except Exception as e:
+        logger.exception("Failed to remove watchpoint: %s", e)
+        return internal_error(
+            operation="unwatch",
+            exception=e,
+            summary=f"Failed to remove watchpoint '{var_name}'",
+        )
 
 
 def _parse_breakpoint_location(location: str) -> tuple[str, int] | dict[str, Any]:
@@ -359,70 +491,57 @@ def _update_context_breakpoints(context, location: str, args: dict[str, Any]) ->
             context.breakpoints_set.append(bp_info)
 
 
-@mcp_tool(require_session=True, include_after=True)
+@mcp_tool(require_session=True, include_after=True, allow_on_terminated=["list"])
 async def handle_breakpoint(args: dict[str, Any]) -> dict[str, Any]:
     """Handle the unified breakpoint tool for managing breakpoints."""
+    from ..dispatch import dispatch_action
+
+    raw_action = args.get(ParamName.ACTION, BreakpointAction.SET.value)
+    logger.info(
+        "Breakpoint handler invoked",
+        extra={
+            "action": raw_action,
+            "tool": ToolName.BREAKPOINT,
+        },
+    )
+
+    # Get session components from decorator
+    api = args.get("_api")
+    context = args.get("_context")
+
+    # The decorator guarantees these are present
+    if not api:
+        return InternalError(
+            error_message="Debug API not available",
+        ).to_mcp_response()
+
+    action_handlers = {
+        BreakpointAction.SET: _handle_set_breakpoint,
+        BreakpointAction.REMOVE: _handle_remove_breakpoint,
+        BreakpointAction.LIST: _handle_list_breakpoints,
+        BreakpointAction.CLEAR_ALL: _handle_clear_all_breakpoints,
+        BreakpointAction.WATCH: _handle_watch_breakpoint,
+        BreakpointAction.UNWATCH: _handle_unwatch_breakpoint,
+    }
+
+    handler, error, handler_args = dispatch_action(
+        args,
+        BreakpointAction,
+        action_handlers,
+        default_action=BreakpointAction.SET,
+        tool_name=ToolName.BREAKPOINT,
+        handler_args=(api, context),
+        normalize=True,
+    )
+
+    if error or handler is None:
+        return error or internal_error(
+            operation="breakpoint",
+            exception="No handler found",
+        )
+
     try:
-        raw_action = args.get(ParamName.ACTION, BreakpointAction.SET.value)
-        action = normalize_action(raw_action, "breakpoint")
-
-        # Convert to enum
-        try:
-            action_enum = BreakpointAction(action)
-        except ValueError:
-            action_enum = None
-
-        logger.info(
-            "Breakpoint handler invoked",
-            extra={
-                "action": raw_action,
-                "normalized_action": action,
-                "tool": ToolName.BREAKPOINT,
-            },
-        )
-
-        # Validate action
-        if not action_enum:
-            logger.warning(
-                "Invalid breakpoint action",
-                extra={
-                    "action": raw_action,
-                    "valid_actions": [a.name for a in BreakpointAction],
-                },
-            )
-            return invalid_action(
-                action=raw_action,
-                valid_actions=[a.value for a in BreakpointAction],
-                tool_name=ToolName.BREAKPOINT,
-            )
-
-        # Get session components from decorator
-        api = args.get("_api")
-        context = args.get("_context")
-
-        # The decorator guarantees these are present
-        if not api:
-            return InternalError(
-                error_message="Debug API not available",
-            ).to_mcp_response()
-
-        # Dispatch to action handlers
-        action_handlers = {
-            BreakpointAction.SET: _handle_set_breakpoint,
-            BreakpointAction.REMOVE: _handle_remove_breakpoint,
-            BreakpointAction.LIST: _handle_list_breakpoints,
-            BreakpointAction.CLEAR_ALL: _handle_clear_all_breakpoints,
-        }
-
-        handler = action_handlers.get(action_enum)
-        if handler:
-            return await handler(api, context, args)
-        return invalid_action(
-            action=action,
-            valid_actions=[a.value for a in BreakpointAction],
-            tool_name=ToolName.BREAKPOINT,
-        )
-
+        return await handler(*handler_args)
     except Exception as e:
         logger.exception("Breakpoint operation failed: %s", e)
         return internal_error(operation="breakpoint", exception=e)

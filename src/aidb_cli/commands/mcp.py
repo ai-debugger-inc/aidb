@@ -11,7 +11,13 @@ from typing import TYPE_CHECKING
 import click
 
 from aidb.common.errors import AidbError
-from aidb_cli.core.constants import Icons, ProjectNames
+from aidb_cli.core.constants import (
+    SERVICE_DISCOVERY_TIMEOUT_S,
+    CliTimeouts,
+    ExternalURLs,
+    Icons,
+    ProjectNames,
+)
 from aidb_cli.core.decorators import handle_exceptions
 from aidb_cli.core.paths import ProjectPaths
 from aidb_common.io import safe_read_json
@@ -87,7 +93,7 @@ def register(ctx: click.Context) -> None:
         raise AidbError(msg) from e
     except FileNotFoundError:
         output.error("Claude Code CLI not found")
-        output.plain("Install Claude Code CLI first: https://claude.ai/code")
+        output.plain(ExternalURLs.CLAUDE_CODE_INSTALL_MSG)
         raise
 
 
@@ -110,7 +116,7 @@ def unregister(ctx: click.Context) -> None:
 
     except FileNotFoundError:
         output.error("Claude Code CLI not found")
-        output.plain("Install Claude Code CLI first: https://claude.ai/code")
+        output.plain(ExternalURLs.CLAUDE_CODE_INSTALL_MSG)
         raise
 
 
@@ -215,7 +221,7 @@ def restart(ctx: click.Context) -> None:
 
     import time
 
-    time.sleep(1)
+    time.sleep(CliTimeouts.MCP_RESTART_DELAY_S)
 
     ctx.invoke(register)
     output.success("MCP server restarted successfully")
@@ -256,7 +262,7 @@ def _run_server_instantiation_test(
                 "s = AidbMCPServer(); print('Server starts OK')",
             ],
             capture_output=True,
-            timeout=10,
+            timeout=SERVICE_DISCOVERY_TIMEOUT_S,
         )
 
         if result.returncode == 0:
@@ -398,12 +404,12 @@ def _check_recent_log_lines(output: "OutputStrategy", lines: list[str]) -> None:
         line_lower = line.lower()
         if "error" in line_lower or "failed" in line_lower:
             if not error_found:
-                output.plain(f"{Icons.WARNING} Found recent errors:")
+                output.warning("Found recent errors:")
                 error_found = True
             output.plain(f"  {line.strip()}")
         elif "warning" in line_lower or "warn" in line_lower:
             if not warning_found and not error_found:
-                output.plain(f"{Icons.WARNING} Found recent warnings:")
+                output.warning("Found recent warnings:")
                 warning_found = True
             if not error_found:
                 output.plain(f"  {line.strip()}")
@@ -464,7 +470,7 @@ def _run_mcp_test(
         result = ctx.obj.command_executor.execute(
             cmd,
             capture_output=True,
-            timeout=10,
+            timeout=SERVICE_DISCOVERY_TIMEOUT_S,
         )
 
         if result.returncode == 0:

@@ -13,6 +13,7 @@ import click
 
 from aidb.common.errors import AidbError
 from aidb_cli.core.constants import (
+    THREAD_JOIN_TIMEOUT_S,
     Icons,
     PreCommitEnvVars,
     PreCommitHooks,
@@ -68,9 +69,7 @@ def _read_code_files_for_scenario(
                 code_files[lang] = file_path.read_text()
                 output.plain(f"  Found {lang}: {file_path.name}")
             except (OSError, UnicodeDecodeError) as e:
-                output.error(
-                    f"  {Icons.ERROR} {lang}: Failed to read {file_path.name}: {e}",
-                )
+                output.error(f"  {lang}: Failed to read {file_path.name}: {e}")
                 invalid_count += 1
 
     return code_files, invalid_count
@@ -123,12 +122,10 @@ def _validate_scenario_consistency(
 
     if is_valid:
         lang_count = len(code_files)
-        output.success(
-            f"  {Icons.SUCCESS} Marker consistency validated ({lang_count} languages)",
-        )
+        output.success(f"  Marker consistency validated ({lang_count} languages)")
         return 1, 0
 
-    output.warning(f"  {Icons.WARNING} Marker consistency issues:")
+    output.warning("  Marker consistency issues:")
     for error in errors:
         output.warning(f"    - {error}")
     return 0, 1
@@ -169,7 +166,7 @@ def _validate_generated_programs(
 
     for scenario_dir in scenario_dirs:
         scenario_id = scenario_dir.name
-        output.plain(f"{Icons.INFO} Validating scenario: {scenario_id}")
+        output.info(f"Validating scenario: {scenario_id}")
 
         code_files, invalid_count = _read_code_files_for_scenario(
             output,
@@ -200,7 +197,7 @@ def _terminate_process(proc: subprocess.Popen) -> None:
     """Terminate a subprocess gracefully, with fallback to kill."""
     proc.terminate()
     try:
-        proc.wait(timeout=2)
+        proc.wait(timeout=THREAD_JOIN_TIMEOUT_S)
     except subprocess.TimeoutExpired:
         proc.kill()
         proc.wait()
@@ -544,12 +541,10 @@ def _report_generation_results(
     for lang, result in lang_results.items():
         if result.success:
             marker_count = len(result.markers)
-            output.success(
-                f"    {Icons.SUCCESS} {lang}: Generated ({marker_count} markers)",
-            )
+            output.success(f"    {lang}: Generated ({marker_count} markers)")
             generated += 1
         else:
-            output.error(f"    {Icons.ERROR} {lang}: {result.error}")
+            output.error(f"    {lang}: {result.error}")
             failed += 1
 
     return generated, failed
@@ -577,7 +572,7 @@ def _validate_generation_consistency(
 
     is_valid, errors = generator.validate_cross_language_consistency(success_results)
     if not is_valid:
-        output.warning(f"    {Icons.WARNING} Marker consistency issues:")
+        output.warning("    Marker consistency issues:")
         for error in errors:
             output.warning(f"      - {error}")
 
@@ -612,7 +607,7 @@ def _process_scenario_file(
     tuple[int, int]
         (generated_count, failed_count)
     """
-    output.plain(f"{Icons.INFO} Processing {yaml_file.name}...")
+    output.info(f"Processing {yaml_file.name}...")
 
     try:
         results = generator.generate_from_file(

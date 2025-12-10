@@ -167,9 +167,7 @@ class AdapterInstallService(BaseService):
             shutil.copytree(source_path, target_path)
 
             if verbose:
-                msg = (
-                    f"{Icons.SUCCESS} Copied {language} adapter to cache: {target_path}"
-                )
+                msg = f"Copied {language} adapter to cache: {target_path}"
                 CliOutput.success(msg)
 
             return True

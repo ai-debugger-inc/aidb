@@ -430,6 +430,23 @@ def cli(
     # Configure logging
     effective_level = _configure_logging_environment(verbose, verbose_debug, log_level)
 
+    # Sync centralized environment with logging configuration
+    # This is necessary because _configure_logging_environment sets os.environ
+    # AFTER EnvironmentManager.resolve() has already captured the environment
+    if verbose or verbose_debug or log_level:
+        updates: dict[str, str] = {}
+        if log_level:
+            updates[EnvVars.LOG_LEVEL] = log_level
+        elif verbose_debug:
+            updates[EnvVars.LOG_LEVEL] = "TRACE"
+            updates[EnvVars.ADAPTER_TRACE] = "1"
+            updates[EnvVars.CONSOLE_LOGGING] = "1"
+        elif verbose:
+            updates[EnvVars.LOG_LEVEL] = LogLevel.DEBUG.value
+            updates[EnvVars.ADAPTER_TRACE] = "1"
+        if updates:
+            aidb_ctx.env_manager.update(updates, source="verbose-flags")
+
     if effective_level:
         _configure_package_loggers(effective_level, verbose_debug)
         _write_verbose_log_headers(verbose, verbose_debug, aidb_ctx.repo_root, sys.argv)

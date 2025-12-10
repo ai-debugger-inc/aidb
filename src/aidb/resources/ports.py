@@ -1,24 +1,28 @@
-"""Network port management utilities."""
+"""Network port management utilities.
+
+This module provides port handling and session-level port tracking for aidb.
+The core cross-process port allocation is delegated to
+`aidb_common.network.allocator.CrossProcessPortAllocator`.
+"""
 
 import asyncio
 import contextlib
-import errno
-import fcntl
-import random
 import socket
 import threading
 import time
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 import psutil
 
+from aidb.api.constants import (
+    DEFAULT_ADAPTER_HOST,
+    PORT_FALLBACK_RANGE_SIZE,
+    SHORT_SLEEP_S,
+)
 from aidb.common.errors import AidbError, ResourceExhaustedError
 from aidb.patterns import Obj
-from aidb_common.env import reader
-from aidb_common.io import safe_read_json, safe_write_json
-from aidb_common.io.files import FileOperationError
+from aidb_common.network.allocator import CrossProcessPortAllocator
 from aidb_common.patterns import Singleton
 
 if TYPE_CHECKING:
@@ -26,13 +30,15 @@ if TYPE_CHECKING:
 
 
 # Constants
-DEFAULT_HOST = "localhost"
-REGISTRY_KEY_ALLOCATED_PORTS = "allocated_ports"
-REGISTRY_KEY_UPDATED_AT = "updated_at"
+DEFAULT_HOST = DEFAULT_ADAPTER_HOST  # Backward-compatible alias
 
 
 class PortHandler(Obj):
-    """Utility class for managing TCP ports."""
+    """Utility class for managing TCP ports.
+
+    Provides methods to wait for ports to become available and check if processes are
+    listening on specific ports.
+    """
 
     def __init__(
         self,
@@ -283,7 +289,7 @@ class PortHandler(Obj):
             return True
 
         self.ctx.debug(f"Port {port} is not LISTENING yet")
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(SHORT_SLEEP_S)
 
         # Check if process exited
         self._check_process_still_running(proc, port)
@@ -345,20 +351,15 @@ class PortHandler(Obj):
 
 
 class PortRegistry(Singleton["PortRegistry"], Obj):
-    """Unified port registry with complete cross-process coordination.
+    """Session-level port tracking with cross-process coordination.
 
-    This class handles ALL port management for aidb:
-    - Cross-process port allocation via file locking
-    - In-process thread safety via self.lock (from Obj)
-    - Session-to-port mappings
-    - Socket reservation to prevent race conditions
-    - Automatic cleanup on session termination
+    This class provides:
+    - Cross-process port allocation via CrossProcessPortAllocator
+    - Session-to-port mappings for cleanup on session termination
+    - Socket reservation to prevent race conditions during adapter startup
 
-    Benefits for production:
-    - Multiple debug sessions without conflicts
-    - Parallel test execution
-    - Multi-user debugging on shared systems
-    - CI/CD pipeline compatibility
+    The actual port allocation is delegated to CrossProcessPortAllocator
+    in aidb_common.network.allocator.
     """
 
     _current_session_id: str | None
@@ -369,7 +370,7 @@ class PortRegistry(Singleton["PortRegistry"], Obj):
         session_id: str | None = None,
         ctx: Optional["IContext"] = None,
     ) -> None:
-        """Initialize the unified port registry.
+        """Initialize the port registry.
 
         Parameters
         ----------
@@ -386,65 +387,22 @@ class PortRegistry(Singleton["PortRegistry"], Obj):
             return
 
         super().__init__(ctx)
-        # Add sync lock for thread-safe registry operations
+
+        # Thread lock for in-process safety
         self.lock = threading.RLock()
 
-        # In-process tracking
+        # Session-level tracking
         self._session_ports: dict[str, set[int]] = {}
         self._port_to_session: dict[int, str] = {}
         self._reserved_sockets: dict[int, socket.socket] = {}
         self._current_session_id = session_id
 
-        # Cross-process coordination - uses ctx storage (auto-creates dirs)
-        self.registry_file = self.ctx.get_storage_path("ports", "allocated_ports.json")
-        self.lock_file = self.ctx.get_storage_path("ports", "ports.lock")
-
-        # Cleanup rate limiting
-        self._last_cleanup_time = 0.0
-        self._cleanup_min_interval = 5.0  # Minimum 5 seconds between cleanups
-        self._cleanup_in_progress = False
-
-        # Cleanup stale ports on initialization
-        self._cleanup_on_init()
+        # Delegate to cross-process allocator
+        # Use ctx storage path if available for consistency
+        registry_dir = Path(self.ctx.get_storage_path("ports", "")).parent
+        self._allocator = CrossProcessPortAllocator(registry_dir=registry_dir)
 
         self._initialized = True
-
-    def _cleanup_on_init(self) -> None:
-        """Clean up stale ports on initialization.
-
-        This runs once when the registry is first created to remove any stale port
-        allocations from previous runs.
-        """
-        try:
-            # Use a short timeout for init cleanup
-            with Path(self.lock_file).open("a+") as lock_fd:
-                # Try to acquire lock with timeout
-                max_wait = 0.5  # 500ms max wait on init
-                start = time.time()
-
-                while (time.time() - start) < max_wait:
-                    try:
-                        fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                        # Got the lock, do cleanup
-                        allocated = self._read_cross_process_registry()
-                        if allocated:
-                            cleaned = self._cleanup_stale_ports(allocated)
-                            if len(cleaned) < len(allocated):
-                                self._write_cross_process_registry(cleaned)
-                                self.ctx.debug(
-                                    f"Init cleanup: removed "
-                                    f"{len(allocated) - len(cleaned)} stale ports",
-                                )
-                        fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
-                        break
-                    except OSError as e:
-                        if e.errno != errno.EAGAIN:
-                            raise
-                        # Lock is held by another process, wait a bit
-                        time.sleep(0.05)
-        except Exception as e:
-            # Don't fail init if cleanup fails
-            self.ctx.debug(f"Could not perform init cleanup: {e}")
 
     async def acquire_port(
         self,
@@ -456,16 +414,13 @@ class PortRegistry(Singleton["PortRegistry"], Obj):
     ) -> int:
         """Acquire a port with complete safety.
 
-        This is THE method for getting ports. It handles:
-        1. Cross-process coordination via file locking
-        2. AidbThread safety via self.lock
-        3. Socket reservation
-        4. Registry updates
+        Uses CrossProcessPortAllocator for atomic allocation, then reserves
+        a socket to prevent race conditions during adapter startup.
 
         Parameters
         ----------
         language : str
-            Programming language (for adapter-specific port ranges)
+            Programming language (for logging)
         session_id : str, optional
             Session ID requesting the port
         preferred : int, optional
@@ -482,7 +437,7 @@ class PortRegistry(Singleton["PortRegistry"], Obj):
 
         Raises
         ------
-        AidbError
+        ResourceExhaustedError
             If no ports are available
         """
         sid = session_id or self._current_session_id
@@ -490,191 +445,95 @@ class PortRegistry(Singleton["PortRegistry"], Obj):
             msg = "No session_id provided and no current session ID set"
             raise ValueError(msg)
 
-        # File lock for cross-process safety with non-blocking attempts and timeout.
-        lock_timeout = reader.read_float("AIDB_PORT_LOCK_TIMEOUT_SEC", default=15.0)
-        lock_start = time.time()
-        lock_acquired = False
-        wait_time = 0.0
-
-        # Use non-blocking flock with exponential backoff + jitter
-        with Path(self.lock_file).open("a+") as lock_fd:  # noqa: ASYNC230
-            delay = 0.02  # 20ms initial backoff
-            while True:
-                try:
-                    fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                    lock_acquired = True
-                    break
-                except OSError as e:
-                    if e.errno != errno.EAGAIN:
-                        raise
-                    wait_time = time.time() - lock_start
-                    if wait_time >= lock_timeout:
-                        break
-                    # Backoff with jitter, cap at 500ms between tries
-                    sleep_for = min(delay, 0.5) + random.uniform(0, 0.01)
-                    # Async-friendly backoff to avoid blocking the event loop
-                    await asyncio.sleep(sleep_for)
-                    delay = min(delay * 2.0, 0.5)
-
-            if lock_acquired:
-                try:
-                    # AidbThread lock for in-process safety (uses self.lock from Obj)
-                    with self.lock:
-                        # Read cross-process registry
-                        cross_process_allocated = self._read_cross_process_registry()
-
-                        # Use provided configuration or defaults
-                        if not default_port or not fallback_ranges:
-                            msg = "default_port and fallback_ranges must be provided"
-                            raise ValueError(
-                                msg,
-                            )
-
-                        # Create config object for compatibility
-                        @dataclass
-                        class AdapterConfig:
-                            default_dap_port: int = 0
-                            fallback_port_ranges: list = field(default_factory=list)
-
-                        adapter_config = AdapterConfig(
-                            default_dap_port=default_port,
-                            fallback_port_ranges=fallback_ranges,
-                        )
-
-                        # Try preferred port first
-                        if preferred:
-                            if preferred in cross_process_allocated:
-                                # Test if actually available (might be stale entry)
-                                sock = None
-                                try:
-                                    sock = self._create_bound_socket(preferred)
-                                    # Port is free! Remove stale entry from registry
-                                    self.ctx.debug(
-                                        f"Port {preferred} marked as allocated but is "
-                                        f"free, removing stale entry",
-                                    )
-                                    cross_process_allocated.discard(preferred)
-                                    sock.close()  # Close immediately, don't hold it
-                                    # Now try to acquire normally
-                                    if await self._try_acquire_port(
-                                        preferred,
-                                        sid,
-                                        cross_process_allocated,
-                                    ):
-                                        self.ctx.info(
-                                            f"Acquired preferred port {preferred} for "
-                                            f"{language} (was stale)",
-                                        )
-                                        return preferred
-                                except OSError:
-                                    # Port actually in use
-                                    if sock:
-                                        sock.close()
-                                    self.ctx.debug(
-                                        f"Preferred port {preferred} is actually in use",
-                                    )
-                            else:
-                                # Not in registry, acquire normally
-                                if await self._try_acquire_port(
-                                    preferred,
-                                    sid,
-                                    cross_process_allocated,
-                                ):
-                                    self.ctx.info(
-                                        f"Acquired preferred port "
-                                        f"{preferred} for {language}",
-                                    )
-                                    return preferred
-
-                        # Find available port from language ranges
-                        port = await self._find_and_acquire_port(
-                            language,
-                            sid,
-                            cross_process_allocated,
-                            adapter_config,
-                        )
-
-                        if port:
-                            if wait_time > 0.5:
-                                self.ctx.debug(
-                                    f"Port lock acquired after {wait_time:.2f}s; "
-                                    f"allocated port {port}",
-                                )
-                            else:
-                                self.ctx.debug(
-                                    f"Port lock acquired quickly; allocated port {port}",
-                                )
-                            self.ctx.info(
-                                f"Acquired port {port} for {language} session {sid[:8]}",
-                            )
-                            return port
-
-                        msg = f"No available ports for {language}"
-                        raise ResourceExhaustedError(
-                            msg,
-                            resource_type="port",
-                            details={
-                                "language": language,
-                                "attempted_ranges": fallback_ranges,
-                                "session_id": self._current_session_id,
-                            },
-                        )
-
-                finally:
-                    fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
-
-        # Fallback path: lock not acquired within timeout. Avoid blocking.
-        # Allocate optimistically by binding sockets; update cross-process
-        # registry on a best-effort basis without waiting.
-        self.ctx.warning(
-            f"Port lock busy for {wait_time:.2f}s (>= {lock_timeout}s timeout). "
-            f"Falling back to optimistic allocation.",
-        )
-
         # Validate inputs
         if not default_port or not fallback_ranges:
             msg = "default_port and fallback_ranges must be provided"
             raise ValueError(msg)
 
-        # Build candidate list similar to _find_and_acquire_port but without
-        # consulting cross-process registry (we don't have the lock here).
-        candidates: list[int] = []
-        candidates.append(int(default_port))
-        for start in fallback_ranges:
-            for offset in range(100):
-                candidates.append(int(start) + offset)
-        random.shuffle(candidates)
+        # Build candidate range for allocator
+        # Start with default port, then fallback ranges
+        range_start = fallback_ranges[0] if fallback_ranges else default_port
+        total_range_size = len(fallback_ranges) * PORT_FALLBACK_RANGE_SIZE
 
-        # Try a larger number of candidates to improve success rate under load
-        max_attempts = min(len(candidates), 200)
-        attempts = 0
-
+        max_retries = 10  # Limit retries to prevent infinite loop
         with self.lock:
-            for port in candidates:
-                if attempts >= max_attempts:
-                    break
-                attempts += 1
-                if self._optimistic_try_acquire(port, sid):
-                    # Best-effort registry update without blocking the event loop
-                    await self._best_effort_registry_add(port)
+            for attempt in range(max_retries):
+                try:
+                    # Delegate to cross-process allocator
+                    port = self._allocator.allocate(
+                        preferred=preferred or default_port,
+                        range_start=range_start,
+                        range_size=total_range_size,
+                    )
 
-                    self.ctx.info(
-                        f"Optimistically acquired port {port} for {language} "
-                        f"session {sid[:8]} after {attempts} attempts",
+                    # Reserve socket to prevent race conditions
+                    # If reservation fails, release port and try next one
+                    if not self._reserve_socket(port):
+                        self.ctx.debug(
+                            f"Port {port} reservation failed (attempt {attempt + 1}), "
+                            "releasing and retrying",
+                        )
+                        self._allocator.release(port)
+                        continue
+
+                    # Track session ownership
+                    if sid not in self._session_ports:
+                        self._session_ports[sid] = set()
+                    self._session_ports[sid].add(port)
+                    self._port_to_session[port] = sid
+
+                    self.ctx.debug(
+                        f"Acquired port {port} for {language} session {sid[:8]}",
                     )
                     return port
 
-        msg = f"No available ports for {language} (optimistic path exhausted)"
-        raise ResourceExhaustedError(
-            msg,
-            resource_type="port",
-            details={
-                "language": language,
-                "attempted_ranges": fallback_ranges,
-                "session_id": self._current_session_id,
-                "mode": "optimistic",
-            },
-        )
+                except RuntimeError as e:
+                    raise ResourceExhaustedError(
+                        str(e),
+                        resource_type="port",
+                        details={
+                            "language": language,
+                            "attempted_ranges": fallback_ranges,
+                            "session_id": sid,
+                        },
+                    ) from e
+
+            # If we exhausted retries
+            msg = f"Failed to acquire port after {max_retries} attempts"
+            raise ResourceExhaustedError(
+                msg,
+                resource_type="port",
+                details={
+                    "language": language,
+                    "attempted_ranges": fallback_ranges,
+                    "session_id": sid,
+                },
+            )
+
+    def _reserve_socket(self, port: int) -> bool:
+        """Reserve a socket on the port to prevent races.
+
+        Parameters
+        ----------
+        port : int
+            Port to reserve
+
+        Returns
+        -------
+        bool
+            True if reservation succeeded, False otherwise
+        """
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            # NOTE: Do NOT use SO_REUSEADDR here! The whole point of reservation
+            # is to prevent other processes from binding to this port.
+            # SO_REUSEADDR allows multiple binds to the same port.
+            sock.bind((DEFAULT_HOST, port))
+            sock.listen(1)
+            self._reserved_sockets[port] = sock
+            return True
+        except OSError:
+            return False
 
     def release_reserved_port(self, port: int) -> None:
         """Release just the socket reservation for a port.
@@ -692,7 +551,6 @@ class PortRegistry(Singleton["PortRegistry"], Obj):
             if sock:
                 with contextlib.suppress(Exception):
                     sock.close()
-                self.ctx.debug(f"Released socket reservation for port {port}")
 
     def release_port(self, port: int, session_id: str | None = None) -> bool:
         """Release a port back to the pool.
@@ -709,53 +567,42 @@ class PortRegistry(Singleton["PortRegistry"], Obj):
         bool
             True if port was successfully released, False otherwise
         """
-        with Path(self.lock_file).open("a+") as lock_fd:
-            fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX)
-            try:
-                with self.lock:  # Use self.lock from Obj
-                    # Validate session owns this port
-                    if session_id:
-                        owner = self._port_to_session.get(port)
-                        if owner and owner != session_id:
-                            self.ctx.warning(
-                                f"Session {session_id} trying to "
-                                f"release port {port} owned by {owner}",
-                            )
-                            return False
+        with self.lock:
+            # Validate session owns this port
+            if session_id:
+                owner = self._port_to_session.get(port)
+                if owner and owner != session_id:
+                    self.ctx.warning(
+                        f"Session {session_id} trying to "
+                        f"release port {port} owned by {owner}",
+                    )
+                    return False
 
-                    # Check if port is actually allocated
-                    if port not in self._port_to_session:
-                        self.ctx.debug(
-                            f"Port {port} not in registry, nothing to release",
-                        )
-                        return False
+            # Check if port is actually allocated
+            if port not in self._port_to_session:
+                self.ctx.debug(
+                    f"Port {port} not in registry, nothing to release",
+                )
+                return False
 
-                    # Release socket reservation
-                    sock = self._reserved_sockets.pop(port, None)
-                    if sock:
-                        try:
-                            sock.close()
-                        except Exception as e:
-                            self.ctx.debug(f"Error closing socket for port {port}: {e}")
+            # Release socket reservation
+            sock = self._reserved_sockets.pop(port, None)
+            if sock:
+                with contextlib.suppress(Exception):
+                    sock.close()
 
-                    # Update in-process registry
-                    owner_session = self._port_to_session.pop(port, None)
-                    if owner_session and owner_session in self._session_ports:
-                        self._session_ports[owner_session].discard(port)
-                        if not self._session_ports[owner_session]:
-                            del self._session_ports[owner_session]
+            # Update session tracking
+            owner_session = self._port_to_session.pop(port, None)
+            if owner_session and owner_session in self._session_ports:
+                self._session_ports[owner_session].discard(port)
+                if not self._session_ports[owner_session]:
+                    del self._session_ports[owner_session]
 
-                    # Update cross-process registry
-                    allocated = self._read_cross_process_registry()
-                    if port in allocated:
-                        allocated.discard(port)
-                        self._write_cross_process_registry(allocated)
+            # Release from cross-process allocator
+            self._allocator.release(port)
 
-                    self.ctx.debug(f"Successfully released port {port}")
-                    return True
-
-            finally:
-                fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
+            self.ctx.debug(f"Successfully released port {port}")
+            return True
 
     def get_port_count(self, session_id: str | None = None) -> int:
         """Get the number of ports allocated to a session.
@@ -782,6 +629,11 @@ class PortRegistry(Singleton["PortRegistry"], Obj):
 
         Called automatically when session ends.
 
+        Parameters
+        ----------
+        session_id : str, optional
+            Session ID whose ports to release
+
         Returns
         -------
         List[int]
@@ -791,14 +643,14 @@ class PortRegistry(Singleton["PortRegistry"], Obj):
         if not sid:
             return []
 
-        with self.lock:  # Use self.lock from Obj
+        with self.lock:
             ports = list(self._session_ports.get(sid, []))
 
         if not ports:
             self.ctx.debug(f"No ports to release for session {sid}")
             return []
 
-        # Release each port (handles locking internally)
+        # Release each port
         released = []
         for port in ports:
             if self.release_port(port, sid):
@@ -812,403 +664,17 @@ class PortRegistry(Singleton["PortRegistry"], Obj):
         )
         return released
 
-    async def _find_and_acquire_port(
-        self,
-        _language: str,
-        session_id: str,
-        allocated: set[int],
-        adapter_config,
-    ) -> int | None:
-        """Find and acquire an available port.
-
-        MUST be called with both locks held!
-        """
-        # Build candidate list
-        candidates = []
-
-        # Default port
-        if adapter_config.default_dap_port not in allocated:
-            candidates.append(adapter_config.default_dap_port)
-
-        # Fallback ranges
-        for start in adapter_config.fallback_port_ranges:
-            for offset in range(100):
-                port = start + offset
-                if port not in allocated:
-                    candidates.append(port)
-
-        # Randomize to reduce conflicts in parallel execution
-        random.shuffle(candidates)
-
-        # Try each candidate (limit attempts for performance)
-        # Increase attempt budget to better handle high test parallelism
-        attempt_cap = min(len(candidates), 200)
-        for port in candidates[:attempt_cap]:
-            if await self._try_acquire_port(port, session_id, allocated):
-                return port
-
-        return None
-
-    async def _try_acquire_port(
-        self,
-        port: int,
-        session_id: str,
-        cross_process_allocated: set[int],
-    ) -> bool:
-        """Try to acquire a specific port.
-
-        MUST be called with both locks held!
-        """
-        # Check if already allocated in-process
-        if port in self._port_to_session:
-            return False
-
-        # Try to bind socket (ultimate test of availability)
-        sock = None
-        try:
-            sock = self._create_bound_socket(port)
-            sock.listen(1)
-
-            # Success! Update all registries
-            # 1. Reserve socket (prevents race conditions)
-            self._reserved_sockets[port] = sock
-
-            # 2. Update in-process registry
-            if session_id not in self._session_ports:
-                self._session_ports[session_id] = set()
-            self._session_ports[session_id].add(port)
-            self._port_to_session[port] = session_id
-
-            # 3. Update cross-process registry
-            cross_process_allocated.add(port)
-            self._write_cross_process_registry(cross_process_allocated)
-
-            self.ctx.debug(
-                f"Successfully acquired port {port} for session {session_id}",
-            )
-            return True
-
-        except OSError:
-            if sock:
-                sock.close()
-            return False
-
-    def _optimistic_try_acquire(self, port: int, session_id: str) -> bool:
-        """Try to acquire a port without holding the file lock.
-
-        Uses OS-level bind to ensure exclusivity across processes, and only
-        updates in-process registries. Cross-process registry updates are
-        attempted on a best-effort basis by the caller when convenient.
-
-        Parameters
-        ----------
-        port : int
-            Port to acquire
-        session_id : str
-            Session ID requesting the port
-
-        Returns
-        -------
-        bool
-            True if acquired, False otherwise
-        """
-        # Avoid duplicate allocation within the same process
-        if port in self._port_to_session:
-            return False
-
-        sock = None
-        try:
-            sock = self._create_bound_socket(port)
-            sock.listen(1)
-
-            # Reserve socket and update in-process registries only
-            self._reserved_sockets[port] = sock
-            if session_id not in self._session_ports:
-                self._session_ports[session_id] = set()
-            self._session_ports[session_id].add(port)
-            self._port_to_session[port] = session_id
-
-            self.ctx.debug(
-                f"Optimistically acquired port {port} for session {session_id}",
-            )
-            return True
-        except OSError:
-            if sock:
-                with contextlib.suppress(Exception):
-                    sock.close()
-            return False
-
-    async def _best_effort_registry_add(self, port: int) -> None:
-        """Attempt to add a port to the cross-process registry without blocking.
-
-        Runs blocking file I/O in a thread via ``asyncio.to_thread`` and uses
-        a non-blocking flock to avoid waiting if another process holds the lock.
-
-        Parameters
-        ----------
-        port : int
-            Port to add to the cross-process registry
-        """
-
-        def _do_update() -> None:
-            try:
-                with Path(self.lock_file).open("a+") as lock_fd:  # noqa: ASYNC230
-                    try:
-                        fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                        allocated = self._read_cross_process_registry()
-                        allocated.add(port)
-                        self._write_cross_process_registry(allocated)
-                    except OSError as e:  # Lock busy; skip
-                        if e.errno != errno.EAGAIN:
-                            raise
-                    finally:
-                        with contextlib.suppress(Exception):
-                            fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
-            except Exception as e:
-                # Do not surface errors from best-effort path
-                self.ctx.debug(f"Best-effort registry update skipped: {e}")
-
-        await asyncio.to_thread(_do_update)
-
-    def _read_cross_process_registry(self) -> set[int]:
-        """Read the cross-process port registry.
-
-        MUST be called with file lock held!
-        """
-        try:
-            path = Path(self.registry_file)
-            if path.exists():
-                data = safe_read_json(path) or {}
-                return set(data.get(REGISTRY_KEY_ALLOCATED_PORTS, []))
-        except FileOperationError:
-            pass
-        return set()
-
-    def _write_cross_process_registry(self, allocated: set[int]) -> None:
-        """Write the cross-process port registry.
-
-        MUST be called with file lock held!
-        """
-        safe_write_json(
-            Path(self.registry_file),
-            {
-                REGISTRY_KEY_ALLOCATED_PORTS: list(allocated),
-                REGISTRY_KEY_UPDATED_AT: time.time(),
-            },
-        )
-
-    def _cleanup_stale_ports(self, allocated: set[int]) -> set[int]:
-        """Remove stale port allocations.
-
-        Checks if ports are actually in use and removes those that aren't.
-        This handles cases where processes exit without cleanup.
-
-        Parameters
-        ----------
-        allocated : Set[int]
-            Currently allocated ports from registry
-
-        Returns
-        -------
-        Set[int]
-            Cleaned set of actually allocated ports
-        """
-        if not allocated:
-            return allocated
-
-        cleaned = set()
-        stale = set()
-
-        for port in allocated:
-            # Check if port is actually in use
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            try:
-                # Try to bind to the port - if we can, it's not in use
-                sock.bind(("127.0.0.1", port))
-                # Port is free, it was stale
-                stale.add(port)
-                sock.close()
-            except OSError:
-                # Port is in use, keep it in the registry
-                cleaned.add(port)
-            finally:
-                with contextlib.suppress(Exception):
-                    sock.close()
-
-        if stale:
-            self.ctx.info(
-                f"Cleaned {len(stale)} stale port allocations: {sorted(stale)}",
-            )
-
-        return cleaned
-
-    def _create_bound_socket(self, port: int) -> socket.socket:
-        """Create and bind a socket to the specified port.
-
-        Parameters
-        ----------
-        port : int
-            Port to bind to
-
-        Returns
-        -------
-        socket.socket
-            Bound socket
-
-        Raises
-        ------
-        OSError
-            If binding fails
-        """
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind((DEFAULT_HOST, port))
-        return sock
-
-    def _check_cleanup_rate_limit(self, current_time: float) -> bool:
-        """Check if cleanup should proceed based on rate limiting.
-
-        Parameters
-        ----------
-        current_time : float
-            Current timestamp
-
-        Returns
-        -------
-        bool
-            True if cleanup should proceed, False if rate-limited
-        """
-        with self.lock:  # AidbThread safety
-            if self._cleanup_in_progress:
-                self.ctx.debug("Cleanup already in progress, skipping")
-                return False
-
-            if current_time - self._last_cleanup_time < self._cleanup_min_interval:
-                self.ctx.debug(
-                    f"Skipping cleanup, last run "
-                    f"{current_time - self._last_cleanup_time:.1f}s ago",
-                )
-                return False
-
-            self._cleanup_in_progress = True
-            return True
-
-    def _acquire_cleanup_lock(self, lock_fd) -> bool:
-        """Try to acquire file lock for cleanup operation.
-
-        Parameters
-        ----------
-        lock_fd : file descriptor
-            File descriptor for lock file
-
-        Returns
-        -------
-        bool
-            True if lock acquired, False otherwise
-        """
-        for _ in range(10):  # Try for up to 1 second
-            try:
-                fcntl.flock(lock_fd.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                return True
-            except OSError as e:
-                if e.errno != errno.EAGAIN:
-                    raise
-                time.sleep(0.1)
-
-        self.ctx.debug("Could not acquire lock for cleanup, skipping")
-        return False
-
-    def _find_active_ports(self, allocated: set[int]) -> set[int]:
-        """Find which allocated ports are actually still in use.
-
-        Parameters
-        ----------
-        allocated : set[int]
-            Set of allocated ports from registry
-
-        Returns
-        -------
-        set[int]
-            Set of ports that are actually in use
-        """
-        active = set()
-
-        for port in allocated:
-            sock = None
-            try:
-                sock = self._create_bound_socket(port)
-                sock.close()
-                # Port is free, don't keep it in registry
-            except OSError:
-                # Port is in use, keep it
-                if sock:
-                    sock.close()
-                active.add(port)
-
-        return active
-
-    def _perform_cleanup(self, allocated: set[int], active: set[int]) -> int:
-        """Perform the actual cleanup of stale allocations.
-
-        Parameters
-        ----------
-        allocated : set[int]
-            Set of allocated ports from registry
-        active : set[int]
-            Set of ports actually in use
-
-        Returns
-        -------
-        int
-            Number of ports cleaned up
-        """
-        cleaned = 0
-        if len(active) < len(allocated):
-            cleaned = len(allocated) - len(active)
-            self._write_cross_process_registry(active)
-            self.ctx.info(f"Cleaned up {cleaned} stale port allocations")
-
-        return cleaned
-
     def cleanup_stale_allocations(self) -> int:
         """Clean up stale port allocations from crashed processes.
 
-        This is rate-limited to prevent excessive cleanup operations and uses
-        both thread and file locks for safety.
+        This is delegated to the CrossProcessPortAllocator which handles
+        stale lease cleanup automatically on each allocation.
 
         Returns
         -------
         int
-            Number of stale allocations cleaned up
+            Number of stale allocations cleaned up (always 0, cleanup is automatic)
         """
-        # Rate limiting check
-        current_time = time.time()
-        if not self._check_cleanup_rate_limit(current_time):
-            return 0
-
-        try:
-            with Path(self.lock_file).open("a+") as lock_fd:
-                # Try to acquire lock with timeout
-                if not self._acquire_cleanup_lock(lock_fd):
-                    return 0
-
-                try:
-                    # Read current allocations
-                    allocated = self._read_cross_process_registry()
-
-                    # Find which ports are actually in use
-                    active = self._find_active_ports(allocated)
-
-                    # Perform cleanup if needed
-                    return self._perform_cleanup(allocated, active)
-
-                finally:
-                    fcntl.flock(lock_fd.fileno(), fcntl.LOCK_UN)
-
-        except Exception as e:
-            self.ctx.warning(f"Could not clean up stale allocations: {e}")
-            return 0
-        finally:
-            with self.lock:
-                self._cleanup_in_progress = False
-                self._last_cleanup_time = current_time
+        # Cleanup is now automatic in CrossProcessPortAllocator._cleanup_stale()
+        # This method is kept for backward compatibility
+        return 0

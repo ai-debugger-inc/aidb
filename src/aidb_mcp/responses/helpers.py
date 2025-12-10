@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from aidb.common.errors import DebugTimeoutError
 from aidb_common.config import config
 
 from ..core.exceptions import ErrorCode
@@ -287,11 +288,13 @@ def handle_timeout_error(
     dict or None
         MCP error response dict if this is a timeout error, None otherwise
     """
-    error_msg = str(exception)
-    is_timeout = (
-        "Timeout waiting for" in error_msg
-        or "DebugTimeoutError" in type(exception).__name__
-    )
+    # Use proper type checking for timeout detection
+    is_timeout = isinstance(exception, DebugTimeoutError)
+
+    # Fallback for wrapped exceptions or edge cases
+    if not is_timeout:
+        error_msg = str(exception)
+        is_timeout = "Timeout waiting for" in error_msg
 
     if not is_timeout:
         return None

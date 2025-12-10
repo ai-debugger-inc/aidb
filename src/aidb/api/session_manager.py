@@ -10,6 +10,7 @@ from aidb.models.entities.breakpoint import BreakpointSpec
 from aidb.patterns import Obj
 from aidb.session import Session
 from aidb.session.registry import SessionRegistry
+from aidb_common.constants import Language
 
 from .constants import MAX_CONCURRENT_SESSIONS
 from .session_builder import SessionBuilder
@@ -294,7 +295,7 @@ class SessionManager(Obj):
         builder.with_kwargs(**kwargs)
 
         # Debug logging for Java framework tests
-        if language == "java" and kwargs:
+        if language == Language.JAVA and kwargs:
             self.ctx.debug(
                 f"Java create_session called with target={target}, kwargs={kwargs}",
             )

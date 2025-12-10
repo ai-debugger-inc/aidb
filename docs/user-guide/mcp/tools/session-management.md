@@ -216,6 +216,7 @@ The `session_start` tool creates and starts a debug session in a single operatio
 | `launch_config_name` | string | VS Code launch configuration name                                                                       |
 | `session_id`         | string | Optional session ID (generated if not provided)                                                         |
 | `subscribe_events`   | array  | Events to subscribe to: `exception` (breakpoint/terminated auto-subscribed)                             |
+| `source_paths`       | array  | Additional source directories for resolving file paths in remote debugging (see below)                  |
 
 #### Breakpoint Specification
 
@@ -422,6 +423,52 @@ Attach to a running process by PID without restarting it. Breakpoints are set im
 ```bash
 java -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005 -jar app.jar
 ```
+
+#### Example 4b: Remote Attach with Source Path Resolution
+
+When debugging remote processes (containers, Kubernetes, remote servers), the debug adapter returns paths that don't exist locally. Use `source_paths` to map these to local source directories.
+
+```json
+{
+  "language": "java",
+  "host": "localhost",
+  "port": 5005,
+  "source_paths": [
+    "/local/trino-source/core/trino-main/src/main/java",
+    "/local/trino-source/core/trino-spi/src/main/java",
+    "/local/trino-source/lib/trino-plugin-toolkit/src/main/java"
+  ],
+  "breakpoints": [
+    {
+      "file": "/local/trino-source/core/trino-main/src/main/java/io/trino/execution/QueryStateMachine.java",
+      "line": 156
+    }
+  ]
+}
+```
+
+**How it works:**
+
+1. Clone the source code locally at a matching version
+2. Configure `source_paths` pointing to your local source roots
+3. When paused, code context extraction resolves remote paths to local files
+
+**Supported path formats by language:**
+
+**Java:**
+- JAR notation: `trino-main.jar!/io/trino/Foo.java` → resolves via `io/trino/Foo.java`
+- Maven layout: `/opt/app/src/main/java/io/trino/Foo.java` → resolves via `io/trino/Foo.java`
+- Package markers: `/opt/app/classes/io/trino/Foo.java` → resolves via `io/trino/Foo.java`
+
+**Python:**
+- Site packages: `/usr/lib/python3.11/site-packages/pkg/module.py` → resolves via `pkg/module.py`
+- Virtual environments: `/app/.venv/lib/python3.11/site-packages/pkg/mod.py` → resolves via `pkg/mod.py`
+- Source layouts: `/app/src/mypackage/module.py` → resolves via `mypackage/module.py`
+
+**JavaScript/TypeScript:**
+- Node modules: `/app/node_modules/lodash/lodash.js` → resolves via `lodash/lodash.js`
+- Bundler paths: `webpack://./src/components/App.tsx` → resolves via `src/components/App.tsx`
+- Build outputs: `/app/dist/bundle.js` → resolves via `bundle.js`
 
 #### Example 5: Advanced Breakpoints (Logpoints and Hit Conditions)
 

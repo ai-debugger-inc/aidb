@@ -9,6 +9,13 @@ import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from aidb.api.constants import (
+    DEFAULT_ADAPTER_HOST,
+    INIT_WAIT_FOR_INITIALIZED_S,
+    INIT_WAIT_FOR_LAUNCH_RESPONSE_S,
+    MEDIUM_SLEEP_S,
+    PROCESS_COMMUNICATE_TIMEOUT_S,
+)
 from aidb.common.errors import AidbError, ConfigurationError, DebugAdapterError
 from aidb.models.start_request import StartRequestType
 from aidb_common.config import config
@@ -17,9 +24,12 @@ from aidb_common.path import normalize_path
 from ...base import DebugAdapter
 from ...base.config_mapper import ConfigurationMapper
 from ...base.hooks import HookContext, LifecycleHook
+from ...base.target_resolver import TargetResolver
 from .config import JavaScriptAdapterConfig
+from .target_resolver import JavaScriptTargetResolver
 
 if TYPE_CHECKING:
+    from aidb.adapters.base.source_path_resolver import SourcePathResolver
     from aidb.interfaces import ISession
 
 
@@ -33,7 +43,7 @@ class JavaScriptAdapter(DebugAdapter):
     """
 
     config: JavaScriptAdapterConfig  # Override parent type annotation
-    post_launch_delay = 0.5  # Reduced from 3.0 to avoid test timeouts
+    post_launch_delay = MEDIUM_SLEEP_S  # Reduced from 3.0 to avoid test timeouts
 
     # -----------------------
     # Public API / Lifecycle
@@ -43,9 +53,9 @@ class JavaScriptAdapter(DebugAdapter):
         self,
         session: "ISession",
         ctx=None,
-        adapter_host="localhost",
+        adapter_host=DEFAULT_ADAPTER_HOST,
         adapter_port=None,
-        target_host="localhost",
+        target_host=DEFAULT_ADAPTER_HOST,
         target_port=None,
         config: JavaScriptAdapterConfig | None = None,
         runtime_executable: str | None = None,
@@ -175,6 +185,28 @@ class JavaScriptAdapter(DebugAdapter):
 
         # Register JavaScript-specific hooks
         self._register_javascript_hooks()
+
+    def _create_target_resolver(self) -> TargetResolver:
+        """Create JavaScript-specific target resolver.
+
+        Returns
+        -------
+        TargetResolver
+            JavaScriptTargetResolver instance for file type detection
+        """
+        return JavaScriptTargetResolver(adapter=self, ctx=self.ctx)
+
+    def _create_source_path_resolver(self) -> "SourcePathResolver":
+        """Create JavaScript-specific source path resolver.
+
+        Returns
+        -------
+        SourcePathResolver
+            JavaScriptSourcePathResolver instance for node_modules resolution
+        """
+        from .source_path_resolver import JavaScriptSourcePathResolver
+
+        return JavaScriptSourcePathResolver(adapter=self, ctx=self.ctx)
 
     async def attach(self, pid: int, session_id: str) -> None:
         """Attach to a running Node.js process.
@@ -378,7 +410,7 @@ class JavaScriptAdapter(DebugAdapter):
     async def _build_launch_command(
         self,
         target: str,
-        _adapter_host: str,
+        adapter_host: str,  # noqa: ARG002
         adapter_port: int,
         args: list[str] | None = None,
     ) -> list[str]:
@@ -389,7 +421,8 @@ class JavaScriptAdapter(DebugAdapter):
         target : str
             JavaScript or TypeScript file to debug
         adapter_host : str
-            Host for DAP server to bind to
+            Host for DAP server to bind to (unused - vscode-js-debug binds to
+            localhost only)
         adapter_port : int
             Port for DAP server to listen on
         args : List[str], optional
@@ -419,17 +452,17 @@ class JavaScriptAdapter(DebugAdapter):
     # Environment & Process
     # ----------------------
 
-    def _add_adapter_specific_vars(self, env: dict[str, Any]) -> dict[str, Any]:
+    def _add_adapter_specific_vars(self, env: dict[str, str]) -> dict[str, str]:
         """Add JavaScript-specific environment variables.
 
         Parameters
         ----------
-        env : Dict[str, Any]
+        env : dict[str, str]
             Current environment variables
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, str]
             Updated environment with JavaScript-specific variables
         """
         # Set Node.js specific environment variables
@@ -680,7 +713,7 @@ class JavaScriptAdapter(DebugAdapter):
                 InitializationOp(InitializationOpType.LAUNCH, wait_for_response=False),
                 InitializationOp(
                     InitializationOpType.WAIT_FOR_INITIALIZED,
-                    timeout=5.0,
+                    timeout=INIT_WAIT_FOR_INITIALIZED_S,
                     optional=True,
                 ),
                 # Set breakpoints AFTER initialized but BEFORE
@@ -695,7 +728,7 @@ class JavaScriptAdapter(DebugAdapter):
                 InitializationOp(InitializationOpType.CONFIGURATION_DONE),
                 InitializationOp(
                     InitializationOpType.WAIT_FOR_LAUNCH_RESPONSE,
-                    timeout=10.0,
+                    timeout=INIT_WAIT_FOR_LAUNCH_RESPONSE_S,
                 ),
             ]
 
@@ -947,7 +980,10 @@ class JavaScriptAdapter(DebugAdapter):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            await asyncio.wait_for(proc.communicate(), timeout=5.0)
+            await asyncio.wait_for(
+                proc.communicate(),
+                timeout=PROCESS_COMMUNICATE_TIMEOUT_S,
+            )
             self._ts_node_available = proc.returncode == 0
         except (subprocess.SubprocessError, FileNotFoundError):
             self._ts_node_available = False
@@ -965,7 +1001,10 @@ class JavaScriptAdapter(DebugAdapter):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=5.0)
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(),
+                timeout=PROCESS_COMMUNICATE_TIMEOUT_S,
+            )
             if proc.returncode == 0:
                 return stdout.decode().strip() if stdout else ""
         except (subprocess.SubprocessError, FileNotFoundError, AidbError):

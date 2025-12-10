@@ -125,6 +125,60 @@ async def _check_connection_health(
     return None
 
 
+def _check_termination_status(
+    require_session: bool,
+    api: Any,
+    sid: str | None,
+    args: dict[str, Any],
+    allow_on_terminated: list[str] | None,
+) -> dict[str, Any] | None:
+    """Check if session is terminated and handle allowed actions.
+
+    For terminated sessions, blocks operations UNLESS the action is in
+    allow_on_terminated list (for read-only operations like 'list').
+
+    Returns error response or None to proceed.
+    """
+    if not require_session or not api or not hasattr(api, "session"):
+        return None
+
+    session = api.session
+    # Only check termination if session has its OWN DAP client
+    # Don't check inherited parent DAP (JavaScript child sessions)
+    if not (hasattr(session, "connector") and session.connector):
+        return None
+
+    dap = getattr(session.connector, "_dap", None)
+    if not dap:
+        return None
+
+    # Follow same pattern as SessionState.get_status():
+    # Check if stopped/paused BEFORE checking terminated
+    dap_is_stopped = getattr(dap, "is_stopped", False)
+    dap_is_terminated = getattr(dap, "is_terminated", False)
+
+    # Only block if session is terminated AND not just paused
+    if not (dap_is_terminated and not dap_is_stopped):
+        return None
+
+    # Check if this action is allowed on terminated sessions
+    current_action = args.get("action") or args.get("_action")
+    if allow_on_terminated and current_action in allow_on_terminated:
+        logger.debug(
+            "Allowing action '%s' on terminated session",
+            current_action,
+        )
+        return None
+
+    # Block the operation
+    from ..responses.errors import SessionTerminatedError
+
+    return SessionTerminatedError(
+        session_id=sid,
+        error_message="Session has terminated and cannot execute commands",
+    ).to_mcp_response()
+
+
 def _add_session_id_to_result(
     result: dict[str, Any] | tuple,
     sid: str | None,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from aidb.api.constants import LOG_EXPRESSION_PREVIEW_LENGTH
 from aidb_common.config.runtime import ConfigManager
 from aidb_logging import get_mcp_logger as get_logger
 
@@ -98,7 +99,11 @@ async def inspect_globals(api) -> Any:
 @timed
 async def inspect_expression(api, expression: str, frame_id: int | None) -> Any:
     """Evaluate a custom expression."""
-    truncated_expr = expression[:100] if len(expression) > 100 else expression
+    truncated_expr = (
+        expression[:LOG_EXPRESSION_PREVIEW_LENGTH]
+        if len(expression) > LOG_EXPRESSION_PREVIEW_LENGTH
+        else expression
+    )
     logger.debug(
         "Evaluating custom expression",
         extra={

@@ -5,14 +5,15 @@ environment variable tagging. This provides defense-in-depth protection against 
 leaks when normal session cleanup fails.
 """
 
-import logging
 import time
 
 import psutil
 
+from aidb.api.constants import DEFAULT_WAIT_TIMEOUT_S, PROCESS_TERMINATE_TIMEOUT_S
 from aidb.resources.process_tags import ProcessTags
+from aidb_logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class OrphanProcessCleaner:
@@ -216,9 +217,9 @@ class OrphanProcessCleaner:
                 )
                 proc.terminate()
 
-                # Wait up to 5 seconds for graceful termination
+                # Wait for graceful termination
                 try:
-                    proc.wait(timeout=5.0)
+                    proc.wait(timeout=DEFAULT_WAIT_TIMEOUT_S)
                     self._log(f"Process {proc.pid} terminated gracefully")
                     terminated += 1
                 except psutil.TimeoutExpired:
@@ -229,7 +230,7 @@ class OrphanProcessCleaner:
                     )
                     proc.kill()
                     try:
-                        proc.wait(timeout=2.0)
+                        proc.wait(timeout=PROCESS_TERMINATE_TIMEOUT_S)
                         self._log(f"Process {proc.pid} force killed")
                         terminated += 1
                     except psutil.TimeoutExpired:

@@ -5,9 +5,11 @@ and child debug sessions, particularly for adapters like vscode-js-debug that us
 separate DAP connections for child sessions.
 """
 
+import asyncio
 import threading
 from typing import TYPE_CHECKING
 
+from aidb.dap.client.constants import EventType
 from aidb.dap.protocol.base import Event
 from aidb.patterns import Obj
 from aidb_logging.utils import LogOnce
@@ -41,7 +43,10 @@ class EventBridge(Obj):
             The context for logging and debugging
         """
         super().__init__(ctx)
-        self.lock = threading.RLock()
+        # Use asyncio.Lock for async methods to avoid holding lock during await
+        self._async_lock = asyncio.Lock()
+        # Use threading.RLock for synchronous operations (forward_event_to_children)
+        self._sync_lock = threading.RLock()
 
         # Map parent session IDs to their active child sessions
         self._parent_to_children: dict[str, set[str]] = {}
@@ -53,7 +58,10 @@ class EventBridge(Obj):
         # Note: 'terminated' is NOT forwarded because child sessions have
         # independent lifecycles and should only terminate when THEIR OWN
         # DAP connection terminates
-        self._forwarded_event_types = {"stopped", "continued"}
+        self._forwarded_event_types = {
+            EventType.STOPPED.value,
+            EventType.CONTINUED.value,
+        }
 
         # Track subscription IDs for cleanup
         self._subscriptions: dict[str, set[str]] = {}  # parent_id -> subscription_ids
@@ -146,25 +154,28 @@ class EventBridge(Obj):
         child_id : str
             The child session ID
         """
-        with self.lock:
-            if parent_id not in self._parent_to_children:
+        async with self._async_lock:
+            need_setup = parent_id not in self._parent_to_children
+            if need_setup:
                 self._parent_to_children[parent_id] = set()
 
-                # Set up subscriptions for this parent if it's the first child
-                from aidb.session.registry import SessionRegistry
+            # Update both locks' data structures atomically
+            with self._sync_lock:
+                self._parent_to_children[parent_id].add(child_id)
+                self._child_to_parent[child_id] = parent_id
 
-                registry = SessionRegistry(ctx=self.ctx)
-                parent = registry.get_session(parent_id)
-                if parent:
-                    await self.setup_parent_subscriptions(parent)
+        # Set up subscriptions outside the lock to avoid holding during await
+        if need_setup:
+            from aidb.session.registry import SessionRegistry
 
-            self._parent_to_children[parent_id].add(child_id)
-            self._child_to_parent[child_id] = parent_id
+            registry = SessionRegistry(ctx=self.ctx)
+            parent = registry.get_session(parent_id)
+            if parent:
+                await self.setup_parent_subscriptions(parent)
 
-            self.ctx.debug(
-                f"Registered child {child_id} with "
-                f"parent {parent_id} for event bridging",
-            )
+        self.ctx.debug(
+            f"Registered child {child_id} with parent {parent_id} for event bridging",
+        )
 
     async def unregister_child(self, child_id: str) -> None:
         """Unregister a child session from event forwarding.
@@ -174,18 +185,27 @@ class EventBridge(Obj):
         child_id : str
             The child session ID to unregister
         """
-        with self.lock:
-            parent_id = self._child_to_parent.pop(child_id, None)
-            if parent_id and parent_id in self._parent_to_children:
-                self._parent_to_children[parent_id].discard(child_id)
+        need_cleanup = False
+        parent_id_to_cleanup = None
 
-                # Clean up empty parent entries and subscriptions
-                if not self._parent_to_children[parent_id]:
-                    del self._parent_to_children[parent_id]
-                    # Clean up subscriptions when no more children
-                    await self.cleanup_parent_subscriptions(parent_id)
+        async with self._async_lock:
+            with self._sync_lock:
+                parent_id = self._child_to_parent.pop(child_id, None)
+                if parent_id and parent_id in self._parent_to_children:
+                    self._parent_to_children[parent_id].discard(child_id)
 
-                self.ctx.debug(f"Unregistered child {child_id} from event bridging")
+                    # Check if we need to clean up empty parent entries
+                    if not self._parent_to_children[parent_id]:
+                        del self._parent_to_children[parent_id]
+                        need_cleanup = True
+                        parent_id_to_cleanup = parent_id
+
+        # Clean up subscriptions outside the lock to avoid holding during await
+        if need_cleanup and parent_id_to_cleanup:
+            await self.cleanup_parent_subscriptions(parent_id_to_cleanup)
+
+        if parent_id:
+            self.ctx.debug(f"Unregistered child {child_id} from event bridging")
 
     def forward_event_to_children(
         self,
@@ -208,7 +228,7 @@ class EventBridge(Obj):
         if event.event not in self._forwarded_event_types:
             return
 
-        with self.lock:
+        with self._sync_lock:
             child_ids = self._parent_to_children.get(parent_session.id, set()).copy()
 
         if not child_ids:

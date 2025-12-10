@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 from aidb.adapters.utils.binary_locator import AdapterBinaryLocator
 from aidb.adapters.utils.output_capture import AdapterOutputCapture
 from aidb.adapters.utils.trace_log import AdapterTraceLogManager
+from aidb.api.constants import DEFAULT_ADAPTER_HOST
 from aidb.common.context import AidbContext
 from aidb.common.errors import AdapterCapabilityNotSupportedError
 from aidb.dap.protocol.types import Capabilities
@@ -24,6 +25,8 @@ from .components.process_manager import ProcessManager
 from .config import AdapterConfig
 from .hooks import AdapterHooksMixin, HookContext, LifecycleHook
 from .launch import BaseLaunchConfig
+from .source_path_resolver import SourcePathResolver
+from .target_resolver import TargetResolver
 from .vslaunch import resolve_launch_configuration
 
 if TYPE_CHECKING:
@@ -91,6 +94,8 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
     _process_manager: "IProcessManager"
     _port_manager: "IPortManager"
     _launch_orchestrator: "ILaunchOrchestrator"
+    _target_resolver: TargetResolver
+    _source_path_resolver: SourcePathResolver
 
     # ----------------------
     # Public API / Lifecycle
@@ -100,9 +105,9 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
         self,
         session: "ISession",
         ctx: AidbContext | None = None,
-        adapter_host: str = "localhost",
+        adapter_host: str = DEFAULT_ADAPTER_HOST,
         adapter_port: int | None = None,
-        target_host: str = "localhost",
+        target_host: str = DEFAULT_ADAPTER_HOST,
         target_port: int | None = None,
         config: AdapterConfig | None = None,
         **_kwargs,
@@ -160,6 +165,12 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
             port_manager=self._port_manager,
             ctx=self.ctx,
         )
+
+        # Target resolver - language-specific target normalization
+        self._target_resolver = self._create_target_resolver()
+
+        # Source path resolver - language-specific source path resolution
+        self._source_path_resolver = self._create_source_path_resolver()
 
         self._trace_manager: AdapterTraceLogManager | None = None
         self._output_capture: AdapterOutputCapture | None = None
@@ -253,6 +264,17 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
         if self._adapter_locator is None:
             self._adapter_locator = AdapterBinaryLocator(ctx=self.ctx)
         return self._adapter_locator
+
+    @property
+    def source_path_resolver(self) -> SourcePathResolver:
+        """Get the source path resolver.
+
+        Returns
+        -------
+        SourcePathResolver
+            Language-specific source path resolver instance
+        """
+        return self._source_path_resolver
 
     @property
     def binary_path(self) -> Path:
@@ -452,6 +474,11 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
                     workspace_root,
                 )
 
+        # Resolve target FIRST, before any hooks or DAP operations
+        # This handles module detection, -m syntax, etc.
+        resolved = self._target_resolver.resolve(target)
+        target = resolved.target
+
         # Proceed with regular launch
         context = await self.execute_hook(
             LifecycleHook.PRE_LAUNCH,
@@ -461,6 +488,7 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
                 "args": args,
                 "env": env or {},
                 "cwd": cwd,
+                "resolved_target": resolved,  # Pass resolution info to hooks
             },
         )
 
@@ -468,6 +496,9 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
             # Use the result message if available, otherwise generic message
             error_msg = context.result if context.result else "Launch cancelled by hook"
             raise RuntimeError(error_msg)
+
+        # Hooks may further modify target
+        target = context.data.get("target", target)
 
         proc, port = await self._launch_orchestrator.launch(target, port, args)
 
@@ -711,6 +742,38 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
     # ----------------------
 
     @abstractmethod
+    def _create_target_resolver(self) -> TargetResolver:
+        """Create language-specific target resolver.
+
+        Each adapter MUST implement this to provide language-specific
+        target resolution (file vs module vs class detection).
+
+        Target resolution happens at the start of launch(), before any
+        hooks or DAP operations.
+
+        Returns
+        -------
+        TargetResolver
+            Language-specific target resolver instance
+        """
+
+    @abstractmethod
+    def _create_source_path_resolver(self) -> "SourcePathResolver":
+        """Create language-specific source path resolver.
+
+        Each adapter MUST implement this to provide language-specific
+        source path resolution for remote debugging scenarios.
+
+        Source path resolution maps debug adapter paths (which may be
+        container paths, JAR-internal paths, etc.) to local source files.
+
+        Returns
+        -------
+        SourcePathResolver
+            Language-specific source path resolver instance
+        """
+
+    @abstractmethod
     async def _build_launch_command(
         self,
         target: str,
@@ -894,7 +957,7 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
         if not target:
             return
 
-        # Determine if target is a file path or identifier using same heuristic as Session
+        # Determine if target is a file path or identifier (same heuristic as Session)
         from aidb.session.adapter_registry import get_all_cached_file_extensions
 
         known_extensions = get_all_cached_file_extensions()
@@ -908,7 +971,7 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
         if not is_file_path:
             # Target is an identifier (class name, module, etc.) - skip file validation
             self.ctx.debug(
-                f"Target '{target}' identified as identifier - skipping file validation",
+                f"Target '{target}' is identifier - skipping file validation",
             )
             return
 

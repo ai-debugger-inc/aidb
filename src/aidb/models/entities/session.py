@@ -5,6 +5,8 @@ from datetime import datetime
 from enum import Enum, auto
 from typing import Any
 
+from aidb_common.constants import Language
+
 
 class SessionStatus(Enum):
     """Possible states for a debug session."""
@@ -38,7 +40,7 @@ class SessionInfo:
     status: SessionStatus
     target: str
     pid: int | None = None
-    language: str = "python"
+    language: str = Language.PYTHON.value
     timestamp: datetime = field(default_factory=datetime.now)
     host: str = "localhost"
     port: int = 0

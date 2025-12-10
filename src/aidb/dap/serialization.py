@@ -8,7 +8,7 @@ import dataclasses
 import json
 import sys
 from pathlib import Path
-from typing import Any, TypeVar, Union, get_args, get_origin
+from typing import Any, Optional, TypeVar, Union, get_args, get_origin, get_type_hints
 
 T = TypeVar("T", bound="SerializableMixin")
 
@@ -36,7 +36,15 @@ class SerializableMixin:
         """
         # Get the dataclass fields and their types
         if dataclasses.is_dataclass(cls):
-            field_types = {field.name: field.type for field in dataclasses.fields(cls)}
+            # Use get_type_hints to properly resolve string annotations from
+            # __future__ annotations
+            try:
+                field_types = cls._get_resolved_type_hints()
+            except Exception:
+                # Fall back to raw field.type if get_type_hints fails
+                field_types = {
+                    field.name: field.type for field in dataclasses.fields(cls)
+                }
             converted_data = {}
             for key, value in data.items():
                 if key in field_types:
@@ -48,11 +56,85 @@ class SerializableMixin:
                         )
                     else:
                         converted_data[key] = value
-                # Skip unknown fields - allows forward compatibility with newer DAP versions
+                # Skip unknown fields for forward compatibility with newer DAP versions
 
             return cls(**converted_data)
         # Not a dataclass, use direct construction
         return cls(**data)
+
+    @classmethod
+    def _get_resolved_type_hints(cls) -> dict[str, Any]:
+        """Get type hints with string annotations resolved to actual types.
+
+        Uses typing.get_type_hints() which properly resolves forward references and
+        string annotations from `from __future__ import annotations`.
+        """
+        # Import protocol modules to ensure types are available for resolution
+        cls._ensure_protocol_modules_loaded()
+
+        # Build a namespace with all protocol types for resolution
+        namespace = cls._build_type_namespace()
+
+        try:
+            return get_type_hints(cls, globalns=namespace, localns=namespace)
+        except NameError:
+            # If resolution fails, fall back to raw annotations
+            return {
+                field.name: field.type
+                for field in dataclasses.fields(cls)  # type: ignore[arg-type]
+            }
+
+    @classmethod
+    def _ensure_protocol_modules_loaded(cls) -> None:
+        """Ensure all protocol modules are loaded into sys.modules."""
+        protocol_modules = [
+            "aidb.dap.protocol.types",
+            "aidb.dap.protocol.bodies",
+            "aidb.dap.protocol.events",
+            "aidb.dap.protocol.requests",
+            "aidb.dap.protocol.responses",
+            "aidb.dap.protocol.base",
+        ]
+        import contextlib
+
+        for module_name in protocol_modules:
+            if module_name not in sys.modules:
+                with contextlib.suppress(ImportError):
+                    __import__(module_name)
+
+    @classmethod
+    def _build_type_namespace(cls) -> dict[str, Any]:
+        """Build a namespace dict with all protocol types for annotation resolution."""
+        namespace: dict[str, Any] = {}
+
+        # Add standard typing constructs
+        namespace.update(
+            {
+                "Any": Any,
+                "Dict": dict,
+                "List": list,
+                "Optional": Optional,
+                "Union": Union,
+            },
+        )
+
+        # Add all exported names from protocol modules
+        protocol_modules = [
+            "aidb.dap.protocol.types",
+            "aidb.dap.protocol.bodies",
+            "aidb.dap.protocol.events",
+            "aidb.dap.protocol.requests",
+            "aidb.dap.protocol.responses",
+            "aidb.dap.protocol.base",
+        ]
+        for module_name in protocol_modules:
+            module = sys.modules.get(module_name)
+            if module:
+                for name in dir(module):
+                    if not name.startswith("_"):
+                        namespace[name] = getattr(module, name)
+
+        return namespace
 
     @classmethod
     def _handle_union_type(cls, value: Any, field_type: Any) -> Any:

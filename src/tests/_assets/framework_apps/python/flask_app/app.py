@@ -1,8 +1,14 @@
 """Flask test application for debugging capabilities testing."""
 
+import os
+
 from flask import Flask, jsonify
 
 app = Flask(__name__)
+
+# Dynamic port from environment, with fallback for manual testing
+DEFAULT_PORT = 5000
+APP_PORT = int(os.environ.get("APP_PORT", DEFAULT_PORT))
 
 
 @app.route("/")
@@ -52,4 +58,4 @@ def variable_inspection_view():
 
 
 if __name__ == "__main__":
-    app.run(debug=False, port=5000, use_reloader=False)
+    app.run(debug=False, port=APP_PORT, use_reloader=False)

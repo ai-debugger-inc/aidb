@@ -4,7 +4,7 @@ Add to your Codex MCP configuration file:
 {
   "mcp": {
     "servers": {
-      "aidb-debug": {
+      "ai-debugger": {
         "command": "python",
         "args": ["-m", "aidb_mcp"]
       }

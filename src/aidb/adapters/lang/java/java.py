@@ -4,17 +4,26 @@ import asyncio
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
+from aidb.api.constants import (
+    DEFAULT_ADAPTER_HOST,
+    DEFAULT_JAVA_DEBUG_PORT,
+    DEFAULT_WAIT_TIMEOUT_S,
+    SECONDS_PER_DAY,
+)
 from aidb.common.errors import AidbError
 from aidb_common.env import reader
 
 from ...base import DebugAdapter
 from ...base.hooks import LifecycleHook
+from ...base.target_resolver import TargetResolver
 from .compilation import JavaCompilationManager
 from .config import JavaAdapterConfig
 from .lsp import JavaLSPDAPBridge
+from .target_resolver import JavaTargetResolver
 from .tooling import JavaClasspathBuilder, JavaToolchain
 
 if TYPE_CHECKING:
+    from aidb.adapters.base.source_path_resolver import SourcePathResolver
     from aidb.interfaces import ISession
 
 
@@ -115,9 +124,9 @@ class JavaAdapter(DebugAdapter):
         self,
         session: "ISession",
         ctx=None,
-        adapter_host="localhost",
+        adapter_host=DEFAULT_ADAPTER_HOST,
         adapter_port=None,
-        target_host="localhost",
+        target_host=DEFAULT_ADAPTER_HOST,
         target_port=None,
         config: JavaAdapterConfig | None = None,
         # Java-specific parameters
@@ -204,6 +213,28 @@ class JavaAdapter(DebugAdapter):
         # Register Java-specific hooks
         self._register_java_hooks()
 
+    def _create_target_resolver(self) -> TargetResolver:
+        """Create Java-specific target resolver.
+
+        Returns
+        -------
+        TargetResolver
+            JavaTargetResolver instance for .java/.class/.jar detection
+        """
+        return JavaTargetResolver(adapter=self, ctx=self.ctx)
+
+    def _create_source_path_resolver(self) -> "SourcePathResolver":
+        """Create Java-specific source path resolver.
+
+        Returns
+        -------
+        SourcePathResolver
+            JavaSourcePathResolver instance for JAR path resolution
+        """
+        from .source_path_resolver import JavaSourcePathResolver
+
+        return JavaSourcePathResolver(adapter=self, ctx=self.ctx)
+
     def _build_classpath(self, target: str) -> list[str]:
         """Build classpath for the debug session.
 
@@ -231,7 +262,7 @@ class JavaAdapter(DebugAdapter):
         args: list[str] | None = None,
         env: dict[str, str] | None = None,
         cwd: str | None = None,
-        launch_config_name: str | None = None,
+        launch_config_name: str | None = None,  # noqa: ARG002
         workspace_root: str | None = None,
     ) -> tuple["asyncio.subprocess.Process", int]:
         """Launch the Java debug adapter using JDT LS.
@@ -291,7 +322,9 @@ class JavaAdapter(DebugAdapter):
             raise AidbError(msg)
 
         if port is None:
-            port = await self._port_manager.acquire(fallback_start=5005)
+            port = await self._port_manager.acquire(
+                fallback_start=DEFAULT_JAVA_DEBUG_PORT,
+            )
 
         # Start LSP-DAP bridge and get the actual DAP port
         try:
@@ -444,7 +477,7 @@ class JavaAdapter(DebugAdapter):
                         compilation_complete = (
                             await self._lsp_dap_bridge.lsp_client.wait_for_diagnostics(
                                 file_path=original_source,
-                                timeout=5.0,
+                                timeout=DEFAULT_WAIT_TIMEOUT_S,
                             )
                         )
 
@@ -556,7 +589,7 @@ class JavaAdapter(DebugAdapter):
 
             # Create a dummy process to satisfy the base adapter This
             # process just sleeps and is cleaned up when the session ends
-            python_code = "import time; time.sleep(86400)"
+            python_code = f"import time; time.sleep({SECONDS_PER_DAY})"
             proc = await asyncio.create_subprocess_exec(
                 sys.executable,
                 "-c",
@@ -916,26 +949,25 @@ class JavaAdapter(DebugAdapter):
 
     async def _build_launch_command(
         self,
-        target: str,
-        adapter_host: str,
-        adapter_port: int,
-        args: list[str] | None = None,
+        target: str,  # noqa: ARG002
+        adapter_host: str,  # noqa: ARG002
+        adapter_port: int,  # noqa: ARG002
+        args: list[str] | None = None,  # noqa: ARG002
     ) -> list[str]:
-        """Build launch command - not used by Java adapter.
+        """Build launch command for Java adapter.
 
-        Java adapter uses JDT LS bridge which handles launch internally.
-        This method exists to satisfy the abstract method requirement.
+        Note: Java uses JDT.LS attach mode, not direct launch. This method
+        returns an empty list as Java debugging is handled via attach to
+        the JDT.LS language server process. See the JDT LS bridge methods
+        for the actual connection logic.
 
-        Raises
-        ------
-        NotImplementedError
-            Always raised - Java uses JDT LS bridge, not command-based launch
+        Returns
+        -------
+        list[str]
+            Empty list - Java uses attach mode via JDT.LS, not direct launch
         """
-        msg = (
-            "JavaAdapter does not use command-based launch. "
-            "All launching is handled via JDT LS bridge."
-        )
-        raise NotImplementedError(msg)
+        # Java uses attach mode via JDT.LS, not direct launch
+        return []
 
     # ---------------------------------
     # Java Tooling & Classpath Helpers

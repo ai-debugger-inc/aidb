@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
+from aidb_cli.core.constants import SERVICE_DISCOVERY_TIMEOUT_S
 from aidb_cli.core.paths import DockerConstants, ProjectPaths
 from aidb_cli.core.utils import CliOutput
 from aidb_cli.managers.base.orchestrator import BaseOrchestrator
@@ -17,6 +18,7 @@ from aidb_cli.services.docker import (
     ServiceDependencyService,
 )
 from aidb_common.config import VersionManager
+from aidb_common.constants import SUPPORTED_LANGUAGES
 from aidb_logging import get_cli_logger
 
 if TYPE_CHECKING:
@@ -308,7 +310,7 @@ class DockerOrchestrator(BaseOrchestrator):
         dep_service = self.get_service(ServiceDependencyService)
 
         # Handle language-specific framework tests dynamically
-        if test_suite in ("python", "javascript", "java"):
+        if test_suite in SUPPORTED_LANGUAGES:
             # Get services in this profile and filter for test-runner pattern
             profile_services = dep_service.get_services_by_profile(test_suite)
             services_to_start.extend(
@@ -368,7 +370,7 @@ class DockerOrchestrator(BaseOrchestrator):
             if service.health_check:
                 healthy = health_service.wait_for_health(
                     name,
-                    timeout=10,
+                    timeout=SERVICE_DISCOVERY_TIMEOUT_S,
                 )
                 results[name] = healthy
             else:

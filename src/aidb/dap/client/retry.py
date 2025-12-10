@@ -9,6 +9,8 @@ from aidb.common.errors import (
     DebugTimeoutError,
 )
 
+from .constants import CommandType
+
 
 class RetryStrategy(Enum):
     """Retry strategy for DAP operations."""
@@ -136,50 +138,50 @@ class DAPRetryManager:
 
     # Operations that are safe to retry (idempotent)
     IDEMPOTENT_OPERATIONS: set[str] = {
-        # AidbBreakpoint operations
-        "setBreakpoints",
-        "setFunctionBreakpoints",
-        "setExceptionBreakpoints",
-        "setDataBreakpoints",
-        "setInstructionBreakpoints",
+        # Breakpoint operations
+        CommandType.SET_BREAKPOINTS.value,
+        CommandType.SET_FUNCTION_BREAKPOINTS.value,
+        CommandType.SET_EXCEPTION_BREAKPOINTS.value,
+        CommandType.SET_DATA_BREAKPOINTS.value,
+        CommandType.SET_INSTRUCTION_BREAKPOINTS.value,
         # Query operations
-        "threads",
-        "stackTrace",
-        "scopes",
-        "variables",
-        "evaluate",  # In watch context only
-        "source",
-        "modules",
-        "loadedSources",
-        "exceptionInfo",
-        "completions",
+        CommandType.THREADS.value,
+        CommandType.STACK_TRACE.value,
+        CommandType.SCOPES.value,
+        CommandType.VARIABLES.value,
+        CommandType.EVALUATE.value,  # In watch context only
+        CommandType.SOURCE.value,
+        CommandType.MODULES.value,
+        CommandType.LOADED_SOURCES.value,
+        CommandType.EXCEPTION_INFO.value,
+        CommandType.COMPLETIONS.value,
         # Configuration operations
-        "initialize",
-        "configurationDone",
-        "capabilities",
+        CommandType.INITIALIZE.value,
+        CommandType.CONFIGURATION_DONE.value,
+        "capabilities",  # No CommandType for this yet
     }
 
     # Operations that should NEVER be retried
     NON_RETRYABLE_OPERATIONS: set[str] = {
         # State-changing operations
-        "continue",
-        "next",
-        "stepIn",
-        "stepOut",
-        "stepBack",
-        "reverseContinue",
-        "goto",
-        "pause",
+        CommandType.CONTINUE.value,
+        CommandType.NEXT.value,
+        CommandType.STEP_IN.value,
+        CommandType.STEP_OUT.value,
+        CommandType.STEP_BACK.value,
+        CommandType.REVERSE_CONTINUE.value,
+        CommandType.GOTO.value,
+        CommandType.PAUSE.value,
         # Session lifecycle (can cause issues if retried)
-        "launch",
-        "attach",
-        "restart",
-        "disconnect",
-        "terminate",
+        CommandType.LAUNCH.value,
+        CommandType.ATTACH.value,
+        "restart",  # No CommandType for this yet
+        CommandType.DISCONNECT.value,
+        CommandType.TERMINATE.value,
         # Modification operations
-        "setVariable",
-        "setExpression",
-        "restartFrame",
+        CommandType.SET_VARIABLE.value,
+        CommandType.SET_EXPRESSION.value,
+        CommandType.RESTART_FRAME.value,
     }
 
     @classmethod
@@ -207,7 +209,7 @@ class DAPRetryManager:
             return None
 
         # Special handling for evaluate based on context
-        if command == "evaluate" and context:
+        if command == CommandType.EVALUATE.value and context:
             eval_context = context.get("context", "watch")
             # Only retry watch evaluations (read-only)
             if eval_context not in ["watch", "hover"]:
@@ -216,7 +218,11 @@ class DAPRetryManager:
         # Check if idempotent
         if command in cls.IDEMPOTENT_OPERATIONS:
             # More aggressive retry for initialization commands
-            if command in ["initialize", "configurationDone"]:
+            init_commands = [
+                CommandType.INITIALIZE.value,
+                CommandType.CONFIGURATION_DONE.value,
+            ]
+            if command in init_commands:
                 return RetryConfig(
                     max_attempts=5,
                     strategy=RetryStrategy.EXPONENTIAL,

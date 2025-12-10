@@ -6,10 +6,12 @@ import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
+from aidb_cli.core.constants import ExternalURLs
 from aidb_cli.core.paths import CachePaths
 from aidb_cli.core.utils import CliOutput
 from aidb_cli.managers.base.service import BaseService
 from aidb_cli.services.docker.docker_cleanup_service import DockerCleanupService
+from aidb_common.constants import SUPPORTED_LANGUAGES
 from aidb_logging import get_cli_logger
 
 if TYPE_CHECKING:
@@ -336,9 +338,7 @@ class AdapterBuildService(BaseService):
                 check=False,
             )
             if result.returncode != 0:
-                CliOutput.error(
-                    "'act' not found. Install from: https://github.com/nektos/act",
-                )
+                CliOutput.error(ExternalURLs.ACT_INSTALL_MSG)
                 return False
             return True
         except (OSError, subprocess.SubprocessError):
@@ -363,7 +363,7 @@ class AdapterBuildService(BaseService):
         str | None
             Language name (python, javascript, java) or None if not found
         """
-        supported_languages = ["python", "javascript", "java"]
+        supported_languages = SUPPORTED_LANGUAGES
 
         # Look for pattern "Build-{language}" in container name
         for lang in supported_languages:

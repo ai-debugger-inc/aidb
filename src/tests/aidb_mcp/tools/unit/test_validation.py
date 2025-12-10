@@ -25,6 +25,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from aidb_common.constants import SUPPORTED_LANGUAGES
+
 pytestmark = pytest.mark.asyncio(loop_scope="function")
 
 
@@ -548,7 +550,7 @@ class TestFormatValidationError:
             param_name="language",
             expected_format="supported language",
             provided_value="ruby",
-            examples=["python", "javascript", "java"],
+            examples=SUPPORTED_LANGUAGES,
         )
 
         assert "language" in result
@@ -566,7 +568,7 @@ class TestValidateLanguage:
 
         with patch(
             "aidb_mcp.utils.get_supported_languages",
-            return_value=["python", "javascript", "java"],
+            return_value=SUPPORTED_LANGUAGES,
         ):
             is_valid, error_msg = validate_language("python")
 
@@ -579,7 +581,7 @@ class TestValidateLanguage:
 
         with patch(
             "aidb_mcp.utils.get_supported_languages",
-            return_value=["python", "javascript", "java"],
+            return_value=SUPPORTED_LANGUAGES,
         ):
             is_valid, error_msg = validate_language("PYTHON")
 
@@ -592,7 +594,7 @@ class TestValidateLanguage:
 
         with patch(
             "aidb_mcp.utils.get_supported_languages",
-            return_value=["python", "javascript", "java"],
+            return_value=SUPPORTED_LANGUAGES,
         ):
             is_valid, error_msg = validate_language("ruby")
 

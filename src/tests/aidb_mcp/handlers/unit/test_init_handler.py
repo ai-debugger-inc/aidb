@@ -7,6 +7,7 @@ next steps.
 
 import pytest
 
+from aidb_common.constants import SUPPORTED_LANGUAGES
 from aidb_mcp.core.constants import ParamName
 from tests._helpers.assertions import MCPAssertions
 from tests._helpers.pytest_mcp import PytestMCPBase
@@ -206,7 +207,7 @@ class TestInitHandler(PytestMCPBase):
 
         Verifies that init works correctly for Python, JavaScript, and Java.
         """
-        supported_languages = ["python", "javascript", "java"]
+        supported_languages = SUPPORTED_LANGUAGES
 
         for language in supported_languages:
             # Call init with each language

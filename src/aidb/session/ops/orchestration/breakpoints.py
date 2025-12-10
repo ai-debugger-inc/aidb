@@ -194,7 +194,8 @@ class BreakpointOperations(SessionOperationsMixin):
                         f"Breakpoint at line {line} could not be verified: {msg}",
                     )
 
-        mapped = AidbBreakpointsResponse.from_dap(breakpoints_response)
+        # Pass original request to preserve optional fields (logMessage, etc.)
+        mapped = AidbBreakpointsResponse.from_dap(breakpoints_response, request)
         # Update session-scoped breakpoint store for this source
         source_path = (
             request.arguments.source.path
@@ -375,7 +376,8 @@ class BreakpointOperations(SessionOperationsMixin):
 
         # Cast to the expected response type
         breakpoints_response = cast("SetBreakpointsResponse", response)
-        mapped = AidbBreakpointsResponse.from_dap(breakpoints_response)
+        # Pass original request to preserve optional fields (logMessage, etc.)
+        mapped = AidbBreakpointsResponse.from_dap(breakpoints_response, request)
 
         self.ctx.debug(
             f"remove_breakpoint: DAP response success, "
@@ -462,7 +464,8 @@ class BreakpointOperations(SessionOperationsMixin):
 
         # Cast to the expected response type
         breakpoints_response = cast("SetBreakpointsResponse", response)
-        mapped = AidbBreakpointsResponse.from_dap(breakpoints_response)
+        # Pass original request to preserve logMessage (DAP doesn't echo it back)
+        mapped = AidbBreakpointsResponse.from_dap(breakpoints_response, request)
 
         # Update session-scoped breakpoint store
         try:
@@ -537,7 +540,8 @@ class BreakpointOperations(SessionOperationsMixin):
 
         # Cast to the expected response type
         breakpoints_response = cast("SetBreakpointsResponse", response)
-        mapped = AidbBreakpointsResponse.from_dap(breakpoints_response)
+        # Pass original request to preserve optional fields (logMessage, etc.)
+        mapped = AidbBreakpointsResponse.from_dap(breakpoints_response, request)
 
         # Update session-scoped breakpoint store
         try:

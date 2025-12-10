@@ -27,6 +27,7 @@ from typing import Optional
 
 import pytest
 
+from aidb_common.constants import SUPPORTED_LANGUAGES
 from aidb_logging import get_test_logger
 
 logger = get_test_logger(__name__)
@@ -91,7 +92,7 @@ class AdapterManager:
             Specific languages to remove. If None, removes all.
         """
         if languages is None:
-            languages = ["javascript", "java", "python"]
+            languages = list(SUPPORTED_LANGUAGES)
 
         for language in languages:
             lang_dir = self.primary_path / language
@@ -108,7 +109,7 @@ class AdapterManager:
             Specific languages to restore. If None, restores all.
         """
         if languages is None:
-            languages = ["javascript", "java", "python"]
+            languages = list(SUPPORTED_LANGUAGES)
 
         for language in languages:
             backup_dir = self.backup_path / language
@@ -151,7 +152,7 @@ class AdapterManager:
             True if all specified adapters are present
         """
         if languages is None:
-            languages = ["javascript", "java", "python"]
+            languages = list(SUPPORTED_LANGUAGES)
 
         for language in languages:
             lang_dir = self.primary_path / language
@@ -173,7 +174,7 @@ class AdapterManager:
             True if all specified adapters are absent
         """
         if languages is None:
-            languages = ["javascript", "java", "python"]
+            languages = list(SUPPORTED_LANGUAGES)
 
         for language in languages:
             lang_dir = self.primary_path / language
@@ -314,8 +315,7 @@ def ensure_test_adapters() -> bool:
 
     # Check if we have backups
     backup_exists = any(
-        (manager.backup_path / lang).exists()
-        for lang in ["javascript", "java", "python"]
+        (manager.backup_path / lang).exists() for lang in SUPPORTED_LANGUAGES
     )
 
     if not backup_exists:

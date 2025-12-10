@@ -176,18 +176,31 @@ class TestOrchestrator(TestManager):
             return False
 
         if metadata.adapters_required:
-            # Resolve "all" to None (checks all languages in check_adapters_built)
+            # Resolve "all" to None (checks all languages in check_adapters_* methods)
             langs_to_check = None
             if languages and languages != ["all"]:
                 langs_to_check = languages
 
-            built_adapters, missing_adapters = self.build_manager.check_adapters_built(
-                languages=langs_to_check,
-            )
+            # For Docker suites, check cache only (no source fallback).
+            # Docker mounts .cache/adapters/ into containers.
+            if metadata.requires_docker:
+                built_adapters, missing_adapters = (
+                    self.build_manager.check_adapters_in_cache(
+                        languages=langs_to_check,
+                    )
+                )
+            else:
+                # Local suites can use installed adapters from ~/.aidb/adapters/
+                built_adapters, missing_adapters = (
+                    self.build_manager.check_adapters_built(
+                        languages=langs_to_check,
+                    )
+                )
+
             if missing_adapters:
                 adapter_list = ", ".join(missing_adapters)
                 CliOutput.error(
-                    f"{Icons.ERROR} Suite '{suite}' requires adapters: {adapter_list}",
+                    f"Suite '{suite}' requires adapters: {adapter_list}",
                 )
                 CliOutput.info(
                     "Run './dev-cli adapters build' "
@@ -216,7 +229,6 @@ class TestOrchestrator(TestManager):
     def run_suite(
         self,
         suite: str | None,
-        profile: str | None = None,
         languages: list[str] | None = None,
         markers: list[str] | None = None,
         pattern: str | None = None,
@@ -238,8 +250,6 @@ class TestOrchestrator(TestManager):
         ----------
         suite : str | None
             Test suite to run (defaults to base)
-        profile : str | None
-            Docker compose profile to use (overrides suite-based inference)
         languages : list[str] | None
             Language(s) to test (defaults to ["all"])
         markers : List[str], optional
@@ -276,7 +286,6 @@ class TestOrchestrator(TestManager):
         # Handle "all" suite by running each suite individually
         if suite == "all":
             return self._run_all_suites(
-                profile=profile,
                 languages=languages,
                 markers=markers,
                 pattern=pattern,
@@ -316,7 +325,6 @@ class TestOrchestrator(TestManager):
                 build,
                 timeout,
                 no_cleanup,
-                profile=profile,
             )
         pytest_args = self.coordinator.build_pytest_args(
             suite=suite,
@@ -334,7 +342,6 @@ class TestOrchestrator(TestManager):
 
     def _run_all_suites(
         self,
-        profile: str | None = None,
         languages: list[str] | None = None,
         markers: list[str] | None = None,
         pattern: str | None = None,
@@ -356,8 +363,6 @@ class TestOrchestrator(TestManager):
 
         Parameters
         ----------
-        profile : str | None
-            Docker compose profile to use (overrides suite-based inference)
         languages : list[str] | None
             Language(s) to test
         markers : list[str] | None
@@ -407,7 +412,6 @@ class TestOrchestrator(TestManager):
             # Run the suite
             exit_code = self.run_suite(
                 suite=suite_name,
-                profile=profile,
                 languages=languages,
                 markers=markers,
                 pattern=pattern,
@@ -443,8 +447,10 @@ class TestOrchestrator(TestManager):
         # Print summary
         CliOutput.info(f"\n{Icons.REPORT} Test Suite Summary:")
         for suite_name, exit_code in suite_results.items():
-            status = f"{Icons.CHECK} PASSED" if exit_code == 0 else "FAILED"
-            CliOutput.info(f"  {suite_name}: {status}")
+            if exit_code == 0:
+                CliOutput.success(f"  {suite_name}: PASSED")
+            else:
+                CliOutput.error(f"  {suite_name}: FAILED", err=False)
 
         if failed_suites:
             CliOutput.error(
@@ -452,7 +458,7 @@ class TestOrchestrator(TestManager):
             )
             return 1
 
-        CliOutput.success(f"\n{Icons.CHECK} All test suites passed!")
+        CliOutput.success("\nAll test suites passed!")
         return 0
 
     def _is_multilang_suite(self, suite: str) -> bool:
@@ -848,7 +854,6 @@ class TestOrchestrator(TestManager):
         build: bool,
         timeout: int | None = None,
         no_cleanup: bool = False,
-        profile: str | None = None,
     ) -> int:
         """Run tests in Docker environment."""
         # Normalize suite (default to base if None)
@@ -897,8 +902,8 @@ class TestOrchestrator(TestManager):
 
         # Single-language execution (original logic for non-multilang suites)
         # Use first language in list for python-only suites
-        language = languages[0] if languages else "python"
-        determined_profile = self._determine_docker_profile(suite, profile, target)
+        language = languages[0] if languages else Language.PYTHON.value
+        determined_profile = self._determine_docker_profile(suite, target)
 
         # Use determined profile for starting containers
         started = self.docker_orchestrator.start_test_environment(
@@ -946,23 +951,19 @@ class TestOrchestrator(TestManager):
     def _determine_docker_profile(
         self,
         suite: str | None,
-        profile: str | None,
         target: list[str] | None,
     ) -> str:
-        """Determine the appropriate Docker profile with clear priority.
+        """Determine the appropriate Docker profile.
 
         Priority order (highest to lowest):
-        1. Explicit --profile flag
-        2. Language detection from target path (frameworks/python/ → python)
-        3. Suite mapping (mcp → mcp, frameworks → frameworks, etc.)
-        4. Default to base profile (minimal profile)
+        1. Language detection from target path (frameworks/python/ → python)
+        2. Suite mapping (mcp → mcp, frameworks → frameworks, etc.)
+        3. Default to base profile (minimal profile)
 
         Parameters
         ----------
         suite : str | None
             Test suite name
-        profile : str | None
-            Explicitly requested profile
         target : list[str] | None
             Specific test target paths (uses first target for profile detection)
 
@@ -971,7 +972,7 @@ class TestOrchestrator(TestManager):
         str
             Docker compose profile to use
         """
-        return self._profile_resolver.determine_profile(suite, profile, target)
+        return self._profile_resolver.determine_profile(suite, target)
 
     def _run_local_tests(self, suite: str | None, pytest_args: list[str]) -> int:
         """Run tests locally using pytest.

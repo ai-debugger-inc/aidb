@@ -139,10 +139,10 @@ from aidb_cli.core.param_types import TestMarkerParamType, TestPatternParamType
     help="Pytest markers to filter by"
 )
 @click.option(
-    "--pattern",
-    "-p",
+    "-k",
+    "pattern",
     type=TestPatternParamType(),
-    help="Test name pattern (supports wildcards)"
+    help="Test name pattern (pytest -k style)"
 )
 def test_run(
     ctx: click.Context,

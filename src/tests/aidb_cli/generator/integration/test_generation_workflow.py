@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from aidb_cli.generators.core.generator import Generator
+from aidb_common.constants import SUPPORTED_LANGUAGES
 
 
 class TestEndToEndGeneration:
@@ -264,7 +265,7 @@ class TestCrossLanguageConsistency:
                 lang_results = results[scenario.id]
 
                 # Check each language
-                for language in ["python", "javascript", "java"]:
+                for language in SUPPORTED_LANGUAGES:
                     result = lang_results[language]
                     actual_marker_names = set(result.markers.keys())
 
@@ -314,7 +315,7 @@ class TestCrossLanguageConsistency:
                 lang_results = results[scenario.id]
 
                 # Check each language
-                for language in ["python", "javascript", "java"]:
+                for language in SUPPORTED_LANGUAGES:
                     result = lang_results[language]
                     actual_count = len(result.markers)
 
@@ -499,7 +500,7 @@ class TestDeterminism:
             assert s1["expected_markers"] == s2["expected_markers"]
 
             # Compare marker counts
-            for lang in ["python", "javascript", "java"]:
+            for lang in SUPPORTED_LANGUAGES:
                 assert (
                     s1["files"][lang]["marker_count"]
                     == s2["files"][lang]["marker_count"]

@@ -3,8 +3,6 @@
   "skills": {
     "skill-developer": {
       "type": "domain",
-      "enforcement": "suggest",
-      "priority": "high",
       "autoInject": true,
       "requiredSkills": [],
       "description": "Guide for creating and managing Claude Code skills. Covers skill structure, YAML frontmatter, trigger types (keywords, AI-powered intent analysis), enforcement levels (validation only), hook mechanisms (UserPromptSubmit with auto-injection), session tracking, 500-line rule, progressive disclosure, and relationship to CLAUDE.md. Use when creating new skills, modifying skill-rules.json, understanding triggers, debugging skill activation, or understanding the skills system architecture.",
@@ -39,8 +37,6 @@
     },
     "adapter-development": {
       "type": "guardrail",
-      "enforcement": "block",
-      "priority": "critical",
       "autoInject": true,
       "requiredSkills": [],
       "affinity": ["aidb-architecture", "dap-protocol-guide"],
@@ -61,8 +57,6 @@
     },
     "dap-protocol-guide": {
       "type": "domain",
-      "enforcement": "suggest",
-      "priority": "high",
       "autoInject": true,
       "requiredSkills": [],
       "affinity": ["aidb-architecture"],
@@ -91,8 +85,6 @@
     },
     "testing-strategy": {
       "type": "domain",
-      "enforcement": "suggest",
-      "priority": "high",
       "autoInject": true,
       "requiredSkills": [],
       "description": "Guide for implementing AIDB tests following E2E-first philosophy. Covers DebugInterface abstraction, shared suite architecture, framework tests, and MCP response validation. Use when creating tests, debugging test failures, or understanding test infrastructure.",
@@ -111,8 +103,6 @@
     },
     "mcp-tools-development": {
       "type": "domain",
-      "enforcement": "suggest",
-      "priority": "high",
       "autoInject": true,
       "requiredSkills": [],
       "affinity": ["aidb-architecture"],
@@ -129,8 +119,6 @@
     },
     "code-reuse-enforcement": {
       "type": "guardrail",
-      "enforcement": "block",
-      "priority": "critical",
       "autoInject": true,
       "requiredSkills": [],
       "description": "Critical guardrail preventing code duplication and magic strings. Enforces discovery of existing constants, enums, and utilities BEFORE writing new code. Use when adding any literals, utility functions, or new constants.",
@@ -149,8 +137,6 @@
     },
     "dev-cli-development": {
       "type": "domain",
-      "enforcement": "suggest",
-      "priority": "high",
       "autoInject": true,
       "requiredSkills": [],
       "description": "Guide for developing AIDB dev-cli commands and services using Click framework",
@@ -174,8 +160,6 @@
     },
     "ci-cd-workflows": {
       "type": "domain",
-      "enforcement": "suggest",
-      "priority": "high",
       "autoInject": true,
       "requiredSkills": [],
       "description": "Guide for GitHub Actions workflows, adapter builds, releases, and CI/CD configuration. Includes GitHub CLI for CI observability, test artifacts, job summaries, and log analysis. Use when working with .github/workflows/ files, versions.json, troubleshooting CI pipeline issues, or analyzing CI test failures. For general testing, use testing-strategy instead.",
@@ -211,8 +195,6 @@
     },
     "troubleshooting": {
       "type": "domain",
-      "enforcement": "suggest",
-      "priority": "high",
       "autoInject": true,
       "requiredSkills": [],
       "description": "Guide for troubleshooting AIDB issues across all components. Covers investigation workflows, log locations, common failure modes, and routing to component-specific skills. Use when debugging AIDB behavior, investigating errors, or performing root cause analysis.",
@@ -234,8 +216,6 @@
     },
     "aidb-architecture": {
       "type": "domain",
-      "enforcement": "suggest",
-      "priority": "high",
       "autoInject": true,
       "requiredSkills": [],
       "description": "Comprehensive architectural reference for AIDB core and MCP integration. Covers 6-layer architecture: MCP, API, Session, Adapter, DAP Client, Protocol. Use when explaining overall system design, component organization, or data flow patterns.",

@@ -10,6 +10,11 @@ from typing import Any
 
 from aidb.integrations.ide_detector import IDEDetector, IDEType
 
+from aidb.api.constants import (
+    DEFAULT_ADAPTER_HOST,
+    DEFAULT_VSCODE_BRIDGE_PORT,
+    RECEIVE_POLL_TIMEOUT_S,
+)
 from aidb.integrations.vscode import VSCodeIntegration
 from aidb_logging import get_mcp_logger as get_logger
 
@@ -69,7 +74,10 @@ class IDENotificationService:
             try:
                 import socket
 
-                with socket.create_connection(("localhost", 42042), timeout=1):
+                with socket.create_connection(
+                    (DEFAULT_ADAPTER_HOST, DEFAULT_VSCODE_BRIDGE_PORT),
+                    timeout=int(RECEIVE_POLL_TIMEOUT_S),
+                ):
                     state["bridge_active"] = True
             except (OSError, ConnectionRefusedError, TimeoutError):
                 state["bridge_active"] = False

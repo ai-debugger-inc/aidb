@@ -163,28 +163,13 @@ class APIOperationBase(Obj):
         child session if it exists. This ensures that validation checks and
         operations use the correct session state.
 
+        This property delegates to the SessionRegistry's resolve_active_session()
+        method, which is the single authoritative implementation for session
+        resolution.
+
         Returns
         -------
         Session
             The active session (child if exists, otherwise root)
         """
-        # If this is already a child, return as-is
-        if self._root_session.is_child:
-            return self._root_session
-
-        # For adapters requiring child sessions, use child when it exists
-        if (
-            hasattr(self._root_session, "adapter")
-            and self._root_session.adapter
-            and hasattr(self._root_session.adapter, "requires_child_session_wait")
-            and self._root_session.adapter.requires_child_session_wait
-            and self._root_session.child_session_ids
-        ):
-            # Resolve to first child (JavaScript only has one)
-            child_id = self._root_session.child_session_ids[0]
-            child = self._root_session.registry.get_session(child_id)
-
-            if child:
-                return child
-
-        return self._root_session
+        return self._root_session.registry.resolve_active_session(self._root_session)

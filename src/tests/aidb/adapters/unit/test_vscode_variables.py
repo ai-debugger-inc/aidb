@@ -195,7 +195,7 @@ class TestVSCodeVariableResolverResolve:
         resolver: VSCodeVariableResolver,
     ) -> None:
         """Test resolving ${file} without context raises error."""
-        with pytest.raises(VSCodeVariableError, match="runtime context"):
+        with pytest.raises(VSCodeVariableError, match="requires a target file"):
             resolver.resolve("${file}")
 
     def test_resolve_runtime_only_variable_raises(
@@ -211,7 +211,7 @@ class TestVSCodeVariableResolverResolve:
         resolver: VSCodeVariableResolver,
     ) -> None:
         """Test resolving unknown variable raises error."""
-        with pytest.raises(VSCodeVariableError, match="Unknown VS Code variable"):
+        with pytest.raises(VSCodeVariableError, match="Unknown variable"):
             resolver.resolve("${unknownVar}")
 
     def test_resolve_string_without_variables(
@@ -455,12 +455,12 @@ class TestVSCodeVariableResolverValidateLaunchConfig:
 
 
 # =============================================================================
-# TestVSCodeVariableResolverRuntimeOnlyVariables
+# TestVSCodeVariableResolverVariableCategories
 # =============================================================================
 
 
-class TestVSCodeVariableResolverRuntimeOnlyVariables:
-    """Tests for runtime-only variable detection."""
+class TestVSCodeVariableResolverVariableCategories:
+    """Tests for variable categorization in the resolver."""
 
     @pytest.mark.parametrize(
         "variable",
@@ -470,13 +470,47 @@ class TestVSCodeVariableResolverRuntimeOnlyVariables:
             "fileBasenameNoExtension",
             "fileExtname",
             "fileDirname",
+            "fileDirnameBasename",
             "relativeFile",
             "relativeFileDirname",
+            "fileWorkspaceFolder",
+        ],
+    )
+    def test_file_based_variables_registered(
+        self,
+        resolver: VSCodeVariableResolver,
+        variable: str,
+    ) -> None:
+        """Test file-based variables are registered in FILE_VARIABLES."""
+        assert variable in VSCodeVariableResolver.FILE_VARIABLES
+
+    @pytest.mark.parametrize(
+        "variable",
+        [
             "selectedText",
             "execPath",
-            "pathSeparator",
+            "defaultBuildTask",
             "lineNumber",
-            "selectedPosition",
+            "columnNumber",
+        ],
+    )
+    def test_unsupported_variables_registered(
+        self,
+        resolver: VSCodeVariableResolver,
+        variable: str,
+    ) -> None:
+        """Test unsupported runtime variables are in UNSUPPORTED_VARIABLES."""
+        assert variable in VSCodeVariableResolver.UNSUPPORTED_VARIABLES
+
+    @pytest.mark.parametrize(
+        "variable",
+        [
+            "workspaceFolder",
+            "workspaceFolderBasename",
+            "userHome",
+            "pathSeparator",
+            "/",
+            "cwd",
             "currentYear",
             "currentMonth",
             "currentDay",
@@ -485,10 +519,10 @@ class TestVSCodeVariableResolverRuntimeOnlyVariables:
             "currentSecond",
         ],
     )
-    def test_runtime_only_variable_is_detected(
+    def test_predefined_variables_registered(
         self,
         resolver: VSCodeVariableResolver,
         variable: str,
     ) -> None:
-        """Test all runtime-only variables are detected."""
-        assert variable in VSCodeVariableResolver.RUNTIME_ONLY_VARIABLES
+        """Test predefined variables are registered in PREDEFINED_VARIABLES."""
+        assert variable in VSCodeVariableResolver.PREDEFINED_VARIABLES

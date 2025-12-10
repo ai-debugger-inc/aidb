@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 
 from aidb.audit.middleware import audit_operation
 from aidb.common.errors import AidbError
+from aidb.dap.client.constants import EventType
 from aidb.models import (
     AidbBreakpoint,
     AidbStopResponse,
@@ -292,10 +293,10 @@ class SessionLifecycleMixin:
             # Subscribe to breakpoint events using the session's handler
             # The handler (_on_breakpoint_event) is defined in SessionBreakpointsMixin
             subscription_id = await self.dap.events.subscribe_to_event(
-                "breakpoint",
+                EventType.BREAKPOINT.value,
                 session._on_breakpoint_event,
             )
-            session._event_subscriptions["breakpoint"] = subscription_id
+            session._event_subscriptions[EventType.BREAKPOINT.value] = subscription_id
             self.ctx.debug(
                 f"Subscribed to breakpoint events for state sync "
                 f"(subscription_id={subscription_id})",
@@ -304,11 +305,12 @@ class SessionLifecycleMixin:
             # Subscribe to loadedSource events for proactive rebinding
             # This accelerates breakpoint verification by re-sending setBreakpoints
             # when sources load, rather than waiting for async verification
+            loaded_source_key = EventType.LOADED_SOURCE.value
             loadedsource_sub_id = await self.dap.events.subscribe_to_event(
-                "loadedSource",
+                loaded_source_key,
                 session._on_loaded_source_event,
             )
-            session._event_subscriptions["loadedSource"] = loadedsource_sub_id
+            session._event_subscriptions[loaded_source_key] = loadedsource_sub_id
             self.ctx.debug(
                 f"Subscribed to loadedSource events for proactive rebinding "
                 f"(subscription_id={loadedsource_sub_id})",
@@ -317,10 +319,10 @@ class SessionLifecycleMixin:
             # Subscribe to terminated event to clear breakpoint cache
             # This prevents returning stale breakpoint data after session ends
             terminated_sub_id = await self.dap.events.subscribe_to_event(
-                "terminated",
+                EventType.TERMINATED.value,
                 session._on_terminated_event,
             )
-            session._event_subscriptions["terminated"] = terminated_sub_id
+            session._event_subscriptions[EventType.TERMINATED.value] = terminated_sub_id
             self.ctx.debug(
                 f"Subscribed to terminated event for cache cleanup "
                 f"(subscription_id={terminated_sub_id})",
@@ -584,17 +586,27 @@ class SessionLifecycleMixin:
 
         try:
             # Unsubscribe from events before cleanup
+            # Use timeout to prevent hanging if receiver is blocked
             if (
                 hasattr(session, "_event_subscriptions")
                 and session._event_subscriptions
                 and hasattr(self, "connector")
                 and self.connector._dap
             ):
+                import asyncio
+
                 for event_type, sub_id in session._event_subscriptions.items():
                     try:
-                        await self.connector._dap.events.unsubscribe_from_event(sub_id)
+                        await asyncio.wait_for(
+                            self.connector._dap.events.unsubscribe_from_event(sub_id),
+                            timeout=2.0,  # Don't block cleanup indefinitely
+                        )
                         self.ctx.debug(
                             f"Unsubscribed from {event_type} events (id={sub_id})",
+                        )
+                    except asyncio.TimeoutError:
+                        self.ctx.warning(
+                            f"Timeout unsubscribing from {event_type} (id={sub_id})",
                         )
                     except Exception as e:
                         self.ctx.debug(

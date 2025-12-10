@@ -331,7 +331,7 @@ class DockerBuildService:
         for image_type, (needs_rebuild, reason) in status_map.items():
             image_name = f"aidb-test-{image_type}:latest"
             if needs_rebuild:
-                CliOutput.warning(f"  ⚠ {image_name:<35} - needs rebuild")
+                CliOutput.warning(f"  {image_name:<35} - needs rebuild")
                 CliOutput.plain(f"    Reason: {reason}")
             else:
-                CliOutput.success(f"  ✓ {image_name:<35} - {reason}")
+                CliOutput.success(f"  {image_name:<35} - {reason}")

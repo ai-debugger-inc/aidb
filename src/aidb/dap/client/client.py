@@ -5,6 +5,9 @@ from typing import TYPE_CHECKING, Any, Literal, Optional
 
 from aidb.api.constants import (
     CONNECTION_TIMEOUT_S,
+    DEFAULT_ADAPTER_HOST,
+    DEFAULT_PYTHON_DEBUG_PORT,
+    DEFAULT_WAIT_TIMEOUT_S,
     DISCONNECT_TIMEOUT_S,
     EVENT_POLL_TIMEOUT_S,
     RECEIVER_STOP_TIMEOUT_S,
@@ -23,6 +26,7 @@ from aidb.patterns import Obj
 
 from .capabilities import CLIENT_CAPABILITIES
 from .connection_manager import ConnectionManager
+from .constants import EventType
 from .events import EventProcessor
 from .logger import PrefixedLogger
 from .message_router import MessageRouter
@@ -59,11 +63,12 @@ class DAPClient(Obj):
     def __init__(
         self,
         ctx: Optional["IContext"] = None,
-        adapter_host: str = "127.0.0.1",
-        adapter_port: int = 5678,
+        adapter_host: str = DEFAULT_ADAPTER_HOST,
+        adapter_port: int = DEFAULT_PYTHON_DEBUG_PORT,
         log_prefix: str | None = None,
         event_bridge: Any | None = None,
         parent_session: Any | None = None,
+        session_id: str | None = None,
     ):
         """Initialize DAP client.
 
@@ -81,9 +86,14 @@ class DAPClient(Obj):
             EventBridge for forwarding events to child sessions
         parent_session : Session, optional
             Parent session reference for event forwarding
+        session_id : str, optional
+            Session ID for event processor logging and debugging
         """
         # Initialize Obj with provided context
         super().__init__(ctx)
+
+        # Store session_id for audit logging and event processor
+        self._session_id = session_id
 
         # Store the prefixed logger if needed and override our ctx
         if log_prefix and ctx:
@@ -95,7 +105,7 @@ class DAPClient(Obj):
         effective_ctx = ctx or self.ctx
         self._transport = DAPTransport(adapter_host, adapter_port, ctx)
         self._state = SessionState()
-        self._event_processor = EventProcessor(self._state, ctx)
+        self._event_processor = EventProcessor(self._state, ctx, session_id=session_id)
         self._public_events = PublicEventAPI(self._event_processor, ctx)
         self._reverse_request_handler = ReverseRequestHandler(
             self._transport,
@@ -484,7 +494,7 @@ class DAPClient(Obj):
         if was_connected:
             self.ctx.debug(f"Reconnecting to new port {port}")
             try:
-                await self.connect(timeout=5.0)
+                await self.connect(timeout=CONNECTION_TIMEOUT_S)
                 self.ctx.debug("Successfully reconnected to new port")
             except Exception as e:
                 self.ctx.error(f"Failed to reconnect to new port {port}: {e}")
@@ -593,7 +603,7 @@ class DAPClient(Obj):
             "stopped", "terminated", or "timeout"
         """
         if timeout is None:
-            timeout = 5.0
+            timeout = DEFAULT_WAIT_TIMEOUT_S
         return await self._public_events.wait_for_stopped_or_terminated_async(timeout)
 
     async def wait_for_event(self, event_type: str, timeout: float = 5.0) -> bool:
@@ -725,7 +735,7 @@ class DAPClient(Obj):
 
             # Update thread state if this is a stopped event
             if (
-                event.event == "stopped"
+                event.event == EventType.STOPPED.value
                 and event.body
                 and hasattr(event.body, "threadId")
             ):
@@ -742,11 +752,11 @@ class DAPClient(Obj):
                     self.ctx.debug(
                         "No event loop available for background location update",
                     )
-            elif event.event == "continued":
+            elif event.event == EventType.CONTINUED.value:
                 # Don't override stopped state set by event processor
                 # The event processor handles continued events properly
                 pass
-            elif event.event == "terminated":
+            elif event.event == EventType.TERMINATED.value:
                 self._event_processor._state.terminated = True
                 self._event_processor._state.stopped = False
                 # Clear location when terminated

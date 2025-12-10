@@ -13,6 +13,7 @@ from collections import defaultdict, deque
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
+from aidb.api.constants import RECEIVE_POLL_TIMEOUT_S
 from aidb_common.config import config
 from aidb_common.patterns.singleton import Singleton
 from aidb_logging import get_mcp_logger as get_logger
@@ -214,7 +215,7 @@ class NotificationManager(Singleton["NotificationManager"]):
             try:
                 event_type, data = await asyncio.wait_for(
                     self._notification_queue.get(),
-                    timeout=1.0,
+                    timeout=RECEIVE_POLL_TIMEOUT_S,
                 )
 
                 event_time = data.get("event_time", time.time())

@@ -15,7 +15,7 @@ from .files import (
     write_cache_file,
 )
 from .hashing import compute_files_hash, compute_pattern_hash
-from .subprocess import close_subprocess_transports
+from .subprocess import close_subprocess_transports, is_event_loop_error
 
 __all__ = [
     "ChecksumServiceBase",
@@ -29,4 +29,5 @@ __all__ = [
     "compute_files_hash",
     "compute_pattern_hash",
     "close_subprocess_transports",
+    "is_event_loop_error",
 ]

@@ -19,6 +19,10 @@ inputs:
     description: Suffix to append to artifact names for uniqueness (e.g., language for matrix jobs)
     required: false
     default: ''
+  parallel-workers:
+    description: Number of parallel pytest workers (0 = disabled, no. of CPU cores avail = recommended)
+    required: false
+    default: '2'
 runs:
   using: composite
   steps:
@@ -28,11 +32,18 @@ runs:
       run: |
         source venv/bin/activate
         set +e
+
+        # Build parallel flag if workers > 0
+        PARALLEL_FLAG=""
+        if [[ "${{ inputs.parallel-workers }}" != "0" && -n "${{ inputs.parallel-workers }}" ]]; then
+          PARALLEL_FLAG="-n ${{ inputs.parallel-workers }}"
+        fi
+
         if [[ "${{ inputs.skip-coverage }}" == "true" ]]; then
-          ./dev-cli -v test run -s ${{ inputs.suite }} ${{ inputs.additional-args }} 2>&1 | tee test-output.log
+          ./dev-cli -v test run -s ${{ inputs.suite }} $PARALLEL_FLAG ${{ inputs.additional-args }} 2>&1 | tee test-output.log
           TEST_EXIT_CODE=${PIPESTATUS[0]}
         else
-          ./dev-cli -v test run -s ${{ inputs.suite }} --coverage ${{ inputs.additional-args }} 2>&1 | tee test-output.log
+          ./dev-cli -v test run -s ${{ inputs.suite }} --coverage $PARALLEL_FLAG ${{ inputs.additional-args }} 2>&1 | tee test-output.log
           TEST_EXIT_CODE=${PIPESTATUS[0]}
         fi
         set -e
@@ -64,13 +75,14 @@ runs:
           echo '{"suite": "${{ inputs.suite }}", "flaky_tests": [], "consistently_failing": [], "rerun_count": 0}' > flakes.json
         fi
 
-    - name: Upload coverage
+    - name: Upload coverage artifact
       if: inputs.skip-coverage != 'true'
-      uses: codecov/codecov-action@v4
+      uses: actions/upload-artifact@v4
       with:
-        files: .coverage
-        flags: ${{ inputs.coverage-flags || inputs.suite }}
-        fail_ci_if_error: false
+        name: coverage-${{ inputs.suite }}${{ inputs.artifact-suffix && format('-{0}', inputs.artifact-suffix) || '' }}
+        path: .coverage
+        retention-days: 1
+        if-no-files-found: ignore
 
     - name: Upload test summary
       if: always()

@@ -7,10 +7,13 @@ from typing import TYPE_CHECKING, Optional, cast
 from aidb.adapters.base.initialize import InitializationOp, InitializationOpType
 from aidb.api.constants import (
     EVENT_POLL_TIMEOUT_S,
+    INIT_REQUEST_TIMEOUT_S,
     LONG_WAIT_S,
+    POLL_SLEEP_INTERVAL_S,
     RECONNECTION_TIMEOUT_S,
     STACK_TRACE_TIMEOUT_S,
 )
+from aidb.dap.client.constants import EventType
 from aidb.dap.protocol.base import Response
 from aidb.dap.protocol.bodies import (
     AttachRequestArguments,
@@ -220,7 +223,10 @@ class InitializationMixin(BaseOperations):
         self.ctx.info("Sending initialize request to debug adapter")
         init_response = cast(
             "InitializeResponse",
-            await self.session.dap.send_request(init_request, timeout=20),
+            await self.session.dap.send_request(
+                init_request,
+                timeout=INIT_REQUEST_TIMEOUT_S,
+            ),
         )
         init_response.ensure_success()
         self.ctx.info("Initialize request successful")
@@ -237,7 +243,7 @@ class InitializationMixin(BaseOperations):
 
         # First attempt
         if await self.session.dap.event_processor.wait_for_event(
-            "initialized",
+            EventType.INITIALIZED.value,
             timeout=timeout,
         ):
             self.ctx.debug("Received initialized event")
@@ -304,7 +310,7 @@ class InitializationMixin(BaseOperations):
         # Retry waiting for initialized event
         self.ctx.debug("Waiting for initialized event (retry attempt)...")
         if await self.session.dap.event_processor.wait_for_event(
-            "initialized",
+            EventType.INITIALIZED.value,
             timeout=timeout,
         ):
             self.ctx.info("Received initialized event on retry!")
@@ -649,7 +655,7 @@ class InitializationMixin(BaseOperations):
         while asyncio.get_event_loop().time() - start_time < timeout:
             # Wait for a breakpoint event (with a short timeout for each iteration)
             got_event = await self.session.dap.event_processor.wait_for_event(
-                "breakpoint",
+                EventType.BREAKPOINT.value,
                 timeout=EVENT_POLL_TIMEOUT_S,
             )
 
@@ -671,7 +677,7 @@ class InitializationMixin(BaseOperations):
 
             # If no event in this iteration, continue waiting
             if not got_event:
-                await asyncio.sleep(0.05)
+                await asyncio.sleep(POLL_SLEEP_INTERVAL_S)
 
         # Final check after timeout
         current_bps = self.session.current_breakpoints

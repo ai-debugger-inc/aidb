@@ -48,6 +48,17 @@ class SessionBreakpointsMixin:
         # dict.copy() is atomic in CPython, writes are protected by lock
         return AidbBreakpointsResponse(breakpoints=self._breakpoint_store.copy())
 
+    @property
+    def breakpoint_count(self) -> int:
+        """Get the number of breakpoints currently in the store.
+
+        Returns
+        -------
+        int
+            Number of breakpoints in the internal store
+        """
+        return len(self._breakpoint_store)
+
     async def _update_breakpoints_from_response(
         self,
         source_path: str,
@@ -326,9 +337,9 @@ class SessionBreakpointsMixin:
                 if hasattr(self.dap, "is_connected") and not self.dap.is_connected:
                     self.ctx.debug("Skipping loadedSource handling: DAP not connected")
                     return
-        except Exception:
+        except Exception as e:
             # Best-effort guard; continue if checks not available
-            pass
+            self.ctx.debug(f"Guard check failed, proceeding anyway: {e}")
 
         loaded_event = cast("LoadedSourceEvent", event)
         if not loaded_event.body or not loaded_event.body.source:
@@ -358,32 +369,23 @@ class SessionBreakpointsMixin:
         asyncio.create_task(self._rebind_breakpoints_for_source(source.path))
 
     def _on_terminated_event(self, event: "Event") -> None:  # noqa: ARG002
-        """Clear breakpoint cache when session terminates.
+        """Handle session termination event.
 
-        When the debug session ends, the breakpoint cache becomes stale.
-        Clear it to prevent returning outdated breakpoint data.
+        Note: We intentionally do NOT clear the breakpoint cache on termination.
+        Breakpoint state represents what was set during the session and remains
+        valid information even after the debug target exits. The cache is only
+        cleared on explicit session cleanup/destroy.
 
         Parameters
         ----------
         event : Event
             The DAP terminated event (unused but required for event handler signature)
         """
-        # Schedule async cleanup as background task
-        import asyncio
-
-        task = asyncio.create_task(self._clear_breakpoint_cache_on_termination())
-        self._breakpoint_update_tasks.add(task)
-        task.add_done_callback(lambda t: self._breakpoint_update_tasks.discard(t))
-
-    async def _clear_breakpoint_cache_on_termination(self) -> None:
-        """Clear breakpoint store when session terminates (lock-protected)."""
-        async with self._breakpoint_store_lock:
-            count = len(self._breakpoint_store)
-            self._breakpoint_store.clear()
-            if count > 0:
-                self.ctx.debug(
-                    f"Cleared {count} breakpoint(s) from cache on session termination",
-                )
+        # Log termination but preserve breakpoint state
+        self.ctx.debug(
+            f"Session terminated, preserving {len(self._breakpoint_store)} "
+            "breakpoint(s) in cache",
+        )
 
     async def _rebind_breakpoints_for_source(self, source_path: str) -> None:
         """Re-send setBreakpoints for a specific source to accelerate verification.
@@ -433,8 +435,9 @@ class SessionBreakpointsMixin:
                         f"Skipping rebind for {source_path}: DAP not connected",
                     )
                     return
-        except Exception:
-            pass
+        except Exception as e:
+            # Best-effort guard; continue if checks not available
+            self.ctx.debug(f"Rebind guard check failed, proceeding anyway: {e}")
 
         # Find all breakpoints for this source in the store
         # Use current_breakpoints property to get thread-safe copy
@@ -602,6 +605,12 @@ class SessionBreakpointsMixin:
                             source_path,
                             response_bps,
                         )
+                        # Verify store was populated for debugging race conditions
+                        if not self._breakpoint_store:
+                            self.ctx.warning(
+                                f"Breakpoint store empty after setting "
+                                f"{len(response_bps)} breakpoints in {source_path}",
+                            )
                 else:
                     self.ctx.warning(
                         f"Failed to set breakpoints in {source_path}: "

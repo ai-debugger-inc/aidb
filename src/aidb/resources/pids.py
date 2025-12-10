@@ -6,6 +6,7 @@ import signal
 import threading
 from typing import TYPE_CHECKING, Any, Optional
 
+from aidb.api.constants import PROCESS_WAIT_TIMEOUT_S
 from aidb.common import acquire_lock
 from aidb.patterns import Obj
 from aidb_common.patterns import Singleton
@@ -218,7 +219,7 @@ class ProcessRegistry(Singleton["ProcessRegistry"], Obj):
         )
         proc.kill()
         try:
-            await asyncio.wait_for(proc.wait(), timeout=1.0)
+            await asyncio.wait_for(proc.wait(), timeout=PROCESS_WAIT_TIMEOUT_S)
             self.ctx.debug(
                 f"Process {pid} killed with SIGKILL; return "
                 f"code {getattr(proc, 'returncode', None)}",

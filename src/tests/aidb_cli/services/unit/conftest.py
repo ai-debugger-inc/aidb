@@ -13,6 +13,7 @@ from unittest.mock import Mock, patch
 import pytest
 from click.testing import CliRunner
 
+from aidb_common.constants import SUPPORTED_LANGUAGES
 from aidb_common.discovery import get_supported_languages
 
 
@@ -20,10 +21,10 @@ def _get_test_languages() -> list[str]:
     """Get supported languages with fallback for tests."""
     try:
         languages = get_supported_languages()
-        return languages if languages else ["python", "javascript", "java"]
+        return languages if languages else SUPPORTED_LANGUAGES
     except Exception:
         # Fallback if registry is not available during testing
-        return ["python", "javascript", "java"]
+        return SUPPORTED_LANGUAGES
 
 
 @pytest.fixture

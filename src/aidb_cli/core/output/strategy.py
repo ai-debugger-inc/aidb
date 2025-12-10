@@ -87,7 +87,7 @@ class OutputStrategy:
         self._last_was_blank = False
 
     def error(self, message: str, to_stderr: bool = True) -> None:
-        """Display error message (red). Always visible.
+        """Display error message (red) with x mark. Always visible.
 
         Parameters
         ----------
@@ -96,29 +96,27 @@ class OutputStrategy:
         to_stderr : bool
             Whether to send to stderr (default: True)
         """
-        from aidb_cli.core.constants import Icons
-
-        self._emit(f"{Icons.ERROR} {message}", err=to_stderr, style={"fg": "red"})
+        self._emit(f"[✘] {message}", err=to_stderr, style={"fg": "red"})
 
     def warning(self, message: str) -> None:
-        """Display warning message (yellow). Always visible.
+        """Display warning message (yellow) with warning indicator. Always visible.
 
         Parameters
         ----------
         message : str
             Warning message
         """
-        self._emit(message, style={"fg": "yellow"})
+        self._emit(f"[⚠] {message}", style={"fg": "yellow"})
 
     def success(self, message: str) -> None:
-        """Display success message (green). Always visible.
+        """Display success message (green) with checkmark. Always visible.
 
         Parameters
         ----------
         message : str
             Success message
         """
-        self._emit(message, style={"fg": "green"})
+        self._emit(f"[✔] {message}", style={"fg": "green"})
 
     def result(self, message: str) -> None:
         """Display result/output. Always visible.

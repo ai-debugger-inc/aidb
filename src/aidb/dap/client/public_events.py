@@ -20,10 +20,12 @@ from typing import (
 if TYPE_CHECKING:
     from aidb.interfaces.context import IContext
 
+from aidb.api.constants import DEFAULT_WAIT_TIMEOUT_S, EVENT_QUEUE_POLL_TIMEOUT_S
 from aidb.common.errors import AidbError
 from aidb.dap.protocol.base import Event
 from aidb.patterns import Obj
 
+from .constants import EventType
 from .events import EventProcessor
 
 
@@ -324,7 +326,11 @@ class PublicEventAPI(Obj):
         str
             Subscription ID
         """
-        return await self.subscribe_to_event("stopped", handler, event_filter)
+        return await self.subscribe_to_event(
+            EventType.STOPPED.value,
+            handler,
+            event_filter,
+        )
 
     async def on_terminated(
         self,
@@ -344,7 +350,7 @@ class PublicEventAPI(Obj):
         str
             Subscription ID
         """
-        return await self.subscribe_to_event("terminated", handler)
+        return await self.subscribe_to_event(EventType.TERMINATED.value, handler)
 
     async def on_continued(
         self,
@@ -367,7 +373,11 @@ class PublicEventAPI(Obj):
         str
             Subscription ID
         """
-        return await self.subscribe_to_event("continued", handler, event_filter)
+        return await self.subscribe_to_event(
+            EventType.CONTINUED.value,
+            handler,
+            event_filter,
+        )
 
     async def on_output(
         self,
@@ -401,7 +411,11 @@ class PublicEventAPI(Obj):
 
             filter_func = category_filter
 
-        return await self.subscribe_to_event("output", handler, filter_func)
+        return await self.subscribe_to_event(
+            EventType.OUTPUT.value,
+            handler,
+            filter_func,
+        )
 
     async def get_subscription_stats(self) -> dict[str, Any]:
         """Get statistics about subscription usage.
@@ -605,7 +619,7 @@ class PublicEventAPI(Obj):
             while True:
                 # Yield events from queue
                 try:
-                    event = event_queue.get(timeout=0.1)
+                    event = event_queue.get(timeout=EVENT_QUEUE_POLL_TIMEOUT_S)
                     if event is not None:
                         yield event
                 except queue.Empty:
@@ -643,7 +657,7 @@ class PublicEventAPI(Obj):
         >>> future = session.events.wait_for_stopped_async(timeout=5.0)
         >>> stopped = await future  # True if stopped, False if timeout
         """
-        future = await self.wait_for_event_async("stopped", timeout)
+        future = await self.wait_for_event_async(EventType.STOPPED.value, timeout)
 
         # Wrap to return bool instead of Event
         async def bool_wrapper() -> bool:
@@ -680,7 +694,7 @@ class PublicEventAPI(Obj):
         >>> future = session.events.wait_for_terminated_async(timeout=5.0)
         >>> terminated = await future  # True if terminated, False if timeout
         """
-        future = await self.wait_for_event_async("terminated", timeout)
+        future = await self.wait_for_event_async(EventType.TERMINATED.value, timeout)
 
         # Wrap to return bool instead of Event
         async def bool_wrapper() -> bool:
@@ -731,7 +745,7 @@ class PublicEventAPI(Obj):
         """
         # Set default timeout if not specified
         if timeout is None:
-            timeout = 5.0
+            timeout = DEFAULT_WAIT_TIMEOUT_S
 
         # Register for NEXT occurrences BEFORE checking current state
         # This eliminates race conditions where events arrive between
@@ -946,7 +960,7 @@ class StubPublicEventAPI:
         str
             Subscription ID for unsubscribing
         """
-        return await self.subscribe_to_event("stopped", handler)
+        return await self.subscribe_to_event(EventType.STOPPED.value, handler)
 
     async def on_terminated(self, handler: Callable[[Event], None]) -> str:
         """Subscribe to 'terminated' events (stub convenience method).
@@ -961,7 +975,7 @@ class StubPublicEventAPI:
         str
             Subscription ID for unsubscribing
         """
-        return await self.subscribe_to_event("terminated", handler)
+        return await self.subscribe_to_event(EventType.TERMINATED.value, handler)
 
     async def on_continued(self, handler: Callable[[Event], None]) -> str:
         """Subscribe to 'continued' events (stub convenience method).
@@ -976,4 +990,4 @@ class StubPublicEventAPI:
         str
             Subscription ID for unsubscribing
         """
-        return await self.subscribe_to_event("continued", handler)
+        return await self.subscribe_to_event(EventType.CONTINUED.value, handler)

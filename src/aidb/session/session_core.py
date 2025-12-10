@@ -2,7 +2,6 @@
 
 import asyncio
 import uuid
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Union
 
 if TYPE_CHECKING:
@@ -21,7 +20,6 @@ from aidb.models import (
 from aidb.patterns import Obj
 from aidb_common.path import normalize_path
 
-from .adapter_registry import get_all_cached_file_extensions
 from .capabilities import CapabilityChecker
 from .connector import SessionConnector
 from .ops import SessionDebugOperations
@@ -114,17 +112,11 @@ class Session(
         )
 
         # Core attributes
-        # Apply identifier vs file path heuristic (same as BaseLaunchConfig)
+        # Apply identifier vs file path heuristic using TargetClassifier
         if target:
-            known_extensions = get_all_cached_file_extensions()
-            target_path = Path(target)
-            suffix_lower = target_path.suffix.lower()
-            has_known_extension = suffix_lower in known_extensions
-            has_path_separator = ("/" in target) or ("\\" in target)
+            from aidb.adapters.base.target_classifier import TargetClassifier
 
-            is_file_path = has_known_extension or has_path_separator
-
-            if is_file_path:
+            if TargetClassifier.is_file_path(target):
                 self.target = normalize_path(target)
             else:
                 # It's an identifier (class name, module, etc.) - keep as-is
@@ -282,6 +274,37 @@ class Session(
             )
         except Exception:
             return False
+
+    # ---------------------------
+    # Location Tracking
+    # ---------------------------
+
+    def get_current_location(self) -> tuple[str | None, int | None]:
+        """Get the current execution location from DAP state.
+
+        Returns the current file and line from the DAP event processor state.
+        This provides a fast, cached view of the current location without
+        making DAP requests.
+
+        Returns
+        -------
+        tuple[str | None, int | None]
+            (current_file, current_line) from DAP state, or (None, None)
+            if not available
+        """
+        try:
+            if (
+                hasattr(self, "connector")
+                and self.connector
+                and self.connector.has_dap_client()
+                and hasattr(self.dap, "_event_processor")
+                and hasattr(self.dap._event_processor, "_state")
+            ):
+                state = self.dap._event_processor._state
+                return state.current_file, state.current_line
+        except Exception as e:
+            self.ctx.debug(f"Could not get current location: {e}")
+        return None, None
 
     # ---------------------------
     # Capability Management (Delegated)
@@ -502,3 +525,51 @@ class Session(
             raise RuntimeError(msg)
 
         return await self.dap.send_request(request)
+
+    def get_output(self, clear: bool = True) -> list[dict[str, Any]]:
+        """Get collected program output (logpoints, stdout, stderr).
+
+        This method provides proper encapsulation of the DAP client's output
+        buffer. Output is collected from DAP output events during program
+        execution. Logpoint messages appear with category "console".
+
+        Parameters
+        ----------
+        clear : bool
+            If True (default), clears the buffer after retrieval to avoid
+            returning duplicate output on subsequent calls.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            List of output entries, each with:
+            - category: "console" (logpoints), "stdout", "stderr", etc.
+            - output: The output text
+            - timestamp: Unix timestamp when output was received
+        """
+        return self.connector.get_output(clear=clear)
+
+    def is_stopped(self) -> bool:
+        """Check if the session is stopped (paused at a breakpoint or step).
+
+        This is a unified method that handles both parent and child sessions
+        correctly. It checks the DAP client's stopped state, which is accurate
+        for:
+        - Parent sessions that are paused at breakpoints
+        - Child sessions (JavaScript/TypeScript) that may stop before full
+          session initialization
+
+        For high-level session lifecycle status, use ``is_paused()`` instead.
+        For low-level DAP client state, use ``is_dap_stopped()`` instead.
+
+        Returns
+        -------
+        bool
+            True if the session is stopped/paused, False otherwise
+        """
+        # For child sessions or sessions with DAP client, check DAP state
+        if self.connector.has_dap_client():
+            return self.is_dap_stopped()
+
+        # Fallback to session state for sessions without DAP client yet
+        return self.state.is_paused()

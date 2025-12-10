@@ -73,9 +73,10 @@ class TestEventBridgeInit:
         """EventBridge initializes with empty subscriptions dict."""
         assert event_bridge._subscriptions == {}
 
-    def test_init_creates_lock(self, event_bridge):
-        """EventBridge creates a threading lock."""
-        assert event_bridge.lock is not None
+    def test_init_creates_locks(self, event_bridge):
+        """EventBridge creates async and sync locks."""
+        assert event_bridge._async_lock is not None
+        assert event_bridge._sync_lock is not None
 
 
 class TestEventBridgeChildRegistration:

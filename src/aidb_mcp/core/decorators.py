@@ -195,6 +195,7 @@ def mcp_tool(
     record_history: bool = True,
     standardize_response: bool = True,
     validate_params: list[str] | None = None,
+    allow_on_terminated: list[str] | None = None,
 ) -> Callable:
     """Unified decorator for MCP tool handlers.
 
@@ -224,6 +225,8 @@ def mcp_tool(
         Apply response standardization
     validate_params : list[str], optional
         List of required parameter names to validate before execution
+    allow_on_terminated : list[str], optional
+        List of action values allowed on terminated sessions (for read-only ops)
 
     Returns
     -------
@@ -264,7 +267,10 @@ def mcp_tool(
             result = with_parameter_validation(*validate_params)(result)
 
         # 2. Thread safety and session management
-        result = with_thread_safety(require_session=require_session)(result)
+        result = with_thread_safety(
+            require_session=require_session,
+            allow_on_terminated=allow_on_terminated,
+        )(result)
 
         # 1. Performance timing (outermost)
         return timed(result)

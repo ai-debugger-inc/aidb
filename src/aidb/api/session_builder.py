@@ -410,7 +410,7 @@ class SessionBuilder(Obj):
         breakpoints : Union[List[BreakpointSpec], BreakpointSpec]
             Breakpoints conforming to BreakpointSpec schema
         source_file : str, optional
-            Unused, kept for compatibility (file comes from spec)
+            Fallback source file path when target is not set
 
         Returns
         -------

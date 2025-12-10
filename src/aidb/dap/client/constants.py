@@ -18,6 +18,7 @@ class MessageType(Enum):
 class EventType(Enum):
     """Common DAP event types."""
 
+    INITIALIZED = "initialized"
     STOPPED = "stopped"
     CONTINUED = "continued"
     TERMINATED = "terminated"
@@ -103,6 +104,7 @@ class StopReason(Enum):
     EXCEPTION = "exception"
     PAUSE = "pause"
     ENTRY = "entry"
+    EXIT = "exit"
     GOTO = "goto"
     FUNCTION_BREAKPOINT = "function breakpoint"
     DATA_BREAKPOINT = "data breakpoint"

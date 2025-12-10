@@ -4,10 +4,54 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from aidb.adapters.base.config import AdapterConfig
+from aidb.adapters.base.config import AdapterCapabilities, AdapterConfig
 from aidb.adapters.base.initialize import InitializationOp, InitializationOpType
 from aidb.adapters.base.launch import BaseLaunchConfig, LaunchConfigFactory
+from aidb.api.constants import (
+    DEFAULT_JAVA_DEBUG_PORT,
+    INIT_CONFIGURATION_DONE_JAVA_S,
+    INIT_WAIT_FOR_INITIALIZED_JAVA_S,
+    INIT_WAIT_FOR_INITIALIZED_S,
+    INIT_WAIT_FOR_PLUGIN_READY_S,
+)
 from aidb.models.entities.breakpoint import HitConditionMode
+from aidb_common.constants import Language
+
+# Static capabilities from java-debug source code
+# Source: java-debug/com.microsoft.java.debug.core/.../InitializeRequestHandler.java
+JAVA_CAPABILITIES = AdapterCapabilities(
+    # Breakpoint capabilities
+    conditional_breakpoints=True,
+    logpoints=True,
+    hit_conditional_breakpoints=True,
+    function_breakpoints=True,
+    data_breakpoints=True,
+    # Inspection capabilities
+    evaluate_for_hovers=True,
+    set_variable=True,
+    set_expression=False,
+    completions=True,
+    exception_info=True,
+    clipboard_context=True,
+    value_formatting_options=False,
+    # Navigation capabilities
+    restart_frame=True,
+    step_in_targets=True,
+    goto_targets=False,
+    breakpoint_locations=True,
+    # Session capabilities
+    terminate_debuggee=True,
+    restart=False,
+    terminate_request=False,
+    # Module/source capabilities
+    modules=False,
+    loaded_sources=False,
+    delayed_stack_trace_loading=False,
+    # Advanced capabilities
+    exception_options=False,
+    read_memory=False,
+    write_memory=False,
+)
 
 
 @dataclass
@@ -19,12 +63,12 @@ class JavaAdapterConfig(AdapterConfig):
     # that aren't part of a Maven/Gradle/Eclipse project
     DEFAULT_PROJECT_NAME = "jdt.ls-java-project"
 
-    language: str = "java"
-    adapter_id: str = "java"
-    adapter_port: int = 5005  # Default DAP server port for Java
+    language: str = Language.JAVA.value
+    adapter_id: str = Language.JAVA.value
+    adapter_port: int = DEFAULT_JAVA_DEBUG_PORT
     binary_identifier: str = "java-debug.jar"  # JAR file name
     adapter_server: str = "java-debug-server"
-    default_dap_port: int = 5005
+    default_dap_port: int = DEFAULT_JAVA_DEBUG_PORT
     fallback_port_ranges: list[int] = field(default_factory=lambda: [5006, 5020])
     file_extensions: list[str] = field(
         default_factory=lambda: [".java", ".class", ".jar"],
@@ -60,13 +104,12 @@ class JavaAdapterConfig(AdapterConfig):
     )
 
     # Java adapter only supports exact hit counts (no operators)
+    # (DAP only returns boolean, not which modes - this is adapter-specific)
     supported_hit_conditions: set[HitConditionMode] = field(
         default_factory=lambda: {
             HitConditionMode.EXACT,  # Only plain integers like "5"
         },
     )
-    supports_conditional_breakpoints: bool = True
-    supports_logpoints: bool = True
 
     # Reconnection fallback settings
     enable_dap_reconnection_fallback: bool = True
@@ -82,6 +125,9 @@ class JavaAdapterConfig(AdapterConfig):
     detached_process_names: list[str] = field(
         default_factory=lambda: ["java"],
     )
+
+    # Static capabilities from java-debug source
+    capabilities: AdapterCapabilities = field(default_factory=lambda: JAVA_CAPABILITIES)
 
     def get_initialization_sequence(self) -> list[InitializationOp]:
         """Get Java-specific initialization sequence.
@@ -100,22 +146,31 @@ class JavaAdapterConfig(AdapterConfig):
                 wait_for_response=False,
             ),
             # Require initialized event before proceeding to breakpoints.
-            InitializationOp(InitializationOpType.WAIT_FOR_INITIALIZED, timeout=30.0),
+            InitializationOp(
+                InitializationOpType.WAIT_FOR_INITIALIZED,
+                timeout=INIT_WAIT_FOR_INITIALIZED_JAVA_S,
+            ),
             # Also require the deferred launch response before breakpoint/config.
             InitializationOp(
                 InitializationOpType.WAIT_FOR_LAUNCH_RESPONSE,
-                timeout=30.0,
+                timeout=INIT_WAIT_FOR_INITIALIZED_JAVA_S,
             ),
-            InitializationOp(InitializationOpType.WAIT_FOR_PLUGIN_READY, timeout=20.0),
+            InitializationOp(
+                InitializationOpType.WAIT_FOR_PLUGIN_READY,
+                timeout=INIT_WAIT_FOR_PLUGIN_READY_S,
+            ),
             InitializationOp(InitializationOpType.SET_BREAKPOINTS, optional=True),
             # Java may take longer to bind breakpoints via JDT LS; wait briefly so
             # initial breakpoints are verified before resuming execution.
             InitializationOp(
                 InitializationOpType.WAIT_FOR_BREAKPOINT_VERIFICATION,
-                timeout=5.0,
+                timeout=INIT_WAIT_FOR_INITIALIZED_S,
                 optional=True,
             ),
-            InitializationOp(InitializationOpType.CONFIGURATION_DONE, timeout=15.0),
+            InitializationOp(
+                InitializationOpType.CONFIGURATION_DONE,
+                timeout=INIT_CONFIGURATION_DONE_JAVA_S,
+            ),
         ]
 
 

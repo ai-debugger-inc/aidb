@@ -4,7 +4,6 @@ This module provides functions for registering custom pytest markers and applyin
 to test items based on location, parametrization, and patterns.
 """
 
-import contextlib
 import subprocess
 from pathlib import Path
 
@@ -51,27 +50,16 @@ def is_docker_available() -> bool:
 def register_custom_markers(config) -> None:
     """Register custom pytest markers.
 
+    Note: Most markers are defined in pyproject.toml. This function registers
+    additional markers that may be applied dynamically during test collection.
+
     Parameters
     ----------
     config
         Pytest configuration object
     """
-    config.addinivalue_line(
-        "markers",
-        "language_python: mark test to run in Python container",
-    )
-    config.addinivalue_line(
-        "markers",
-        "language_javascript: mark test to run in JavaScript container",
-    )
-    config.addinivalue_line(
-        "markers",
-        "language_java: mark test to run in Java container",
-    )
-    config.addinivalue_line(
-        "markers",
-        "requires_docker: mark test as requiring Docker services",
-    )
+    # These markers are also in pyproject.toml but registered here for
+    # completeness since they are dynamically applied by add_location_based_markers
 
 
 def add_location_based_markers(item) -> None:
@@ -178,7 +166,6 @@ def check_marker_requirements(item) -> None:
     if "requires_docker" in marker_names and not is_docker_available():
         item.add_marker(pytest.mark.skip(reason="Docker daemon is not running"))
 
-    # Ensure serial tests run on single xdist worker
-    with contextlib.suppress(Exception):
-        if "serial" in marker_names:
-            item.add_marker(pytest.mark.xdist_group("serial"))
+    # Note: xdist_group markers for serial tests must be applied directly as decorators
+    # on test classes, not dynamically here. pytest-xdist workers collect tests
+    # independently and don't see markers added on the controller.

@@ -2,44 +2,42 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug MCP Unit Tests",
+            "name": "dev-cli: Core Tests",
             "type": "debugpy",
             "request": "launch",
-            "module": "pytest",
-            "args": [
-                "src/tests/aidb_mcp/",
-                "-v",
-                "-s",
-                "--tb=short"
-            ],
+            "module": "aidb_cli",
+            "args": ["test", "run", "-s", "core", "--local"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "redirectOutput": true,
-            "showReturnValue": true,
             "env": {
                 "PYTHONPATH": "${workspaceFolder}/src",
                 "AIDB_LOG_LEVEL": "DEBUG"
             }
         },
         {
-            "name": "Debug MCP Session Tests",
+            "name": "dev-cli: MCP Tests",
             "type": "debugpy",
             "request": "launch",
-            "module": "pytest",
-            "args": [
-                "src/tests/aidb_mcp/integration/test_session_tools_multilang.py",
-                "-v",
-                "-s",
-                "--tb=short",
-                "-k",
-                "python"
-            ],
+            "module": "aidb_cli",
+            "args": ["test", "run", "-s", "mcp", "--local"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "redirectOutput": true,
-            "showReturnValue": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src",
+                "AIDB_LOG_LEVEL": "DEBUG"
+            }
+        },
+        {
+            "name": "dev-cli: Shared Suite (Python)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "aidb_cli",
+            "args": ["test", "run", "-s", "shared", "-l", "python", "--local"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
             "env": {
                 "PYTHONPATH": "${workspaceFolder}/src",
                 "AIDB_LOG_LEVEL": "DEBUG",
@@ -47,38 +45,72 @@
             }
         },
         {
-            "name": "Debug Single Test",
+            "name": "dev-cli: Frameworks (Python)",
             "type": "debugpy",
             "request": "launch",
-            "program": "${file}",
+            "module": "aidb_cli",
+            "args": ["test", "run", "-s", "frameworks", "-l", "python", "--local"],
+            "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "redirectOutput": true,
-            "showReturnValue": true,
-            "cwd": "${workspaceFolder}",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}/src"
+                "PYTHONPATH": "${workspaceFolder}/src",
+                "AIDB_LOG_LEVEL": "DEBUG",
+                "AIDB_ADAPTER_TRACE": "1"
             }
         },
         {
-            "name": "Debug Test Script",
+            "name": "dev-cli: Custom",
             "type": "debugpy",
             "request": "launch",
-            "program": "test_example.py",
+            "module": "aidb_cli",
             "args": [
-                "--verbose",
-                "--test-arg",
-                "value"
+                "test", "run",
+                "-s", "${input:testSuite}",
+                "-k", "${input:testPattern}",
+                "--local"
             ],
+            "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "redirectOutput": true,
-            "showReturnValue": true,
-            "cwd": "${workspaceFolder}",
             "env": {
                 "PYTHONPATH": "${workspaceFolder}/src",
-                "TEST_MODE": "true"
+                "AIDB_LOG_LEVEL": "DEBUG"
             }
+        },
+        {
+            "name": "dev-cli: Custom (Verbose)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "aidb_cli",
+            "args": [
+                "-v",
+                "test", "run",
+                "-s", "${input:testSuite}",
+                "-k", "${input:testPattern}",
+                "--local"
+            ],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src",
+                "AIDB_LOG_LEVEL": "DEBUG",
+                "AIDB_ADAPTER_TRACE": "1"
+            }
+        }
+    ],
+    "inputs": [
+        {
+            "id": "testPattern",
+            "type": "promptString",
+            "description": "Test pattern (e.g., test_session or *payment*)"
+        },
+        {
+            "id": "testSuite",
+            "type": "pickString",
+            "description": "Test suite",
+            "options": ["cli", "shared", "mcp", "frameworks", "base", "ci_cd", "common", "core", "launch", "logging"]
         }
     ]
 }

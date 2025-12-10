@@ -11,11 +11,14 @@ FROM ${AIDB_TEST_BASE_IMAGE}
 # AIDB Docker labels
 LABEL com.aidb.language="java"
 
+# Java version ARG - should match versions.json infrastructure.java.version
+ARG JAVA_VERSION=21
+
 # Install Java runtime and Maven with apt cache mount
 RUN --mount=type=cache,target=/var/cache/apt \
     --mount=type=cache,target=/var/lib/apt \
     apt-get update && apt-get install -y --no-install-recommends \
-    openjdk-21-jdk-headless \
+    openjdk-${JAVA_VERSION}-jdk-headless \
     maven \
     wget
 

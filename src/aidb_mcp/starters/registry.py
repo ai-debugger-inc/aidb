@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from aidb_common.constants import Language
 from aidb_logging import get_mcp_logger as get_logger
 
 from .java import JavaStarter
@@ -32,9 +33,9 @@ class StarterRegistry:
     def _register_builtin_starters(cls) -> None:
         """Register all built-in language starters."""
         logger.debug("Registering built-in language starters")
-        cls.register("python", PythonStarter)
-        cls.register("javascript", JavaScriptStarter)
-        cls.register("java", JavaStarter)
+        cls.register(Language.PYTHON.value, PythonStarter)
+        cls.register(Language.JAVASCRIPT.value, JavaScriptStarter)
+        cls.register(Language.JAVA.value, JavaStarter)
         logger.info(
             "Built-in starters registered",
             extra={
@@ -128,12 +129,10 @@ class StarterRegistry:
 
         try:
             # Import here to avoid circular dependencies
-            from aidb.session.adapter_registry import AdapterRegistry
+            from aidb_common.discovery.adapters import get_adapter_class
 
             # Get the adapter class without creating an instance
-            # Need to use an instance of AdapterRegistry, not the class itself
-            registry = AdapterRegistry()
-            adapter_class = registry.get_adapter_class(language)
+            adapter_class = get_adapter_class(language)
             if not adapter_class:
                 logger.debug("No adapter class found %s", extra={"language": language})
                 return None
@@ -263,13 +262,13 @@ class StarterRegistry:
         features_dict = capabilities["features"]
 
         # Python-specific features
-        if language == "python" and hasattr(config, "justMyCode"):
+        if language == Language.PYTHON and hasattr(config, "justMyCode"):
             features_dict["justMyCode"] = config.justMyCode
             features_dict["django"] = getattr(config, "django", False)
             features_dict["flask"] = getattr(config, "flask", False)
 
         # JavaScript-specific features
-        if language == "javascript" and hasattr(config, "enable_source_maps"):
+        if language == Language.JAVASCRIPT and hasattr(config, "enable_source_maps"):
             features_dict["source_maps"] = config.enable_source_maps
 
         logger.info(

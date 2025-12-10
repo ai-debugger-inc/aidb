@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from aidb_cli.generators.core.generator import Generator
+from aidb_common.constants import SUPPORTED_LANGUAGES
 
 
 class TestRuntimeExecution:
@@ -918,7 +919,7 @@ class TestLargeDataScenarios:
             scenario_dir = output_dir / scenario_id
 
             # Check that generation succeeded for all languages
-            for language in ["python", "javascript", "java"]:
+            for language in SUPPORTED_LANGUAGES:
                 assert language in lang_results
                 result = lang_results[language]
                 assert result.success, (

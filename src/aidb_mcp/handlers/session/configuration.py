@@ -10,6 +10,7 @@ from typing import Any
 
 from aidb.adapters.downloader import AdapterDownloader
 from aidb_common.config import config
+from aidb_common.constants import Language
 from aidb_logging import get_mcp_logger as get_logger
 
 from ...core import (
@@ -22,7 +23,7 @@ from ...core.decorators import mcp_tool
 from ...core.exceptions import ErrorCode
 from ...responses.base import Response
 from ...responses.errors import ErrorResponse
-from ...responses.helpers import internal_error, invalid_action, missing_parameter
+from ...responses.helpers import internal_error, missing_parameter
 from ...session import get_last_active_session
 from ...utils import get_default_language
 
@@ -150,15 +151,14 @@ async def _handle_config_set(args: dict[str, Any]) -> dict[str, Any]:
 async def _handle_config_adapters(_args: dict[str, Any]) -> dict[str, Any]:
     """Handle ADAPTERS config action."""
     try:
+        from aidb_common.discovery.adapters import get_supported_languages
+
         downloader = AdapterDownloader()
         installed = downloader.list_installed_adapters()
 
         adapter_status = {}
-        # Get supported languages from registry
-        from aidb.session.adapter_registry import AdapterRegistry
-
-        registry = AdapterRegistry()
-        supported_languages = registry.get_languages()
+        # Get supported languages from utility
+        supported_languages = get_supported_languages()
 
         for language in supported_languages:
             adapter_name = language.lower()
@@ -243,7 +243,7 @@ async def _handle_config_show(_args: dict[str, Any]) -> dict[str, Any]:
                 "language": (
                     context.session_info.language
                     if context and context.session_info
-                    else "python"
+                    else Language.PYTHON.value
                 ),
                 "mode": LaunchMode.LAUNCH.value,
             }
@@ -370,39 +370,37 @@ def _discover_launch_configs() -> list[dict[str, Any]]:
 )
 async def handle_config_management(args: dict[str, Any]) -> dict[str, Any]:
     """Handle configuration and capabilities management."""
-    action_str = args.get(ParamName.ACTION, ConfigAction.SHOW.value)
+    from ..dispatch import dispatch_action
 
-    # Convert to enum
-    try:
-        action = ConfigAction(action_str)
-    except ValueError:
-        action = ConfigAction.SHOW
+    action_handlers = {
+        ConfigAction.CAPABILITIES: _handle_config_capabilities,
+        ConfigAction.ENV: _handle_config_env,
+        ConfigAction.LAUNCH: _handle_config_launch,
+        ConfigAction.ADAPTERS: _handle_config_adapters,
+        ConfigAction.GET: _handle_config_get,
+        ConfigAction.SET: _handle_config_set,
+        ConfigAction.SHOW: _handle_config_show,
+        ConfigAction.LIST: _handle_config_show,  # LIST uses same handler as SHOW
+    }
 
-    try:
-        # Dispatch to action handlers
-        action_handlers = {
-            ConfigAction.CAPABILITIES: _handle_config_capabilities,
-            ConfigAction.ENV: _handle_config_env,
-            ConfigAction.LAUNCH: _handle_config_launch,
-            ConfigAction.ADAPTERS: _handle_config_adapters,
-            ConfigAction.GET: _handle_config_get,
-            ConfigAction.SET: _handle_config_set,
-            ConfigAction.SHOW: _handle_config_show,
-            ConfigAction.LIST: _handle_config_show,  # LIST uses same handler as SHOW
-        }
+    handler, error, handler_args = dispatch_action(
+        args,
+        ConfigAction,
+        action_handlers,
+        default_action=ConfigAction.SHOW,
+        tool_name=ToolName.CONFIG,
+    )
 
-        handler = action_handlers.get(action)
-        if handler:
-            return await handler(args)
-
-        valid_actions = [a.value for a in ConfigAction]
-        return invalid_action(
-            action=action.value,
-            valid_actions=valid_actions,
-            tool_name=ToolName.CONFIG,
+    if error or handler is None:
+        return error or internal_error(
+            operation="config",
+            exception="No handler found",
         )
 
+    try:
+        return await handler(*handler_args)
     except Exception as e:
+        action = args.get(ParamName.ACTION, ConfigAction.SHOW.value)
         logger.error("Config management failed: %s", e)
         return internal_error(operation=f"config_{action}", exception=e)
 

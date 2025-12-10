@@ -32,10 +32,12 @@ Create a new package: `src/aidb/adapters/lang/<language>/`
 
 ```
 src/aidb/adapters/lang/<language>/
-├── __init__.py          # Package initialization
-├── <language>.py        # Main adapter implementation
-├── config.py           # Configuration and launch config
-└── syntax_validator.py # (Optional) Syntax validation
+├── __init__.py              # Package initialization
+├── <language>.py            # Main adapter implementation
+├── config.py                # Configuration and launch config
+├── source_path_resolver.py  # Source path resolution for remote debugging
+├── target_resolver.py       # Target type detection and normalization
+└── syntax_validator.py      # (Optional) Syntax validation
 ```
 
 ### 1.2 Implement Adapter Class
@@ -86,6 +88,30 @@ class <Language>Adapter(DebugAdapter):
             return "debugpy"
         """
         # Return a string pattern to match adapter processes
+        pass
+
+    def _create_target_resolver(self) -> TargetResolver:
+        """Create language-specific target resolver.
+
+        Handles detection of target type (file vs module vs class) and
+        normalization (e.g., "-m pytest" -> "pytest" with module flag).
+
+        Example from PythonAdapter._create_target_resolver():
+            return PythonTargetResolver(adapter=self, ctx=self.ctx)
+        """
+        # Return a TargetResolver subclass instance
+        pass
+
+    def _create_source_path_resolver(self) -> SourcePathResolver:
+        """Create language-specific source path resolver.
+
+        Handles resolution of remote/container file paths to local source
+        files for remote debugging scenarios.
+
+        Example from PythonAdapter._create_source_path_resolver():
+            return PythonSourcePathResolver(adapter=self, ctx=self.ctx)
+        """
+        # Return a SourcePathResolver subclass instance
         pass
 ```
 
@@ -166,7 +192,58 @@ class <Language>LaunchConfig(BaseLaunchConfig):
 - **JavaScript**: `src/aidb/adapters/lang/javascript/config.py` (extensive launch config)
 - **Java**: `src/aidb/adapters/lang/java/config.py` (compilation support)
 
-### 1.4 Optional: Syntax Validator
+### 1.4 Implement Source Path Resolver
+
+**File**: `src/aidb/adapters/lang/<language>/source_path_resolver.py`
+
+**Pattern**: Inherit from `SourcePathResolver` (see `src/aidb/adapters/base/source_path_resolver.py`)
+
+The source path resolver handles resolution of remote/container file paths to local source files. This is essential for remote debugging scenarios where the debug adapter returns paths that don't exist locally.
+
+```python
+from aidb.adapters.base.source_path_resolver import SourcePathResolver
+
+class <Language>SourcePathResolver(SourcePathResolver):
+    """<Language>-specific source path resolution.
+
+    Handles:
+    - Language-specific path patterns (e.g., JAR notation, site-packages, node_modules)
+    - Build output directory markers
+    - Common source directory layouts
+    """
+
+    def extract_relative_path(self, file_path: str) -> str | None:
+        """Extract language-specific relative path from adapter-returned path.
+
+        Parameters
+        ----------
+        file_path : str
+            Path from debug adapter (may be container path, package path, etc.)
+
+        Returns
+        -------
+        str | None
+            Relative path suitable for searching in source directories,
+            or None if path format is not recognized
+
+        Examples (Java):
+            'trino.jar!/io/trino/Foo.java' -> 'io/trino/Foo.java'
+        Examples (Python):
+            '/app/site-packages/pkg/mod.py' -> 'pkg/mod.py'
+        Examples (JavaScript):
+            '/app/node_modules/pkg/index.js' -> 'pkg/index.js'
+        """
+        # Implement language-specific path extraction logic
+        pass
+```
+
+**Reference implementations:**
+
+- **Python**: `src/aidb/adapters/lang/python/source_path_resolver.py` (site-packages, venv, egg paths)
+- **JavaScript**: `src/aidb/adapters/lang/javascript/source_path_resolver.py` (node_modules, webpack paths)
+- **Java**: `src/aidb/adapters/lang/java/source_path_resolver.py` (JAR notation, Maven layouts)
+
+### 1.5 Optional: Syntax Validator
 
 **File**: `src/aidb/adapters/lang/<language>/syntax_validator.py`
 
@@ -643,6 +720,8 @@ Core Implementation:
 - [ ] Created adapter package in `src/aidb/adapters/lang/<language>/`
 - [ ] Implemented `<Language>Adapter` class with all abstract methods
 - [ ] Implemented `<Language>AdapterConfig` class
+- [ ] Implemented `<Language>SourcePathResolver` class for remote debugging
+- [ ] Implemented `<Language>TargetResolver` class for target detection
 - [ ] (Optional) Implemented `<Language>LaunchConfig` for VS Code support
 - [ ] (Optional) Implemented syntax validator
 - [ ] (Optional) Registered syntax validator in `src/aidb/adapters/base/syntax_validator.py`
@@ -864,6 +943,8 @@ Use this as a quick checklist of all files that require updates:
   - `__init__.py`
   - `<language>.py` - Adapter class
   - `config.py` - Config and launch config classes
+  - `source_path_resolver.py` - Source path resolution for remote debugging
+  - `target_resolver.py` - Target type detection and normalization
 
 **Constants & Enums:**
 
@@ -923,13 +1004,13 @@ Use this as a quick checklist of all files that require updates:
 
 Adding a new adapter requires updates in **6 main areas**:
 
-1. **Core** (4-5 files): Adapter class, config class, optional validators
+1. **Core** (6-7 files): Adapter class, config class, source path resolver, target resolver, optional validators
 1. **Constants** (1-2 files): Language enum, adapter type enum
 1. **CLI** (2 files): Test program generator and registration
 1. **CI/CD** (4-5 files): Builder script, registry, versions.json, validation
 1. **Testing** (3+ files): Test content provider, fixtures, optional Docker
 1. **Docs** (optional): User-facing documentation
 
-**Total files to update**: 15-20 files minimum, more if adding comprehensive testing.
+**Total files to update**: 17-22 files minimum, more if adding comprehensive testing.
 
 Follow the checklists in Section 6.2 to ensure you don't miss any touchpoints. Reference existing adapters (Python, JavaScript, Java) for concrete implementation patterns.

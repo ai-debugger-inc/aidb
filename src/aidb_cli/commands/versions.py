@@ -59,8 +59,10 @@ def validate_versions(ctx: click.Context) -> None:
     cli_output.section("Version Configuration Validation", Icons.CHECK)
 
     for section, is_valid in results.items():
-        icon = f"{Icons.SUCCESS}" if is_valid else f"{Icons.ERROR}"
-        cli_output.plain(f"{icon} {section.capitalize()}")
+        if is_valid:
+            cli_output.success(section.capitalize())
+        else:
+            cli_output.error(section.capitalize(), to_stderr=False)
 
     cli_output.plain("")
     if all_valid:
@@ -109,56 +111,88 @@ def docker_versions(ctx: click.Context, fmt: str) -> None:
 def check_consistency(ctx: click.Context) -> None:
     """Check version consistency across Docker files.
 
-    \b Runs the validation script to ensure versions in Dockerfiles and docker-
-    compose.yaml match versions.json.
+    \b Validates that version defaults in Dockerfiles and docker-compose.yaml match the
+    values defined in versions.json.
     """  # noqa: W605
-    cli_output = ctx.obj.output
-    cli_output.section("Version Consistency Check", Icons.CHECK)
+    from aidb_cli.services.version import VersionConsistencyService
 
+    cli_output = ctx.obj.output
     aidb_ctx: Context = ctx.obj
 
-    validation_script = aidb_ctx.repo_root / "scripts/utils/validate_docker_versions.py"
+    cli_output.section("Version Consistency Check", Icons.CHECK)
 
-    if not validation_script.exists():
-        cli_output.error("Validation script not found at:")
-        cli_output.plain(f"   {validation_script}")
-        return
+    service = VersionConsistencyService(aidb_ctx.repo_root)
+    report = service.check_all()
 
-    result = ctx.obj.command_executor.execute(
-        ["python", str(validation_script)],
-        cwd=aidb_ctx.repo_root,
-        check=False,
-        verbose=ctx.obj.verbose,
-        verbose_debug=ctx.obj.verbose_debug,
-    )
+    # Group mismatches by file
+    files_with_issues: dict[str, list] = {}
+    for mismatch in report.mismatches:
+        if mismatch.file not in files_with_issues:
+            files_with_issues[mismatch.file] = []
+        files_with_issues[mismatch.file].append(mismatch)
 
-    if result.returncode == 0:
-        cli_output.success("\nVersion check passed!")
+    # Display results for each file
+    for file_path in report.files_checked:
+        cli_output.plain(f"\nChecking {file_path}...")
+
+        if file_path in files_with_issues:
+            for mismatch in files_with_issues[file_path]:
+                if mismatch.severity == "warning":
+                    cli_output.warning(f"  {mismatch.message}")
+                else:
+                    cli_output.error(f"  {mismatch.message}", to_stderr=False)
+                cli_output.plain(f"      at line {mismatch.line}")
+        else:
+            cli_output.success("  All versions match")
+
+    # Summary
+    cli_output.plain("")
+    if report.error_count == 0 and report.warning_count == 0:
+        cli_output.success("Version consistency check passed!")
     else:
-        cli_output.error("\nVersion inconsistencies detected!")
-        cli_output.plain("Run './dev-cli versions show' to see the expected versions.")
-        ctx.exit(ExitCode.GENERAL_ERROR)
+        parts = []
+        if report.error_count > 0:
+            parts.append(f"{report.error_count} mismatch(es)")
+        if report.warning_count > 0:
+            parts.append(f"{report.warning_count} warning(s)")
+        cli_output.plain(f"Summary: {', '.join(parts)}")
+
+        if report.has_errors:
+            cli_output.error("Version inconsistencies detected!")
+            cli_output.plain("Update the file defaults to match versions.json.")
+            ctx.exit(ExitCode.GENERAL_ERROR)
 
 
 @group.command(name="info")
-@click.argument("language", type=LanguageParamType())
+@click.argument("language", type=LanguageParamType(), required=False, default=None)
 @click.pass_context
 @handle_exceptions
-def adapter_info(ctx: click.Context, language: str) -> None:
-    """Show version information for a specific adapter.
+def adapter_info(ctx: click.Context, language: str | None) -> None:
+    """Show version information for adapters.
 
     \b Displays the configured version and download information for the specified
-    language adapter.
+    language adapter. If no language is provided, shows info for all adapters.
     """  # noqa: W605
     cli_output = ctx.obj.output
     aidb_ctx: Context = ctx.obj
 
     supported = aidb_ctx.build_manager.get_supported_languages()
-    if language not in supported:
-        cli_output.error(f"Unsupported language: {language}")
-        cli_output.plain(f"Supported languages: {', '.join(supported)}")
-        ctx.exit(1)
 
+    if language is not None:
+        if language not in supported:
+            cli_output.error(f"Unsupported language: {language}")
+            cli_output.plain(f"Supported languages: {', '.join(supported)}")
+            ctx.exit(1)
+        languages = [language]
+    else:
+        languages = sorted(supported)
+
+    for lang in languages:
+        _display_adapter_info(cli_output, aidb_ctx, lang)
+
+
+def _display_adapter_info(cli_output, aidb_ctx: "Context", language: str) -> None:
+    """Display version information for a single adapter."""
     version = aidb_ctx.config_manager.get_adapter_version(language)
     info = aidb_ctx.build_manager.get_adapter_info(language)
 
@@ -173,10 +207,9 @@ def adapter_info(ctx: click.Context, language: str) -> None:
         cli_output.plain("Configured Version: Not configured")
 
     cli_output.plain(f"Build Status: {info['status']}")
-    cli_output.plain(f"Type: {info['type']}")
 
-    if info.get("version") and info["version"] != "not installed":
+    if info.get("version"):
         cli_output.plain(f"Installed Version: {info['version']}")
 
-    if info.get("location") and info["location"] != "not installed":
-        cli_output.plain(f"Location: {info['location']}")
+    if info.get("path"):
+        cli_output.plain(f"Path: {info['path']}")

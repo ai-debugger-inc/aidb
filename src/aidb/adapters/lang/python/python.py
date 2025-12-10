@@ -8,16 +8,21 @@ from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, Any
 
+from aidb.api.constants import DEFAULT_ADAPTER_HOST
 from aidb_common.config import config as env_config
+from aidb_common.constants import Language
 from aidb_common.path import get_aidb_adapters_dir
 
 from ...base import DebugAdapter
 from ...base.config_mapper import ConfigurationMapper
 from ...base.hooks import HookContext, LifecycleHook
+from ...base.target_resolver import TargetResolver
 from .config import PythonAdapterConfig
+from .target_resolver import PythonTargetResolver
 from .trace import PythonTraceManager
 
 if TYPE_CHECKING:
+    from aidb.adapters.base.source_path_resolver import SourcePathResolver
     from aidb.interfaces import ISession
 
 
@@ -36,9 +41,9 @@ class PythonAdapter(DebugAdapter):
         self,
         session: "ISession",
         ctx=None,
-        adapter_host="localhost",
+        adapter_host=DEFAULT_ADAPTER_HOST,
         adapter_port=None,
-        target_host="localhost",
+        target_host=DEFAULT_ADAPTER_HOST,
         target_port=None,
         config: PythonAdapterConfig | None = None,
         module: bool = False,
@@ -117,6 +122,28 @@ class PythonAdapter(DebugAdapter):
 
         # Register Python-specific hooks
         self._register_python_hooks()
+
+    def _create_target_resolver(self) -> TargetResolver:
+        """Create Python-specific target resolver.
+
+        Returns
+        -------
+        TargetResolver
+            PythonTargetResolver instance for module vs file detection
+        """
+        return PythonTargetResolver(adapter=self, ctx=self.ctx)
+
+    def _create_source_path_resolver(self) -> "SourcePathResolver":
+        """Create Python-specific source path resolver.
+
+        Returns
+        -------
+        SourcePathResolver
+            PythonSourcePathResolver instance for site-packages resolution
+        """
+        from .source_path_resolver import PythonSourcePathResolver
+
+        return PythonSourcePathResolver(adapter=self, ctx=self.ctx)
 
     def _validate_target_hook(self, context: HookContext) -> None:
         """Override target validation to handle Python modules.
@@ -198,11 +225,11 @@ class PythonAdapter(DebugAdapter):
             priority=20,  # Low priority to run after other hooks
         )
 
-        # Register pre-launch validation
+        # Register pre-launch hook to extract env/cwd context
         self.register_hook(
             LifecycleHook.PRE_LAUNCH,
-            self._validate_python_target,
-            priority=80,  # High priority to validate early
+            self._extract_launch_context,
+            priority=80,  # High priority to extract context early
         )
 
         # Register post-stop hook to manage debugpy logs
@@ -240,28 +267,21 @@ class PythonAdapter(DebugAdapter):
         self.ctx.debug("Pre-launch hook: Setting up trace configuration")
         self._setup_trace_configuration()
 
-    def _validate_python_target(self, context: HookContext) -> None:
-        """Pre-launch hook to validate Python target.
+    def _extract_launch_context(self, context: HookContext) -> None:
+        """Pre-launch hook to extract environment context.
+
+        Target resolution (module vs file detection) now happens in the base
+        adapter via TargetResolver. This hook only extracts env and cwd for
+        later use in launch configuration.
 
         Parameters
         ----------
         context : HookContext
             Hook context containing launch data
         """
-        target = context.data.get("target")
-        if not target:
-            return
-
-        # Extract env and cwd from context.data
+        # Extract env and cwd from context.data for use in launch config
         self._target_env = context.data.get("env", {})
         self._target_cwd = context.data.get("cwd")
-
-        # Only validate file targets, not modules
-        if not self.module and not target.endswith(".py") and not Path(target).is_dir():
-            # Not a module, not a Python file, and not a directory
-            self.ctx.warning(
-                f"Target '{target}' does not appear to be a Python file",
-            )
 
     # ------------------------------
     # Post-Launch / Post-Stop Hooks
@@ -373,12 +393,12 @@ class PythonAdapter(DebugAdapter):
             Path to the adapter directory if it exists, None otherwise
         """
         # First check environment variable (used in CI)
-        env_path = env_config.get_binary_override("python")
+        env_path = env_config.get_binary_override(Language.PYTHON.value)
         if env_path and env_path.exists():
             return env_path
 
         # Fall back to default location
-        adapter_dir = get_aidb_adapters_dir() / "python"
+        adapter_dir = get_aidb_adapters_dir() / Language.PYTHON.value
         if adapter_dir.exists():
             return adapter_dir
         return None
@@ -759,7 +779,10 @@ class PythonAdapter(DebugAdapter):
             self.ctx.debug(f"Using trace manager directory: {trace_dir}")
         else:
             # Use a default directory when trace manager is not available (under log/)
-            trace_dir = self.ctx.get_storage_path("log/adapter_traces", "python")
+            trace_dir = self.ctx.get_storage_path(
+                "log/adapter_traces",
+                Language.PYTHON.value,
+            )
             Path(trace_dir).mkdir(parents=True, exist_ok=True)
             self.ctx.debug(f"Using default trace directory: {trace_dir}")
 

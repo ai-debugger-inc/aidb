@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
-from aidb_cli.core.constants import Icons
+from aidb_cli.core.constants import PROCESS_WAIT_TIMEOUT_S, Icons
 from aidb_cli.core.paths import DockerConstants
 from aidb_cli.core.utils import CliOutput
 from aidb_cli.managers.base.service import BaseService
@@ -101,7 +101,7 @@ class DockerLoggingService(BaseService):
             result = self.command_executor.execute(
                 cmd,
                 capture_output=True,
-                timeout=5 if not follow else None,
+                timeout=PROCESS_WAIT_TIMEOUT_S if not follow else None,
                 check=False,
             )
 
@@ -325,7 +325,7 @@ class DockerLoggingService(BaseService):
                 process = self._log_processes[log_key]
                 try:
                     process.terminate()
-                    process.wait(timeout=5)
+                    process.wait(timeout=PROCESS_WAIT_TIMEOUT_S)
                 except Exception:  # Catch all to ensure kill() runs
                     process.kill()
                 del self._log_processes[log_key]
@@ -335,7 +335,7 @@ class DockerLoggingService(BaseService):
             for key, process in list(self._log_processes.items()):
                 try:
                     process.terminate()
-                    process.wait(timeout=5)
+                    process.wait(timeout=PROCESS_WAIT_TIMEOUT_S)
                 except Exception:  # Catch all to ensure kill() runs
                     process.kill()
                 self.log_debug("Stopped log streaming for %s", key)

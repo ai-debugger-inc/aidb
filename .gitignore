@@ -123,3 +123,7 @@ work/
 
 # Docs build - ignore auto-generated API docs (managed by sphinx-autoapi)
 docs/developer-guide/api/
+
+# VS Code local settings (machine-specific overrides)
+.vscode/settings.json
+.vscode/launch.local.json

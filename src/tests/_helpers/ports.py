@@ -6,7 +6,6 @@ additional test isolation features.
 
 import asyncio
 import contextlib
-import logging
 import tempfile
 from pathlib import Path
 from typing import Optional
@@ -14,9 +13,10 @@ from unittest.mock import patch
 
 from aidb.common.context import AidbContext
 from aidb.resources.ports import PortRegistry
+from aidb_logging import get_test_logger
 from tests._helpers.constants import Language
 
-logger = logging.getLogger(__name__)
+logger = get_test_logger(__name__)
 
 
 class TestPortManager:

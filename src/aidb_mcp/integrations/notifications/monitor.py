@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
+from aidb.api.constants import MEDIUM_SLEEP_S
 from aidb_logging import get_mcp_logger as get_logger
 
 from ...session.manager_shared import _state_lock
@@ -63,7 +64,7 @@ class DebugEventMonitor:
         while self._monitoring:
             try:
                 await self._check_sessions()
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(MEDIUM_SLEEP_S)
             except Exception as e:
                 logger.error("Error in monitor loop: %s", e)
 

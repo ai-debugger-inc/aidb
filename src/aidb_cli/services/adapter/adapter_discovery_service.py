@@ -4,11 +4,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 from aidb.session.adapter_registry import AdapterRegistry
-from aidb_cli.core.constants import Icons
 from aidb_cli.core.paths import CachePaths
 from aidb_cli.core.utils import CliOutput
 from aidb_cli.managers.base.service import BaseService
-from aidb_common.config import VersionManager
+from aidb_common.io import safe_read_json
 from aidb_logging import get_cli_logger
 
 if TYPE_CHECKING:
@@ -25,6 +24,14 @@ class AdapterDiscoveryService(BaseService):
     - Checking adapter build status
     - Getting adapter information
     """
+
+    # Binary files that indicate a built adapter (matches Docker healthcheck paths)
+    # See: src/tests/_docker/docker-compose.base.yaml healthcheck
+    ADAPTER_BINARY_FILES: dict[str, str] = {
+        "python": "debugpy/__init__.py",
+        "javascript": "src/dapDebugServer.js",
+        "java": "java-debug.jar",
+    }
 
     def __init__(
         self,
@@ -106,9 +113,7 @@ class AdapterDiscoveryService(BaseService):
         cache_path = self._cache_dir / language if self._cache_dir else None
         if cache_path and cache_path.exists():
             if verbose:
-                CliOutput.info(
-                    f"{Icons.SUCCESS} Found {language} adapter in cache: {cache_path}",
-                )
+                CliOutput.success(f"Found {language} adapter in cache: {cache_path}")
             return cache_path
 
         repo_adapter_path = (
@@ -119,19 +124,16 @@ class AdapterDiscoveryService(BaseService):
                 adapter_file = repo_adapter_path / f"{language}.py"
                 if not adapter_file.exists():
                     if verbose:
-                        msg = (
-                            f"{Icons.WARNING} {language} adapter source found "
-                            f"but not built: {repo_adapter_path}"
+                        CliOutput.warning(
+                            f"{language} adapter source found "
+                            f"but not built: {repo_adapter_path}",
                         )
-                        CliOutput.warning(msg)
                     return None
 
             if verbose:
-                msg = (
-                    f"{Icons.SUCCESS} Found {language} adapter in repo: "
-                    f"{repo_adapter_path}"
+                CliOutput.success(
+                    f"Found {language} adapter in repo: {repo_adapter_path}",
                 )
-                CliOutput.info(msg)
             return repo_adapter_path
 
         if verbose:
@@ -169,11 +171,11 @@ class AdapterDiscoveryService(BaseService):
 
             if found:
                 CliOutput.success(
-                    f"{Icons.SUCCESS} Found adapters: {', '.join(found)}",
+                    f"Found adapters: {', '.join(found)}",
                 )
             if missing:
                 CliOutput.warning(
-                    f"{Icons.WARNING} Missing adapters: {', '.join(missing)}",
+                    f"Missing adapters: {', '.join(missing)}",
                 )
 
         return adapters
@@ -219,8 +221,56 @@ class AdapterDiscoveryService(BaseService):
                 CliOutput.success(f"Built adapters: {', '.join(built)}")
             if missing:
                 CliOutput.warning(
-                    f"{Icons.WARNING} Missing adapters: {', '.join(missing)}",
+                    f"Missing adapters: {', '.join(missing)}",
                 )
+
+        return built, missing
+
+    def check_adapters_in_cache(
+        self,
+        languages: list[str] | None = None,
+        verbose: bool = False,
+    ) -> tuple[list[str], list[str]]:
+        """Check for built adapters in repo cache (.cache/adapters/).
+
+        Unlike check_adapters_built(), this does NOT fall back to source paths.
+        Use for Docker suites that mount .cache/adapters/ into containers.
+
+        Parameters
+        ----------
+        languages : list[str] | None, optional
+            Specific languages to check, or None for all
+        verbose : bool, optional
+            Whether to show verbose output
+
+        Returns
+        -------
+        tuple[list[str], list[str]]
+            Tuple of (built_adapters, missing_adapters)
+        """
+        if languages is None:
+            languages = self.get_supported_languages()
+
+        if not self._cache_dir:
+            return [], list(languages)
+
+        built = []
+        missing = []
+
+        for lang in languages:
+            cache_path = self._cache_dir / lang
+            binary_file = self.ADAPTER_BINARY_FILES.get(lang)
+
+            if binary_file and (cache_path / binary_file).exists():
+                built.append(lang)
+            else:
+                missing.append(lang)
+
+        if verbose:
+            if built:
+                CliOutput.success(f"Adapters in cache: {', '.join(built)}")
+            if missing:
+                CliOutput.warning(f"Missing from cache: {', '.join(missing)}")
 
         return built, missing
 
@@ -254,11 +304,13 @@ class AdapterDiscoveryService(BaseService):
             info["status"] = "built"
             info["path"] = str(adapter_path)
 
-            try:
-                version_manager = VersionManager()
-                info["version"] = version_manager.package_version
-            except Exception:
-                info["version"] = "unknown"
+            # Read version from adapter's metadata.json
+            metadata_path = adapter_path / "metadata.json"
+            if metadata_path.exists():
+                metadata = safe_read_json(metadata_path) or {}
+                version = metadata.get("adapter_version", "")
+                # Strip 'v' prefix if present (e.g., 'v1.104.0' -> '1.104.0')
+                info["version"] = version.lstrip("v") if version else ""
         else:
             source_path = self.find_adapter_source(
                 language,

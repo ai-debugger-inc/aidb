@@ -11,7 +11,7 @@
         "--host",
         "127.0.0.1",
         "--port",
-        "8000",
+        "${env:APP_PORT:8000}",
         "--log-level",
         "info"
       ],
@@ -29,7 +29,7 @@
         "--host",
         "127.0.0.1",
         "--port",
-        "8001",
+        "${env:APP_PORT:8001}",
         "--log-level",
         "info"
       ],

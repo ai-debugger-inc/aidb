@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING, cast
 
+from aidb.api.constants import STACK_TRACE_TIMEOUT_S
 from aidb.common import AidbContext
 from aidb.dap.protocol.bodies import (
     ExceptionInfoArguments,
@@ -94,7 +95,10 @@ class StackOperations(SessionOperationsMixin):
         request = ThreadsRequest(seq=0)  # Will be overwritten by client
 
         # Use resilient request method with automatic recovery
-        response: Response = await self.session.dap.send_request(request, timeout=10)
+        response: Response = await self.session.dap.send_request(
+            request,
+            timeout=STACK_TRACE_TIMEOUT_S,
+        )
         response.ensure_success()
 
         # Cast to proper response type and create AidbThreadsResponse
@@ -228,7 +232,10 @@ class StackOperations(SessionOperationsMixin):
             ),
         )
 
-        response: Response = await self.session.dap.send_request(request, timeout=10)
+        response: Response = await self.session.dap.send_request(
+            request,
+            timeout=STACK_TRACE_TIMEOUT_S,
+        )
         response.ensure_success()
 
         mod_response = cast("ModulesResponse", response)

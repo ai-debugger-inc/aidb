@@ -116,6 +116,10 @@ class TestCoordinatorService(BaseService):
 
         if parallel:
             pytest_args.extend(["-n", str(parallel)])
+            # Use loadgroup distribution to respect xdist_group markers
+            # This ensures @pytest.mark.serial tests run on a single worker
+            # while other tests run in parallel on remaining workers
+            pytest_args.extend(["--dist", "loadgroup"])
 
         if coverage:
             pytest_args.extend(self._build_coverage_args(suite))
@@ -233,7 +237,6 @@ class TestCoordinatorService(BaseService):
             languages = ["all"]
 
         # Extract and validate known parameters from kwargs
-        profile = kwargs.pop("profile", None)
         markers = kwargs.pop("markers", None)
         pattern = kwargs.pop("pattern", None)
         target = kwargs.pop("target", None)
@@ -250,7 +253,6 @@ class TestCoordinatorService(BaseService):
 
         return self.test_orchestrator.run_suite(
             suite=suite,
-            profile=profile,
             languages=languages,
             markers=markers,
             pattern=pattern,

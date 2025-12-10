@@ -6,6 +6,8 @@ import shutil
 import subprocess
 from typing import TYPE_CHECKING, Any
 
+from aidb.api.constants import DEFAULT_ADAPTER_HOST, DEFAULT_PYTHON_DEBUG_PORT
+from aidb_common.constants import Language
 from aidb_common.path import get_aidb_adapters_dir
 from aidb_logging import get_mcp_logger as get_logger
 
@@ -42,137 +44,29 @@ class PythonStarter(BaseStarter):
         Dict[str, Any]
             Launch configuration example
         """
+        from .framework_registry import get_default_config, get_framework_config
+
         logger.debug(
             "Generating Python launch example",
             extra={
                 "framework": framework,
                 "target": target,
                 "workspace_root": workspace_root,
-                "language": "python",
+                "language": Language.PYTHON,
             },
         )
 
-        if framework == "pytest":
-            return {
-                "target": "pytest",
-                "module": True,
-                "args": ["-xvs", "tests/test_example.py::TestClass::test_method"],
-                "env": {"PYTEST_CURRENT_TEST": "true"},
-                "cwd": "${workspace_root}",
-                "breakpoints": [
-                    {
-                        "file": "/path/to/src/calculator.py",
-                        "line": 15,
-                    },  # Source code being tested
-                    {
-                        "file": "/path/to/src/utils/validator.py",
-                        "line": 42,
-                    },  # Utility functions
-                ],
-            }
-        if framework == "unittest":
-            return {
-                "target": "unittest",
-                "module": True,
-                "args": ["tests.test_module.TestCase.test_method"],
-                "cwd": "${workspace_root}",
-            }
-        if framework == "django":
-            return {
-                "target": "python",
-                "args": ["manage.py", "runserver", "--noreload"],
-                "env": {"DJANGO_SETTINGS_MODULE": "myproject.settings"},
-                "cwd": "${workspace_root}",
-                "breakpoints": [
-                    {
-                        "file": "/path/to/myapp/views.py",
-                        "line": 25,
-                    },  # API endpoint logic
-                    {
-                        "file": "/path/to/myapp/models.py",
-                        "line": 78,
-                    },  # Database model methods
-                    {"file": "/path/to/core/utils.py", "line": 156},  # Business logic
-                ],
-            }
-        if framework == "flask":
-            return {
-                "target": "python",
-                "args": ["app.py"],
-                "env": {"FLASK_APP": "app.py", "FLASK_ENV": "development"},
-                "cwd": "${workspace_root}",
-                "breakpoints": [
-                    {
-                        "file": "/path/to/routes/api.py",
-                        "line": 45,
-                    },  # API route handlers
-                    {"file": "/path/to/models/user.py", "line": 78},  # Database models
-                    {
-                        "file": "/path/to/utils/auth.py",
-                        "line": 23,
-                    },  # Authentication logic
-                ],
-            }
-        if framework == "fastapi":
-            return {
-                "target": "uvicorn",
-                "module": True,
-                "args": ["main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"],  # noqa: B104
-                "cwd": "${workspace_root}",
-                "breakpoints": [
-                    {"file": "/path/to/routers/users.py", "line": 32},  # User endpoints
-                    {
-                        "file": "/path/to/core/database.py",
-                        "line": 15,
-                    },  # Database connections
-                    {
-                        "file": "/path/to/services/auth.py",
-                        "line": 89,
-                    },  # Authentication service
-                ],
-            }
-        if framework == "pyramid":
-            return {
-                "target": "pserve",
-                "module": True,
-                "args": ["development.ini", "--reload"],
-                "cwd": "${workspace_root}",
-            }
-        if framework == "asyncio":
-            return {
-                "target": "python",
-                "args": ["async_script.py"],
-                "env": {"PYTHONASYNCIODEBUG": "1"},
-                "cwd": "${workspace_root}",
-            }
-        if framework == "behave":
-            return {
-                "target": "behave",
-                "module": True,
-                "args": ["features/example.feature", "--no-capture"],
-                "cwd": "${workspace_root}",
-            }
-        # Generic Python launch
+        # Try to get framework-specific config
+        config = get_framework_config(Language.PYTHON.value, framework)
+        if config:
+            return config.to_launch_example()
+
+        # Fall back to default
         logger.debug(
             "Using generic Python launch config",
-            extra={"framework": framework or "none", "language": "python"},
+            extra={"framework": framework or "none", "language": Language.PYTHON},
         )
-        return {
-            "target": "python",
-            "args": ["main.py"],
-            "cwd": "${workspace_root}",
-            "breakpoints": [
-                {"file": "/path/to/utils/helper.py", "line": 25},  # Utility functions
-                {
-                    "file": "/path/to/config/settings.py",
-                    "line": 10,
-                },  # Configuration loading
-                {
-                    "file": "/path/to/data/processor.py",
-                    "line": 67,
-                },  # Data processing logic
-            ],
-        }
+        return get_default_config(Language.PYTHON.value).to_launch_example()
 
     def get_attach_example(
         self,
@@ -206,15 +100,18 @@ class PythonStarter(BaseStarter):
                 "pid": pid,
                 "host": host,
                 "port": port,
-                "language": "python",
+                "language": Language.PYTHON,
             },
         )
 
         if mode == "remote":
             return {
-                "host": host or "localhost",
-                "port": port or 5678,
-                "comment": "Start with: python -m debugpy --listen 5678 script.py",
+                "host": host or DEFAULT_ADAPTER_HOST,
+                "port": port or DEFAULT_PYTHON_DEBUG_PORT,
+                "comment": (
+                    "Start with: python -m debugpy "
+                    f"--listen {DEFAULT_PYTHON_DEBUG_PORT} script.py"
+                ),
             }
         if mode == "local" and pid:
             return {
@@ -223,9 +120,12 @@ class PythonStarter(BaseStarter):
             }
         # Default remote attach example
         return {
-            "host": "localhost",
-            "port": 5678,
-            "comment": "Start with: python -m debugpy --listen 5678 script.py",
+            "host": DEFAULT_ADAPTER_HOST,
+            "port": DEFAULT_PYTHON_DEBUG_PORT,
+            "comment": (
+                "Start with: python -m debugpy "
+                f"--listen {DEFAULT_PYTHON_DEBUG_PORT} script.py"
+            ),
         }
 
     def get_common_breakpoints(
@@ -249,7 +149,11 @@ class PythonStarter(BaseStarter):
         """
         logger.debug(
             "Getting common breakpoints for Python",
-            extra={"framework": framework, "target": target, "language": "python"},
+            extra={
+                "framework": framework,
+                "target": target,
+                "language": Language.PYTHON,
+            },
         )
 
         if framework == "pytest":
@@ -299,7 +203,7 @@ class PythonStarter(BaseStarter):
         if not python_path:
             logger.warning(
                 "Python interpreter not found in PATH",
-                extra={"language": "python"},
+                extra={"language": Language.PYTHON},
             )
 
         if python_path:
@@ -321,7 +225,7 @@ class PythonStarter(BaseStarter):
                 )
 
         # Check debugpy in adapter directory
-        adapter_debugpy = get_aidb_adapters_dir() / "python" / "debugpy"
+        adapter_debugpy = get_aidb_adapters_dir() / Language.PYTHON / "debugpy"
         if adapter_debugpy.exists():
             result["debugpy_available"] = True
             logger.debug(
@@ -331,7 +235,10 @@ class PythonStarter(BaseStarter):
         else:
             logger.warning(
                 "debugpy adapter not installed",
-                extra={"language": "python", "expected_path": str(adapter_debugpy)},
+                extra={
+                    "language": Language.PYTHON,
+                    "expected_path": str(adapter_debugpy),
+                },
             )
             result.setdefault("issues", []).append("debugpy adapter not installed")
             result.setdefault("warnings", []).append(
@@ -397,8 +304,8 @@ class PythonStarter(BaseStarter):
                 "comment": "Debug child processes in multiprocessing apps",
             },
             "remote_docker": {
-                "host": "localhost",
-                "port": 5678,
+                "host": DEFAULT_ADAPTER_HOST,
+                "port": DEFAULT_PYTHON_DEBUG_PORT,
                 "pathMappings": [{"localRoot": "${workspace}", "remoteRoot": "/app"}],
                 "comment": "Attach to Python running in Docker container",
             },

@@ -24,6 +24,11 @@ from mcp.types import (
     Tool,
 )
 
+from aidb.api.constants import (
+    DEFAULT_WAIT_TIMEOUT_S,
+    MCP_SERVER_TIMEOUT_S,
+    PROCESS_CLEANUP_TIMEOUT_S,
+)
 from aidb_logging import get_mcp_logger as get_logger
 from aidb_mcp.core.constants import DebugURI, EventType
 from aidb_mcp.core.performance import TraceSpan
@@ -32,15 +37,18 @@ from aidb_mcp.server.runtime import get_runtime_config
 
 # Provide a fallback for Python <3.11 ExceptionGroup
 try:
-    ExceptionGroup  # type: ignore[has-type,used-before-def]
+    _ = ExceptionGroup  # type: ignore[has-type,used-before-def]
 except NameError:  # pragma: no cover - legacy fallback
 
-    class ExceptionGroup(Exception):
+    class ExceptionGroupError(Exception):
         """Group multiple exceptions together (Python < 3.11 fallback)."""
 
         def __init__(self, message: str, exceptions: list[Exception]):
             super().__init__(message)
             self.exceptions = exceptions
+
+    # Alias for compatibility with Python 3.11+ code paths
+    ExceptionGroup = ExceptionGroupError  # type: ignore[misc,assignment]
 
 
 logger = get_logger(__name__)
@@ -124,7 +132,7 @@ class AidbMCPServer:
 
                 result = await asyncio.wait_for(
                     handle_tool(name, arguments),
-                    timeout=300.0,
+                    timeout=MCP_SERVER_TIMEOUT_S,
                 )
 
                 if not isinstance(result, dict):
@@ -416,35 +424,37 @@ class AidbMCPServer:
         finally:
             await self._cleanup()
 
-    async def _cleanup(self) -> None:
+    def _create_cleanup_tasks(self) -> list[asyncio.Task[Any]]:
+        """Create cleanup tasks for event monitoring and debug sessions."""
+        from aidb_mcp.integrations.notifications import stop_event_monitoring
         from aidb_mcp.session.manager import _DEBUG_SESSIONS
 
+        tasks: list[asyncio.Task[Any]] = []
+        tasks.append(asyncio.create_task(stop_event_monitoring()))
+
+        for session_id in list(_DEBUG_SESSIONS.keys()):
+            try:
+                tasks.append(
+                    asyncio.create_task(self._cleanup_session_safely(session_id)),
+                )
+            except Exception as e:  # pragma: no cover
+                logger.warning(
+                    "Error creating cleanup task for session %s: %s",
+                    session_id,
+                    e,
+                )
+        return tasks
+
+    async def _cleanup(self) -> None:
         logger.info("Cleaning up AIDB MCP Server...")
-        cleanup_tasks = []
+        cleanup_tasks: list[asyncio.Task[Any]] = []
         try:
-            from aidb_mcp.integrations.notifications import stop_event_monitoring
-
-            cleanup_tasks.append(asyncio.create_task(stop_event_monitoring()))
-
-            session_ids = list(_DEBUG_SESSIONS.keys())
-            for session_id in session_ids:
-                try:
-                    cleanup_task = asyncio.create_task(
-                        self._cleanup_session_safely(session_id),
-                    )
-                    cleanup_tasks.append(cleanup_task)
-                except Exception as e:  # pragma: no cover
-                    logger.warning(
-                        "Error creating cleanup task for session %s: %s",
-                        session_id,
-                        e,
-                    )
-
+            cleanup_tasks = self._create_cleanup_tasks()
             if cleanup_tasks:
                 try:
                     await asyncio.wait_for(
                         asyncio.gather(*cleanup_tasks, return_exceptions=True),
-                        timeout=5.0,
+                        timeout=DEFAULT_WAIT_TIMEOUT_S,
                     )
                     logger.info("All cleanup tasks completed")
                 except asyncio.TimeoutError:
@@ -462,19 +472,26 @@ class AidbMCPServer:
         logger.info("AIDB MCP Server cleanup complete")
 
     async def _cleanup_session_safely(self, session_id: str) -> None:
+        """Clean up a debug session safely.
+
+        NOTE: This runs cleanup synchronously in the current thread rather than
+        using a thread executor. This is intentional - the cleanup_session function
+        uses a threading.RLock that is also used by other code in the main thread.
+        Running cleanup in a separate thread causes cross-thread lock contention
+        and 10-second timeouts.
+
+        The cleanup operation is typically fast (< 100ms), so briefly blocking
+        the event loop is acceptable and avoids deadlock issues.
+        """
         from aidb_mcp.session.manager import cleanup_session
 
         try:
-            success = await asyncio.wait_for(
-                asyncio.to_thread(cleanup_session, session_id),
-                timeout=2.0,
-            )
+            # Run cleanup synchronously to avoid cross-thread lock contention
+            success = cleanup_session(session_id)
             if success:
                 logger.info("Stopped debug session: %s", session_id)
             else:
                 logger.warning("Failed to stop debug session: %s", session_id)
-        except asyncio.TimeoutError:
-            logger.warning("Timeout stopping debug session: %s", session_id)
         except asyncio.CancelledError:
             logger.info("Cleanup cancelled for session: %s", session_id)
         except Exception as e:  # pragma: no cover

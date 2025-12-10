@@ -39,6 +39,18 @@ bash scripts/install/src/install.sh
 ./venv/bin/pre-commit install
 ```
 
+### VS Code Setup
+
+Open the workspace file for project-specific settings:
+
+```bash
+code aidb.code-workspace
+```
+
+Alternatively, select 'File' -> 'Open Workspace from File...' and choose `aidb.code-workspace`.
+
+This provides file excludes, search configuration, and venv selection. It is highly recommended for development QoL.
+
 ## Daily Development
 
 ```bash

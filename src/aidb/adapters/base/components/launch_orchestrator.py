@@ -197,6 +197,7 @@ class LaunchOrchestrator(Obj):
 
         # Acquire port
         self.ctx.debug(f"Requested port: {port}")
+
         try:
             acquired_port = await self.port_manager.acquire(requested_port=port)
         except AidbError as e:
@@ -220,10 +221,6 @@ class LaunchOrchestrator(Obj):
 
         port_registry = PortRegistry(ctx=self.ctx)
         port_registry.release_reserved_port(acquired_port)
-        self.ctx.debug(
-            f"[LaunchOrchestrator] Released socket reservation for port "
-            f"{acquired_port}",
-        )
 
         # Prepare launch
         self.ctx.debug(f"Using dynamic adapter port {acquired_port} (requested={port})")

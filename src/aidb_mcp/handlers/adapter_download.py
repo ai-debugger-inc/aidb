@@ -5,7 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 from aidb.adapters.downloader import AdapterDownloader
-from aidb.session.adapter_registry import AdapterRegistry
+from aidb_common.constants import Language
+from aidb_common.discovery.adapters import get_supported_languages
 from aidb_logging import get_mcp_logger as get_logger
 
 from ..core.constants import AdapterAction, ParamName, ToolName
@@ -245,10 +246,11 @@ def _validate_action_requirements(
     if action == AdapterAction.DOWNLOAD:
         # DOWNLOAD action requires language parameter
         if not language:
-            registry = AdapterRegistry()
-            supported_languages = registry.get_languages()
+            supported_languages = get_supported_languages()
             example_language = (
-                supported_languages[0] if supported_languages else "javascript"
+                supported_languages[0]
+                if supported_languages
+                else Language.JAVASCRIPT.value
             )
 
             return MissingParameterError(
@@ -261,8 +263,7 @@ def _validate_action_requirements(
             ).to_mcp_response()
 
         # Validate language value
-        registry = AdapterRegistry()
-        supported_languages = registry.get_languages()
+        supported_languages = get_supported_languages()
         if language not in supported_languages:
             return InvalidParameterError(
                 parameter_name="language",
@@ -272,8 +273,7 @@ def _validate_action_requirements(
 
     elif action == AdapterAction.LIST and language:
         # LIST action: validate language if provided (used as filter)
-        registry = AdapterRegistry()
-        supported_languages = registry.get_languages()
+        supported_languages = get_supported_languages()
         if language not in supported_languages:
             return InvalidParameterError(
                 parameter_name="language",

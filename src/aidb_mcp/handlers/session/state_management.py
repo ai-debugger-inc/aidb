@@ -8,8 +8,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from aidb.dap.protocol.bodies import StackTraceArguments
-from aidb.dap.protocol.requests import StackTraceRequest, ThreadsRequest
 from aidb_logging import get_mcp_logger as get_logger
 
 from ...core.performance import timed
@@ -107,6 +105,8 @@ async def _fetch_location_from_stack(
 ) -> None:
     """Actively fetch current location from stack trace.
 
+    Uses the proper API layer methods instead of constructing DAP requests directly.
+
     Parameters
     ----------
     debug_api : Any
@@ -117,43 +117,30 @@ async def _fetch_location_from_stack(
         Session identifier
     """
     try:
-        # Get threads to find the current thread
-        threads_request = ThreadsRequest(seq=0)
-        threads_response = await debug_api.session.dap.send_request(
-            threads_request,
-        )
-        threads_response.ensure_success()
+        # Get threads using the introspection API
+        threads_response = await debug_api.introspection.threads()
+        if not threads_response.success or not threads_response.threads:
+            return
 
-        if threads_response.body and threads_response.body.threads:
-            thread_id = threads_response.body.threads[0].id
+        thread_id = threads_response.threads[0].id
 
-            # Get stack trace for current thread
-            stack_request = StackTraceRequest(
-                seq=0,
-                arguments=StackTraceArguments(threadId=thread_id),
+        # Get stack trace using the introspection API
+        callstack_response = await debug_api.introspection.callstack(thread_id)
+        if not callstack_response.success or not callstack_response.frames:
+            return
+
+        top_frame = callstack_response.frames[0]
+        if top_frame.source and top_frame.source.path:
+            session_context.current_file = top_frame.source.path
+            session_context.current_line = top_frame.line
+            logger.debug(
+                "Actively fetched location from stack",
+                extra={
+                    "file": top_frame.source.path,
+                    "line": top_frame.line,
+                    "session_id": session_id,
+                },
             )
-            stack_response = await debug_api.session.dap.send_request(
-                stack_request,
-            )
-            stack_response.ensure_success()
-
-            if (
-                stack_response.body
-                and stack_response.body.stackFrames
-                and len(stack_response.body.stackFrames) > 0
-            ):
-                top_frame = stack_response.body.stackFrames[0]
-                if top_frame.source and top_frame.source.path:
-                    session_context.current_file = top_frame.source.path
-                    session_context.current_line = top_frame.line
-                    logger.debug(
-                        "Actively fetched location from stack",
-                        extra={
-                            "file": top_frame.source.path,
-                            "line": top_frame.line,
-                            "session_id": session_id,
-                        },
-                    )
     except Exception as e:
         logger.debug(
             "Failed to actively fetch location",
@@ -177,22 +164,19 @@ async def _sync_location_from_dap_state(
     session_id : str
         Session identifier
     """
-    if not (
-        debug_api.session
-        and hasattr(debug_api.session, "connector")
-        and debug_api.session.connector._dap
-    ):
+    if not debug_api.session:
         return
 
-    dap_state = debug_api.session.connector._dap._event_processor._state
-    if dap_state.current_file and dap_state.current_line:
-        session_context.current_file = dap_state.current_file
-        session_context.current_line = dap_state.current_line
+    # Use the session's public API to get current location
+    current_file, current_line = debug_api.session.get_current_location()
+    if current_file and current_line:
+        session_context.current_file = current_file
+        session_context.current_line = current_line
         logger.debug(
             "Synced location from DAP state",
             extra={
-                "file": dap_state.current_file,
-                "line": dap_state.current_line,
+                "file": current_file,
+                "line": current_line,
                 "session_id": session_id,
             },
         )

@@ -37,6 +37,7 @@ class MCPInterface(DebugInterface):
         super().__init__(language)
         self._initialized_context = False
         self._breakpoints: dict[str, dict[str, Any]] = {}
+        self._output_buffer: list[dict[str, Any]] = []
 
     async def _wait_for_breakpoint_verification(
         self,
@@ -59,6 +60,11 @@ class MCPInterface(DebugInterface):
             Maximum time to wait for verification.
         poll_interval : float
             Time between verification checks.
+
+        Raises
+        ------
+        RuntimeError
+            If session terminates during verification.
         """
         import asyncio
         import time
@@ -66,7 +72,20 @@ class MCPInterface(DebugInterface):
         start_time = time.monotonic()
 
         while time.monotonic() - start_time < timeout:
-            breakpoints_list = await self.list_breakpoints()
+            try:
+                breakpoints_list = await self.list_breakpoints()
+            except RuntimeError as e:
+                # Re-raise with more context about when this happened
+                if "terminated unexpectedly" in str(e):
+                    elapsed = time.monotonic() - start_time
+                    msg = (
+                        f"Session terminated during breakpoint verification "
+                        f"(after {elapsed:.2f}s of {timeout}s timeout). "
+                        f"Original error: {e}"
+                    )
+                    raise RuntimeError(msg) from e
+                raise
+
             verified_count = sum(
                 1 for bp in breakpoints_list if bp.get("verified", False)
             )
@@ -94,6 +113,38 @@ class MCPInterface(DebugInterface):
             message = error.get("message") or error.get("code") or "Unknown error"
             return str(message)
         return str(error) if error else "Unknown error"
+
+    def _is_session_terminated_error(self, result: dict[str, Any]) -> bool:
+        """Check if the error is due to session termination.
+
+        Parameters
+        ----------
+        result : dict[str, Any]
+            MCP response dictionary.
+
+        Returns
+        -------
+        bool
+            True if the error indicates session termination.
+        """
+        error = result.get("error", {})
+        if isinstance(error, dict):
+            error_code = error.get("code", "")
+            return error_code == "AIDB_SESSION_TERMINATED"
+        return False
+
+    def _collect_output_from_response(self, result: dict[str, Any]) -> None:
+        """Collect output from MCP execute response and store in buffer.
+
+        Parameters
+        ----------
+        result : dict[str, Any]
+            MCP response dictionary from execute/step operations.
+        """
+        data = result.get("data", {})
+        output = data.get("output", [])
+        if output:
+            self._output_buffer.extend(output)
 
     async def initialize(
         self,
@@ -131,7 +182,7 @@ class MCPInterface(DebugInterface):
         self._initialized_context = True
         self._initialized = True
 
-    async def start_session(
+    async def start_session(  # noqa: C901
         self,
         program: str | Path,
         breakpoints: list[dict[str, Any]] | None = None,
@@ -159,6 +210,18 @@ class MCPInterface(DebugInterface):
             msg = "MCP context not initialized. Call initialize() first."
             raise RuntimeError(msg)
 
+        # Auto-propagate APP_PORT from test environment to debuggee
+        # This enables dynamic port allocation for parallel test execution
+        import os
+
+        app_port = os.environ.get("APP_PORT")
+        if app_port:
+            env = launch_args.get("env", {})
+            if not isinstance(env, dict):
+                env = {}
+            env["APP_PORT"] = app_port
+            launch_args["env"] = env
+
         # Convert breakpoints to MCP format
         mcp_breakpoints = None
         if breakpoints:
@@ -167,8 +230,10 @@ class MCPInterface(DebugInterface):
                     "file": bp.get("file", str(program)),
                     "line": bp["line"],
                     ParamName.CONDITION: bp.get("condition"),
-                    "hit_condition": bp.get("hitCondition"),
-                    "log_message": bp.get("logMessage"),
+                    # Support both snake_case and camelCase for hit_condition
+                    "hit_condition": bp.get("hit_condition") or bp.get("hitCondition"),
+                    # Support both snake_case and camelCase for log_message
+                    "log_message": bp.get("log_message") or bp.get("logMessage"),
                 }
                 for bp in breakpoints
             ]
@@ -194,7 +259,8 @@ class MCPInterface(DebugInterface):
         data = result.get("data", {})
 
         # Extract and validate session_id from response
-        retrieved_session_id = data.get("session_id")
+        # session_id is at top level per MCP response format, NOT in data
+        retrieved_session_id = result.get("session_id") or data.get("session_id")
         if not retrieved_session_id:
             msg = (
                 f"MCP session_start succeeded but returned no session_id. "
@@ -412,6 +478,11 @@ class MCPInterface(DebugInterface):
         -------
         list[dict[str, Any]]
             List of breakpoint information.
+
+        Raises
+        ------
+        RuntimeError
+            If session has terminated unexpectedly.
         """
         self._validate_session_active()
 
@@ -434,7 +505,16 @@ class MCPInterface(DebugInterface):
             return fixed
 
         if not result.get("success", False):
-            # Fall back to cached breakpoints
+            # Check for session termination - this indicates a real problem
+            # that should not be silently ignored
+            if self._is_session_terminated_error(result):
+                msg = (
+                    f"Session {self.session_id} terminated unexpectedly. "
+                    f"The debugged program may have exited or crashed. "
+                    f"Error: {self._extract_error_message(result)}"
+                )
+                raise RuntimeError(msg)
+            # Fall back to cached breakpoints for other errors
             return _ensure_ids(list(self._breakpoints.values()))
 
         data = result.get("data", {})
@@ -530,6 +610,9 @@ class MCPInterface(DebugInterface):
         if not result.get("success", False):
             msg = f"MCP continue failed: {self._extract_error_message(result)}"
             raise RuntimeError(msg)
+
+        # Collect any output (logpoints, stdout, stderr) from response
+        self._collect_output_from_response(result)
 
         return self._format_execution_state(result.get("data", {}))
 
@@ -727,6 +810,27 @@ class MCPInterface(DebugInterface):
         data = result.get("data", {})
         return data.get("result")
 
+    async def get_output(self, clear: bool = True) -> list[dict[str, Any]]:
+        """Get collected program output (logpoints, stdout, stderr).
+
+        Output is collected from MCP execute responses and stored in a local buffer.
+        Logpoint messages appear with category "console".
+
+        Parameters
+        ----------
+        clear : bool
+            If True (default), clears the buffer after retrieval.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            List of output entries with category and output fields.
+        """
+        output = list(self._output_buffer)
+        if clear:
+            self._output_buffer.clear()
+        return output
+
     async def cleanup(self) -> None:
         """Clean up the MCP interface resources.
 
@@ -753,5 +857,6 @@ class MCPInterface(DebugInterface):
         self.session_id = None
         self._session_active = False
         self._breakpoints.clear()
+        self._output_buffer.clear()
         self._initialized = False
         self._initialized_context = False

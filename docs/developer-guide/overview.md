@@ -90,6 +90,8 @@ graph TB
    - `ProcessManager` (`base/components/`): Manages adapter process lifecycle
    - `PortManager` (`base/components/`): Manages port allocation and release
    - `LaunchOrchestrator` (`base/components/`): Orchestrates launch sequence
+   - `SourcePathResolver` (`base/source_path_resolver.py`): Resolves remote paths to local source
+   - `TargetResolver` (`base/target_resolver.py`): Detects and normalizes target types
    - `PythonAdapter` (`lang/python/`): debugpy integration
    - `JavaScriptAdapter` (`lang/javascript/`): vscode-js-debug integration
    - `JavaAdapter` (`lang/java/`): java-debug integration

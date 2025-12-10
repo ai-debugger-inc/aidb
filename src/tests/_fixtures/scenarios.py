@@ -28,7 +28,7 @@ from typing import Any, Optional, Union
 
 import pytest
 
-from aidb_common.constants import Language
+from aidb_common.constants import SUPPORTED_LANGUAGES, Language
 from tests._assets.test_content import get_test_content
 from tests._helpers.session_manager import ScenarioBuilder, SessionManager
 
@@ -485,7 +485,7 @@ def language_matrix_scenarios(debug_scenario_factory):
         Dict[str, Dict[str, Any]]
             Scenarios keyed by language
         """
-        languages = ["python", "javascript", "java"]
+        languages = SUPPORTED_LANGUAGES
         scenarios = {}
 
         for lang in languages:

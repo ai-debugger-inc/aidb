@@ -84,6 +84,10 @@ class SessionState:
     # Progress tracking for long-running operations
     active_progress: dict[str, dict[str, Any]] = field(default_factory=dict)
 
+    # Output collection (logpoints, stdout, stderr)
+    output_buffer: list[dict[str, Any]] = field(default_factory=list)
+    output_buffer_max_size: int = 100  # Prevent unbounded growth
+
     def is_healthy(self) -> bool:
         """Check if the session is in a healthy state."""
         if not self.connected:
@@ -136,6 +140,7 @@ class SessionState:
         self.last_invalidation.clear()
         self.dynamic_capabilities.clear()
         self.active_progress.clear()
+        self.output_buffer.clear()
 
     def get_diagnostics(self) -> dict[str, Any]:
         """Get detailed diagnostics about the session state.

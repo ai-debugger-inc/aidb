@@ -52,7 +52,6 @@ class TestExpressDebugging(FrameworkDebugTestBase):
 
         session_info = await debug_interface.start_session(
             program=str(server_js),
-            env={"PORT": "3000"},
             cwd=str(express_app),
         )
 
@@ -124,7 +123,6 @@ class TestExpressDebugging(FrameworkDebugTestBase):
 
         api_session = await api_interface.start_session(
             program=str(server_js),
-            env={"PORT": "3002"},
             cwd=str(express_app),
         )
 
@@ -179,7 +177,6 @@ class TestExpressDebugging(FrameworkDebugTestBase):
 
         await debug_interface.start_session(
             program=str(server_js),
-            env={"PORT": "3003"},
             cwd=str(express_app),
             breakpoints=[{"file": str(routes_file), "line": home_message_line}],
         )
@@ -227,7 +224,6 @@ class TestExpressDebugging(FrameworkDebugTestBase):
 
         await debug_interface.start_session(
             program=str(server_file),
-            env={"PORT": "3004"},
             cwd=str(express_app),
             breakpoints=[
                 {"file": str(server_file), "line": middleware_timestamp_line},
@@ -292,7 +288,6 @@ class TestExpressDebugging(FrameworkDebugTestBase):
 
         await debug_interface.start_session(
             program=str(server_js),
-            env={"PORT": "3005"},
             cwd=str(express_app),
             breakpoints=[
                 {"file": str(routes_file), "line": calc_x_line},

@@ -9,6 +9,7 @@ from aidb_cli.services.test.test_discovery_service import (
     TestDiscoveryService,
     TestSuiteMetadata,
 )
+from aidb_common.constants import SUPPORTED_LANGUAGES
 
 
 class TestTestSuiteMetadata:
@@ -35,7 +36,7 @@ class TestTestSuiteMetadata:
         metadata = TestSuiteMetadata(
             name="mcp",
             path=Path("/tests/aidb_mcp"),
-            languages=["python", "javascript", "java"],
+            languages=SUPPORTED_LANGUAGES,
             markers=["unit", "integration", "multilang"],
             requires_docker=True,
             adapters_required=True,

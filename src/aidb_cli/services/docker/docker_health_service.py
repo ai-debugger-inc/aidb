@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
-from aidb_cli.core.constants import Icons
+from aidb_cli.core.constants import CliTimeouts, Icons
 from aidb_cli.core.paths import DockerConstants
 from aidb_cli.core.utils import CliOutput
 from aidb_cli.managers.base.service import BaseService
@@ -118,13 +118,13 @@ class DockerHealthService(BaseService):
                     ):
                         if verbose:
                             CliOutput.warning(
-                                f"{Icons.WARNING} {service_name} is running but not healthy",
+                                f"{service_name} is running but not healthy",
                             )
                     else:
                         self.log_warning("Service %s is not running", service_name)
                         return False
 
-            time.sleep(2)
+            time.sleep(CliTimeouts.DOCKER_HEALTH_CHECK_INTERVAL_S)
 
         self.log_warning(
             "Service %s did not become healthy within %d seconds",

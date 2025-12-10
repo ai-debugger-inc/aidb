@@ -13,6 +13,7 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
+from aidb.api.constants import DOWNLOAD_TIMEOUT_S
 from aidb.patterns import Obj
 from aidb.session.adapter_registry import AdapterRegistry
 from aidb_common.config import config as env_config
@@ -97,7 +98,7 @@ class AdapterDownloader(Obj):
             if parsed.scheme not in {"https"}:
                 return None
 
-            with urlopen(manifest_url, timeout=30) as resp:  # noqa: S310  # nosec B310
+            with urlopen(manifest_url, timeout=DOWNLOAD_TIMEOUT_S) as resp:  # noqa: S310  # nosec B310
                 return json.loads(resp.read().decode("utf-8"))
         except (HTTPError, URLError, json.JSONDecodeError) as e:
             self.ctx.debug(f"Failed to fetch manifest from {manifest_url}: {e}")
@@ -235,7 +236,7 @@ class AdapterDownloader(Obj):
             raise ValueError(msg)
 
         with tempfile.NamedTemporaryFile(suffix=".tar.gz", delete=False) as tmp_file:
-            with urlopen(download_url, timeout=30) as resp:  # noqa: S310  # nosec B310
+            with urlopen(download_url, timeout=DOWNLOAD_TIMEOUT_S) as resp:  # noqa: S310  # nosec B310
                 tmp_file.write(resp.read())
             return tmp_file.name
 

@@ -8,6 +8,7 @@ from aidb.patterns.base import Obj
 from aidb_common.config import config
 
 if TYPE_CHECKING:
+    from aidb.adapters.base.source_path_resolver import SourcePathResolver
     from aidb.common import AidbContext
 
 
@@ -32,15 +33,31 @@ class CodeContextResult(TypedDict):
 class CodeContext(Obj):
     """Utility for extracting code context around specific lines."""
 
-    def __init__(self, ctx: "AidbContext | None" = None):
+    def __init__(
+        self,
+        ctx: "AidbContext | None" = None,
+        source_paths: list[str] | None = None,
+        source_path_resolver: "SourcePathResolver | None" = None,
+    ):
         """Initialize code context extractor.
 
         Parameters
         ----------
         ctx : AidbContext, optional
             Application context for logging and configuration access
+        source_paths : list[str], optional
+            Additional source directories to search when resolving file paths.
+            Used for remote debugging where debug adapter returns paths that
+            don't exist locally (e.g., JAR-internal paths like
+            'trino-main.jar!/io/trino/Foo.java').
+        source_path_resolver : SourcePathResolver, optional
+            Language-specific source path resolver for mapping debug adapter
+            paths to local source files. If not provided, falls back to
+            simple filename matching.
         """
         super().__init__(ctx)
+        self.source_paths = source_paths or []
+        self.source_path_resolver = source_path_resolver
 
     def extract_context(  # noqa: C901
         self,
@@ -97,7 +114,15 @@ class CodeContext(Obj):
 
         try:
             path = Path(file_path)
-            if not path.exists():
+            resolved_path: Path | None = None
+
+            if path.exists():
+                resolved_path = path
+            else:
+                # Try to resolve via source paths for remote debugging scenarios
+                resolved_path = self._resolve_from_source_paths(file_path)
+
+            if not resolved_path:
                 # Suppress warning for node_internals (virtual paths that never exist)
                 if not file_path.startswith("<node_internals>"):
                     self.ctx.logger.warning("File not found: %s", file_path)
@@ -106,6 +131,9 @@ class CodeContext(Obj):
                     current_line=line,
                     formatted=f"File not found: {file_path}",
                 )
+
+            # Use the resolved path for file operations
+            path = resolved_path
 
             with path.open(encoding="utf-8") as f:
                 all_lines = f.readlines()
@@ -377,3 +405,55 @@ class CodeContext(Obj):
 
         truncated = line_text[start_idx:end_idx]
         return f"{prefix}{truncated}{suffix}"
+
+    def _resolve_from_source_paths(self, file_path: str) -> Path | None:
+        """Resolve file path using configured source paths.
+
+        For remote debugging scenarios (e.g., attaching to a JVM in a container),
+        the debug adapter may return paths that don't exist locally, such as:
+        - JAR-internal paths: 'trino-main.jar!/io/trino/execution/Foo.java'
+        - Container paths: '/opt/app/io/trino/Foo.java'
+
+        Uses the language-specific source path resolver if available, otherwise
+        falls back to simple filename matching.
+
+        Parameters
+        ----------
+        file_path : str
+            Path from debug adapter (may be JAR-internal or absolute container path)
+
+        Returns
+        -------
+        Path | None
+            Resolved local path if found, None otherwise
+        """
+        if not self.source_paths:
+            return None
+
+        # Use language-specific resolver if available
+        if self.source_path_resolver:
+            return self.source_path_resolver.resolve(file_path, self.source_paths)
+
+        # Fallback: try simple filename matching
+        filename = Path(file_path).name
+        self.ctx.logger.debug(
+            "No source path resolver, trying filename match: %s",
+            filename,
+        )
+
+        for source_root in self.source_paths:
+            # Try direct filename match in source root
+            candidate = Path(source_root) / filename
+            if candidate.exists():
+                self.ctx.logger.debug(
+                    "Resolved via filename match: %s -> %s",
+                    file_path,
+                    candidate,
+                )
+                return candidate
+
+        self.ctx.logger.debug(
+            "Could not resolve %s in any source path",
+            file_path,
+        )
+        return None

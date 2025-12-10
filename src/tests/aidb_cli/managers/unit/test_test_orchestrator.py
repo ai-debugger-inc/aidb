@@ -1,11 +1,11 @@
 """Unit tests for TestOrchestrator."""
 
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
 
 from aidb_cli.managers.test.test_orchestrator import TestOrchestrator
+from aidb_common.constants import SUPPORTED_LANGUAGES
 
 
 class TestTestOrchestrator:
@@ -146,7 +146,7 @@ class TestTestOrchestrator:
         mock_output,
         orchestrator,
     ):
-        """Test prerequisite validation when adapters are missing."""
+        """Test prerequisite validation when adapters are missing (non-Docker suite)."""
         mock_metadata = Mock()
         mock_metadata.requires_docker = False
         mock_metadata.adapters_required = True
@@ -164,6 +164,66 @@ class TestTestOrchestrator:
         result = orchestrator.validate_prerequisites("test_suite")
 
         assert result is False
+        # Non-Docker suite should use check_adapters_built
+        orchestrator.build_manager.check_adapters_built.assert_called_once()
+        orchestrator.build_manager.check_adapters_in_cache.assert_not_called()
+
+    @patch("aidb_cli.managers.test.test_orchestrator.CliOutput")
+    def test_validate_prerequisites_docker_suite_uses_cache_check(
+        self,
+        mock_output,
+        orchestrator,
+    ):
+        """Test Docker suite uses check_adapters_in_cache instead of
+        check_adapters_built."""
+        mock_metadata = Mock()
+        mock_metadata.requires_docker = True
+        mock_metadata.adapters_required = True
+
+        mock_discovery = Mock()
+        mock_discovery.get_suite_metadata.return_value = mock_metadata
+        orchestrator._discovery_service = mock_discovery
+
+        orchestrator.build_manager = Mock()
+        orchestrator.build_manager.check_adapters_in_cache.return_value = (
+            ["python"],
+            ["javascript"],  # Missing adapters
+        )
+
+        with patch.object(orchestrator, "check_prerequisites", return_value=True):
+            result = orchestrator.validate_prerequisites("shared")
+
+        assert result is False
+        # Docker suite should use check_adapters_in_cache
+        orchestrator.build_manager.check_adapters_in_cache.assert_called_once()
+        orchestrator.build_manager.check_adapters_built.assert_not_called()
+
+    @patch("aidb_cli.managers.test.test_orchestrator.CliOutput")
+    def test_validate_prerequisites_docker_suite_all_adapters_present(
+        self,
+        mock_output,
+        orchestrator,
+    ):
+        """Test Docker suite passes when all adapters are in cache."""
+        mock_metadata = Mock()
+        mock_metadata.requires_docker = True
+        mock_metadata.adapters_required = True
+
+        mock_discovery = Mock()
+        mock_discovery.get_suite_metadata.return_value = mock_metadata
+        orchestrator._discovery_service = mock_discovery
+
+        orchestrator.build_manager = Mock()
+        orchestrator.build_manager.check_adapters_in_cache.return_value = (
+            SUPPORTED_LANGUAGES,  # All present
+            [],  # None missing
+        )
+
+        with patch.object(orchestrator, "check_prerequisites", return_value=True):
+            result = orchestrator.validate_prerequisites("shared")
+
+        assert result is True
+        orchestrator.build_manager.check_adapters_in_cache.assert_called_once()
 
     @patch("aidb_cli.managers.test.test_orchestrator.CliOutput")
     def test_validate_prerequisites_adapters_available(
@@ -236,7 +296,7 @@ class TestTestOrchestrator:
 
         orchestrator.build_manager = Mock()
         orchestrator.build_manager.check_adapters_built.return_value = (
-            ["python", "javascript", "java"],
+            SUPPORTED_LANGUAGES,
             [],
         )
 

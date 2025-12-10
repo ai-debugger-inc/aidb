@@ -903,6 +903,11 @@ Logpoints write messages to the debug console without pausing execution. They're
 Use regular breakpoints when you need to inspect state in detail!
 :::
 
+:::{note}
+**Retrieving logpoint output:**
+Logpoint messages are captured and returned in the `output` field of the `execute` tool response. After setting logpoints and continuing execution, check `response.data.output` for entries with `category: "stdout"` or `category: "console"`.
+:::
+
 **Basic logpoint:**
 
 ```python

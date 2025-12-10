@@ -7,6 +7,34 @@ if TYPE_CHECKING:
     from aidb.interfaces.context import IContext
 
 
+# Error message indicators for event loop mismatch detection
+_EVENT_LOOP_ERROR_INDICATORS = (
+    "attached to a different loop",
+    "event loop is closed",
+    "no running event loop",
+)
+
+
+def is_event_loop_error(error: Exception) -> bool:
+    """Check if an exception is due to event loop mismatch or closure.
+
+    These errors occur during pytest-xdist parallel test execution when async
+    operations created on one worker's event loop are cleaned up on another.
+
+    Parameters
+    ----------
+    error : Exception
+        The exception to check
+
+    Returns
+    -------
+    bool
+        True if this is an event loop mismatch/closure error
+    """
+    error_msg = str(error).lower()
+    return any(indicator in error_msg for indicator in _EVENT_LOOP_ERROR_INDICATORS)
+
+
 async def close_subprocess_transports(
     process: asyncio.subprocess.Process | None,
     ctx: "IContext | None" = None,

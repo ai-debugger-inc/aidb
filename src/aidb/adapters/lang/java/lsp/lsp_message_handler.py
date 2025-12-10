@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from aidb.api.constants import EVENT_QUEUE_POLL_TIMEOUT_S, THREAD_JOIN_TIMEOUT_S
 from aidb.patterns.base import Obj
 
 from .lsp_protocol import LSPMessage, LSPProtocol
@@ -68,7 +69,7 @@ class LSPMessageHandler(Obj):
         self._stop_reader.set()
         if self._reader_task and not self._reader_task.done():
             try:
-                await asyncio.wait_for(self._reader_task, timeout=2.0)
+                await asyncio.wait_for(self._reader_task, timeout=THREAD_JOIN_TIMEOUT_S)
             except asyncio.TimeoutError:
                 self._reader_task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
@@ -100,7 +101,7 @@ class LSPMessageHandler(Obj):
                 try:
                     chunk = await asyncio.wait_for(
                         self.protocol.process.stdout.read(1024),
-                        timeout=0.1,
+                        timeout=EVENT_QUEUE_POLL_TIMEOUT_S,
                     )
                 except asyncio.TimeoutError:
                     # Check if we should continue or exit
@@ -144,7 +145,7 @@ class LSPMessageHandler(Obj):
                 try:
                     line = await asyncio.wait_for(
                         self.protocol.process.stderr.readline(),
-                        timeout=0.1,
+                        timeout=EVENT_QUEUE_POLL_TIMEOUT_S,
                     )
 
                     if not line:

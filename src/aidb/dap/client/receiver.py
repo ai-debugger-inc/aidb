@@ -5,6 +5,7 @@ import contextlib
 import time
 from typing import TYPE_CHECKING, Optional
 
+from aidb.api.constants import MAX_CONSECUTIVE_FAILURES, SHORT_SLEEP_S
 from aidb.common.errors import DebugConnectionError
 
 if TYPE_CHECKING:
@@ -185,12 +186,12 @@ class MessageReceiver:
 
         # If we get too many errors, stop
         self._client.state.consecutive_failures += 1
-        if self._client.state.consecutive_failures >= 5:
+        if self._client.state.consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
             self._ctx.error("Too many consecutive failures, stopping receiver")
             return True
 
         # Brief pause before retry
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(SHORT_SLEEP_S)
         return False
 
     async def _process_single_iteration(self, loop_count: int) -> bool:  # noqa: ARG002
@@ -206,6 +207,12 @@ class MessageReceiver:
         bool
             True if should continue loop, False to stop
         """
+        # Check stop event FIRST - before any I/O operations
+        # This allows clean exit when stop() is called before transport disconnect
+        if self._stop_event.is_set():
+            self._ctx.debug("Stop event set, exiting receiver loop")
+            return False
+
         # Check if we're still connected
         if not self._client.transport.is_connected():
             self._ctx.debug("Transport disconnected, stopping receiver")
@@ -239,24 +246,29 @@ class MessageReceiver:
         self._record_task_info()
         loop_count = 0
 
-        while not self._stop_event.is_set():
-            loop_count += 1
-            if loop_count % 10 == 0:
-                self._ctx.debug(f"Receiver loop iteration {loop_count}")
+        try:
+            while not self._stop_event.is_set():
+                loop_count += 1
+                if loop_count % 10 == 0:
+                    self._ctx.debug(f"Receiver loop iteration {loop_count}")
 
-            try:
-                should_continue = await self._process_single_iteration(loop_count)
-                if not should_continue:
-                    break
+                try:
+                    should_continue = await self._process_single_iteration(loop_count)
+                    if not should_continue:
+                        break
 
-            except Exception as e:
-                should_break = await self._handle_general_error(e)
-                if should_break:
-                    break
+                except Exception as e:
+                    should_break = await self._handle_general_error(e)
+                    if should_break:
+                        break
 
-        self._ctx.debug("Receiver loop ended")
-        self._running = False
-        self._stopping = False  # Reset for potential reuse
+        except asyncio.CancelledError:
+            # Expected during cleanup - don't re-raise, exit cleanly
+            self._ctx.debug("Receiver loop cancelled")
+        finally:
+            self._ctx.debug("Receiver loop ended")
+            self._running = False
+            self._stopping = False  # Reset for potential reuse
 
     async def _handle_message(self, message: dict) -> None:
         """Handle a received message.

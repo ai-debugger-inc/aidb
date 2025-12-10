@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from typing import Any, Optional
 
-from aidb_cli.core.constants import Icons, LogLevel
+from aidb_cli.core.constants import LogLevel
 from aidb_cli.core.project_config import load_merged_config
 from aidb_cli.core.utils import CliOutput
 from aidb_cli.core.yaml import YamlOperationError, safe_read_yaml, safe_write_yaml
@@ -268,20 +268,15 @@ class ConfigManager:
                 safe_write_yaml(config_file, default_config)
             except YamlOperationError as write_error:
                 logger.error("Failed to create default config: %s", write_error)
-                CliOutput.plain(
-                    f"{Icons.ERROR} Failed to create config: {write_error}",
-                    err=True,
-                )
+                CliOutput.error(f"Failed to create config: {write_error}")
                 return False
 
-            CliOutput.plain(
-                f"{Icons.SUCCESS} Created default configuration: {config_file}",
-            )
+            CliOutput.success(f"Created default configuration: {config_file}")
             return True
 
         except (OSError, YamlOperationError) as e:
             logger.error("Failed to create default config: %s", e)
-            CliOutput.plain(f"{Icons.ERROR} Failed to create config: {e}", err=True)
+            CliOutput.error(f"Failed to create config: {e}")
             return False
 
     def show_config(
@@ -305,7 +300,7 @@ class ConfigManager:
 
         except (OSError, YamlOperationError) as e:
             logger.error("Failed to show config: %s", e)
-            CliOutput.plain(f"{Icons.ERROR} Failed to show config: {e}", err=True)
+            CliOutput.error(f"Failed to show config: {e}")
 
     def _format_config_text(self, config: dict[str, Any], indent: int = 0) -> str:
         """Format configuration as readable text.

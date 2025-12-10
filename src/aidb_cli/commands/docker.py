@@ -205,15 +205,13 @@ def cleanup(
         )
 
         if not any(resources_to_remove.values()):
-            output.plain(f"{Icons.CLEAN} No AIDB resources found to clean up")
+            output.success("No AIDB resources found to clean up")
             return
 
         cleanup_manager.display_resources(resources_to_remove)
 
         if dry_run:
-            output.plain(
-                f"{Icons.MAGNIFYING} Dry run complete - no resources were removed",
-            )
+            output.plain("Dry run complete - no resources were removed")
             return
 
         # Confirmation prompt
@@ -289,30 +287,27 @@ def status(ctx: click.Context) -> None:
     output.section("Docker Environment Status", Icons.DOCKER)
 
     # Docker availability
-    docker_icon = (
-        f"{Icons.SUCCESS}" if status_info["docker_available"] else f"{Icons.ERROR}"
-    )
-    output.plain(
-        f"{docker_icon} Docker: {status_info.get('docker_version', 'not available')}",
-    )
+    docker_version = status_info.get("docker_version", "not available")
+    if status_info["docker_available"]:
+        output.success(f"Docker: {docker_version}")
+    else:
+        output.error(f"Docker: {docker_version}", to_stderr=False)
 
     # Compose file
-    compose_icon = (
-        f"{Icons.SUCCESS}" if status_info["compose_file_exists"] else f"{Icons.ERROR}"
-    )
-    output.plain(
-        (
-            f"{compose_icon} Compose file: "
-            f"{'found' if status_info['compose_file_exists'] else 'missing'}"
-        ),
-    )
+    if status_info["compose_file_exists"]:
+        output.success("Compose file: found")
+    else:
+        output.error("Compose file: missing", to_stderr=False)
 
     # Adapters
     output.plain("")
     output.subsection("Adapter Status")
     for lang, built in status_info["adapters_built"].items():
-        adapter_icon = f"{Icons.SUCCESS}" if built else f"{Icons.ERROR}"
-        output.plain(f"  {adapter_icon} {lang}: {'built' if built else 'not built'}")
+        status_text = "built" if built else "not built"
+        if built:
+            output.success(f"  {lang}: {status_text}")
+        else:
+            output.error(f"  {lang}: {status_text}", to_stderr=False)
 
     # Repository root
     output.plain("")
@@ -416,7 +411,7 @@ def compose(
         else:
             cli_output.error("Compose file validation failed:")
             for error in errors:
-                cli_output.plain(f"  {Icons.ERROR} {error}")
+                cli_output.error(f"  {error}", to_stderr=False)
             ctx.exit(1)
 
     # Default: show status

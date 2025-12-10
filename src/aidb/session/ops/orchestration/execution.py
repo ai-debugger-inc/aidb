@@ -4,12 +4,14 @@ import asyncio
 from typing import TYPE_CHECKING, Optional, cast
 
 from aidb.api.constants import (
-    DEFAULT_WAIT_TIMEOUT_S,
+    CHILD_SESSION_WAIT_TIMEOUT_S,
     EVENT_POLL_TIMEOUT_S,
     MEDIUM_SLEEP_S,
+    PROCESS_WAIT_TIMEOUT_S,
     STACK_TRACE_TIMEOUT_S,
 )
 from aidb.common.errors import DebugTimeoutError
+from aidb.dap.client.constants import StopReason as DAPStopReason
 from aidb.dap.protocol.bodies import RestartArguments
 from aidb.dap.protocol.requests import (
     ContinueRequest,
@@ -23,6 +25,7 @@ from aidb.models import (
     ExecutionStateResponse,
     StartResponse,
 )
+from aidb_common.io import is_event_loop_error
 
 from ..base import SessionOperationsMixin
 from ..decorators import requires_capability
@@ -89,12 +92,12 @@ async def _build_stopped_execution_state(session_ops) -> ExecutionStateResponse:
 
     # Map DAP stop reasons to our StopReason enum
     stop_reason_map = {
-        "breakpoint": StopReason.BREAKPOINT,
-        "step": StopReason.STEP,
-        "pause": StopReason.PAUSE,
-        "exception": StopReason.EXCEPTION,
-        "entry": StopReason.ENTRY,
-        "exit": StopReason.EXIT,
+        DAPStopReason.BREAKPOINT.value: StopReason.BREAKPOINT,
+        DAPStopReason.STEP.value: StopReason.STEP,
+        DAPStopReason.PAUSE.value: StopReason.PAUSE,
+        DAPStopReason.EXCEPTION.value: StopReason.EXCEPTION,
+        DAPStopReason.ENTRY.value: StopReason.ENTRY,
+        DAPStopReason.EXIT.value: StopReason.EXIT,
     }
     stop_reason = stop_reason_map.get(stop_reason_str, StopReason.UNKNOWN)
 
@@ -406,17 +409,17 @@ class ExecutionOperations(SessionOperationsMixin):
                 and hasattr(self._session.adapter, "requires_child_session_wait")
                 and self._session.adapter.requires_child_session_wait
             ):
-                await self._wait_for_child_session(timeout=10.0)
+                await self._wait_for_child_session(timeout=CHILD_SESSION_WAIT_TIMEOUT_S)
 
-            # If initial breakpoints were set, wait briefly for the first stop so
-            # the session begins in a paused state. This avoids races where tests
-            # immediately issue a continue before the first breakpoint stop has
-            # been delivered.
-            if has_breakpoints:
+            # Determine if we should auto-wait for breakpoints
+            # Default behavior: wait if breakpoints are set
+            should_wait = auto_wait if auto_wait is not None else has_breakpoints
+
+            if should_wait:
                 try:
                     result = (
                         await self.session.events.wait_for_stopped_or_terminated_async(
-                            timeout=DEFAULT_WAIT_TIMEOUT_S,
+                            timeout=wait_timeout,
                         )
                     )
                     self.ctx.debug(
@@ -426,93 +429,6 @@ class ExecutionOperations(SessionOperationsMixin):
                     self.ctx.debug(
                         f"post-start auto-wait error (non-fatal): {wait_error}",
                     )
-            #     else:
-            #         self.ctx.debug(
-            #             "Session is paused after initialization (not at breakpoint), "
-            #             "sending initial continue to start execution",
-            #         )
-            #         try:
-            #             # Get current thread ID for the continue request
-            #             thread_id = await self.get_current_thread_id()
-            #
-            #             # Create and send continue request
-            #             from aidb.dap.protocol.bodies import ContinueArguments
-            #             from aidb.dap.protocol.requests import ContinueRequest
-            #
-            #             continue_args = ContinueArguments(threadId=thread_id)
-            #             continue_request = ContinueRequest(
-            #                 seq=await self.session.dap.get_next_seq(),
-            #                 arguments=continue_args,
-            #             )
-            #
-            #             # If we have breakpoints, send continue WITH wait_for_stop
-            #             # to ensure we wait for the first breakpoint hit
-            #             if has_breakpoints:
-            #                 self.ctx.debug(
-            #                     "Sending continue with wait_for_stop=True "
-            #                     "to wait for first breakpoint hit",
-            #                 )
-            #                 await self.continue_(continue_request, wait_for_stop=True)
-            #                 sent_continue_with_wait = True
-            #                 self.ctx.debug(
-            #                     "Continue completed - session stopped at breakpoint",
-            #                 )
-            #             else:
-            #                 # No breakpoints - send continue without waiting
-            #                 await self.session.dap.send_request(continue_request)
-            #                 self.ctx.debug("Initial continue sent successfully")
-            #
-            #         except Exception as e:
-            #             self.ctx.warning(f"Failed to send initial continue: {e}")
-            #             # Don't fail the start operation - continue with normal flow
-            #
-            # # Determine auto-wait behavior
-            # if auto_wait is None:
-            #     # Default: auto-wait if breakpoints are set
-            #     auto_wait = has_breakpoints
-            #     if auto_wait:
-            #         self.ctx.debug(
-            #             "Auto-waiting for stop event since breakpoints are set",
-            #         )
-            #
-            # # Auto-wait for first breakpoint hit if requested
-            # # Skip if we already waited via continue_ above
-            # if auto_wait and not sent_continue_with_wait:
-            #     # Check if already paused at breakpoint
-            #     if self.session.is_paused():
-            #         current_stop_reason = (
-            #             self.session.dap.get_stop_reason()
-            #             if hasattr(self.session.dap, "get_stop_reason")
-            #             else None
-            #         )
-            #         if current_stop_reason == "breakpoint":
-            #             self.ctx.debug(
-            #                 "Already paused at breakpoint, skipping auto-wait",
-            #             )
-            #         else:
-            #             # Paused but not at breakpoint - wait for breakpoint
-            #             self.ctx.debug(
-            #                 f"Waiting for stop event (timeout={wait_timeout}s)",
-            #             )
-            #             try:
-            #                 await self.session.wait_for_stop(timeout=wait_timeout)
-            #                 self.ctx.debug("Successfully stopped at breakpoint")
-            #             except Exception as wait_error:
-            #                 self.ctx.warning(
-            #                     f"Auto-wait timed out or failed: {wait_error}. "
-            #                     "Program may not have hit a breakpoint.",
-            #                 )
-            #     else:
-            #         # Not paused - wait for stop
-            #         self.ctx.debug(f"Waiting for stop event (timeout={wait_timeout}s)")
-            #         try:
-            #             await self.session.wait_for_stop(timeout=wait_timeout)
-            #             self.ctx.debug("Successfully stopped at breakpoint")
-            #         except Exception as wait_error:
-            #             self.ctx.warning(
-            #                 f"Auto-wait timed out or failed: {wait_error}. "
-            #                 "Program may not have hit a breakpoint.",
-            #             )
 
             return StartResponse(
                 success=True,
@@ -587,90 +503,15 @@ class ExecutionOperations(SessionOperationsMixin):
             Response containing session termination status
         """
         try:
-            # Send terminate request if supported and not already terminated
-            if self.session.supports_terminate() and not self.session.dap.is_terminated:
-                request = TerminateRequest(seq=0)  # seq will be set by client
-                try:
-                    # Use adapter-specific timeout (Java: 5s, Python/JS: 1s)
-                    timeout = self.session.adapter.config.terminate_request_timeout
-                    response = await self.session.dap.send_request(
-                        request,
-                        timeout=timeout,
-                    )
-                    response.ensure_success()
-                except (asyncio.TimeoutError, asyncio.CancelledError):
-                    # Timeout or cancellation - session already terminated
-                    # CancelledError: Session terminated, cancelled pending requests
-                    # TimeoutError: Terminated event arrived, flag not yet updated
-                    self.ctx.debug(
-                        "Terminate request timed out or cancelled - "
-                        "session already terminated",
-                    )
-                except Exception as e:
-                    # If terminate request fails but session is already
-                    # terminated, ignore
-                    if self.session.dap.is_terminated:
-                        self.ctx.debug(
-                            "Terminate request failed but session already "
-                            f"terminated: {e}",
-                        )
-                    else:
-                        self.ctx.warning(f"Terminate request failed: {e}")
-            elif self.session.dap.is_terminated:
-                self.ctx.debug("Session already terminated, skipping terminate request")
+            await self._send_terminate_request()
+            dap_error = await self._disconnect_dap_client()
+            adapter_error = await self._stop_adapter()
 
-            # Disconnect DAP client
-            if hasattr(self.session, "dap") and self.session.dap:
-                # Adapter indicates transport-only disconnect preference (e.g., Python/JS)
-                if (
-                    hasattr(self.session, "adapter")
-                    and self.session.adapter
-                    and getattr(
-                        self.session.adapter,
-                        "prefers_transport_only_disconnect",
-                        False,
-                    )
-                ):
-                    await self.session.dap.disconnect(
-                        skip_request=True,
-                        receiver_stop_timeout=0.5,
-                    )
-                # Check if adapter wants to skip DisconnectRequest (pooled servers)
-                elif (
-                    hasattr(self.session, "adapter")
-                    and self.session.adapter
-                    and not self.session.adapter.should_send_disconnect_request
-                ):
-                    # For pooled adapters (Java), send a non-terminating
-                    # DisconnectRequest to let the server finalize state,
-                    # then close the transport. This avoids the java-debug
-                    # deadlock we saw with terminateDebuggee=True while also
-                    # preventing LSP startDebugSession timeouts on reuse.
-                    self.ctx.debug(
-                        "Adapter pooled - sending non-terminating DisconnectRequest",
-                    )
-                    try:
-                        await self.session.dap.disconnect(
-                            terminate_debuggee=False,
-                            suspend_debuggee=False,
-                            skip_request=False,
-                        )
-                    except Exception as e:
-                        # Non-fatal; fall back to closing transport only
-                        self.ctx.debug(
-                            f"Non-terminating DisconnectRequest failed: {e}, "
-                            "closing transport only",
-                        )
-                        await self.session.dap.disconnect(skip_request=True)
-                else:
-                    await self.session.dap.disconnect()
-
-            # Stop adapter (terminates process and releases resources)
-            if hasattr(self.session, "adapter") and hasattr(
-                self.session.adapter,
-                "stop",
-            ):
-                await self.session.adapter.stop()
+            # Report any non-event-loop errors that occurred
+            if dap_error:
+                raise dap_error
+            if adapter_error:
+                raise adapter_error
 
             return AidbStopResponse(
                 success=True,
@@ -683,3 +524,82 @@ class ExecutionOperations(SessionOperationsMixin):
                 success=False,
                 message=f"Failed to stop: {e}",
             )
+
+    async def _send_terminate_request(self) -> None:
+        """Send terminate request if supported."""
+        if self.session.dap.is_terminated:
+            self.ctx.debug("Session already terminated, skipping terminate request")
+            return
+
+        if not self.session.supports_terminate():
+            return
+
+        request = TerminateRequest(seq=0)  # seq will be set by client
+        try:
+            timeout = self.session.adapter.config.terminate_request_timeout
+            response = await self.session.dap.send_request(request, timeout=timeout)
+            response.ensure_success()
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            self.ctx.debug(
+                "Terminate request timed out or cancelled - session already terminated",
+            )
+        except Exception as e:
+            if self.session.dap.is_terminated:
+                self.ctx.debug(f"Terminate request failed but session terminated: {e}")
+            else:
+                self.ctx.warning(f"Terminate request failed: {e}")
+
+    async def _disconnect_dap_client(self) -> Exception | None:
+        """Disconnect DAP client, returning any non-event-loop error."""
+        if not (hasattr(self.session, "dap") and self.session.dap):
+            return None
+
+        try:
+            await self._perform_dap_disconnect()
+        except RuntimeError as e:
+            if is_event_loop_error(e):
+                self.ctx.debug(f"DAP disconnect skipped (event loop mismatch): {e}")
+            else:
+                return e
+        return None
+
+    async def _perform_dap_disconnect(self) -> None:
+        """Perform the appropriate DAP disconnect based on adapter type."""
+        adapter = getattr(self.session, "adapter", None)
+
+        # Transport-only disconnect (Python/JS)
+        if adapter and getattr(adapter, "prefers_transport_only_disconnect", False):
+            await self.session.dap.disconnect(
+                skip_request=True,
+                receiver_stop_timeout=PROCESS_WAIT_TIMEOUT_S,
+            )
+        # Pooled adapters (Java) - non-terminating disconnect
+        elif adapter and not adapter.should_send_disconnect_request:
+            self.ctx.debug("Adapter pooled - sending non-terminating disconnect")
+            try:
+                await self.session.dap.disconnect(
+                    terminate_debuggee=False,
+                    suspend_debuggee=False,
+                    skip_request=False,
+                )
+            except Exception as e:
+                self.ctx.debug(f"Non-terminating disconnect failed: {e}, closing only")
+                await self.session.dap.disconnect(skip_request=True)
+        # Standard disconnect
+        else:
+            await self.session.dap.disconnect()
+
+    async def _stop_adapter(self) -> Exception | None:
+        """Stop adapter, returning any non-event-loop error."""
+        adapter = getattr(self.session, "adapter", None)
+        if not (adapter and hasattr(adapter, "stop")):
+            return None
+
+        try:
+            await self.session.adapter.stop()
+        except RuntimeError as e:
+            if is_event_loop_error(e):
+                self.ctx.debug(f"Adapter stop skipped (event loop mismatch): {e}")
+            else:
+                return e
+        return None

@@ -6,8 +6,8 @@ exclude: |
     src/tests/_assets/test_programs/generated/|
     src/tests/_assets/framework_apps/|
     src/tests/_assets/|
-    src/aidb/dap/_util/|
-    src/aidb/dap/protocol/|
+    src/aidb/dap/_util/_spec\.json|
+    src/aidb/dap/protocol/(requests|responses|events|bodies|types|__init__)\.py|
     \.github/scripts/
   )
 
@@ -28,9 +28,9 @@ repos:
       - id: check-added-large-files
         args: ['--maxkb=1000']
       - id: trailing-whitespace
-        exclude: '^src/aidb/dap/_util/|^src/aidb/dap/protocol/'
+        exclude: '^src/aidb/dap/_util/_spec\.json|^src/aidb/dap/protocol/(requests|responses|events|bodies|types|__init__)\.py'
       - id: end-of-file-fixer
-        exclude: '^src/aidb/dap/_util/|^src/aidb/dap/protocol/'
+        exclude: '^src/aidb/dap/_util/_spec\.json|^src/aidb/dap/protocol/(requests|responses|events|bodies|types|__init__)\.py'
 
   # --------------------------------------
   # 2. Project Maintenance (modifies files, must run before formatting)
@@ -114,7 +114,7 @@ repos:
           for file in $(
             find src/ .claude/ \
               -type d \( -name ".*" -o -name "node_modules" -o -name "_assets" \) -prune \
-              -o -name "*.json" -print
+              -o -name "*.json" -not -path "src/aidb/dap/_util/_spec.json" -print
           ); do
             tmpfile=$(mktemp)
             if ! jq . "$file" > "$tmpfile"; then
@@ -186,8 +186,8 @@ repos:
           (?x)^(
             docs/conf.py|
             venv/|
-            src/aidb/dap/_util/|
-            src/aidb/dap/protocol/
+            src/aidb/dap/_util/_spec\.json|
+            src/aidb/dap/protocol/(requests|responses|events|bodies|types|__init__)\.py
           )
 
   - repo: https://github.com/pycqa/pydocstyle
@@ -200,8 +200,7 @@ repos:
             docs/conf.py|
             scripts/pre-commit/|
             src/tests/|
-            src/aidb/dap/_util/|
-            src/aidb/dap/protocol/
+            src/aidb/dap/protocol/(requests|responses|events|bodies|types|__init__)\.py
           )
 
   # --------------------------------------
@@ -345,7 +344,7 @@ repos:
           bash -c '
             venv/bin/bandit -r src/ \
               --skip B101,B104,B108,B603 \
-              --exclude src/tests/,src/aidb/dap/_util/,src/aidb/dap/protocol/ \
+              --exclude src/tests/ \
               -ll -q
           '
         language: system
@@ -359,7 +358,7 @@ repos:
         language: script
         types: [python]
         pass_filenames: false
-        exclude: '^src/aidb/dap/_util/|^src/aidb/dap/protocol/'
+        exclude: '^src/aidb/dap/protocol/(requests|responses|events|bodies|types|__init__)\.py'
 
       - id: deptry
         name: Check dependency usage (deptry)

@@ -51,8 +51,8 @@ runs:
 
         echo "⏳ Waiting for package ${{ inputs.package_name }}==${{ inputs.version }} on $SOURCE_NAME..."
 
-        MAX_ATTEMPTS=5
-        WAIT_BETWEEN=30
+        MAX_ATTEMPTS=30
+        WAIT_BETWEEN=5
 
         for i in $(seq 1 $MAX_ATTEMPTS); do
           echo "Attempt $i/$MAX_ATTEMPTS..."
@@ -98,8 +98,8 @@ runs:
 
         # Install package with retries (TestPyPI propagation can be slow)
         echo "Installing ${{ inputs.package_name }}==${{ inputs.version }}..."
-        MAX_INSTALL_ATTEMPTS=5
-        INSTALL_WAIT=30
+        MAX_INSTALL_ATTEMPTS=15
+        INSTALL_WAIT=10
 
         for attempt in $(seq 1 $MAX_INSTALL_ATTEMPTS); do
           echo "Install attempt $attempt/$MAX_INSTALL_ATTEMPTS..."

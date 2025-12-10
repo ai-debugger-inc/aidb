@@ -7,16 +7,17 @@ and MCP without duplication.
 from __future__ import annotations
 
 import json
-import logging
 from typing import TYPE_CHECKING, Any
 
+from aidb_common.constants import SUPPORTED_LANGUAGES, Language
 from aidb_common.io.files import FileOperationError
 from aidb_common.repo import detect_repo_root
+from aidb_logging import get_logger
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class VersionManager:
@@ -236,7 +237,7 @@ class VersionManager:
             "runtimes": {},
         }
 
-        for lang in ["javascript", "java", "python"]:
+        for lang in SUPPORTED_LANGUAGES:
             version = self.get_adapter_version(lang)
             if version:
                 result["adapters"][lang] = version
@@ -297,12 +298,12 @@ class VersionManager:
             "version": adapter.get("version", ""),
             "repo": adapter.get("repo", ""),
         }
-        if language == "javascript":
+        if language == Language.JAVASCRIPT:
             version = info["version"]
             info["url"] = (
                 f"https://github.com/microsoft/vscode-js-debug/releases/download/{version}/js-debug-dap-{version}.tar.gz"
             )
-        elif language == "java":
+        elif language == Language.JAVA:
             version = info["version"]
             info["url"] = (
                 f"https://vscjava.gallery.vsassets.io/_apis/public/gallery/publisher/vscjava/extension/vscode-java-debug/{version}/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage"

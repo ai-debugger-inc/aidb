@@ -92,6 +92,19 @@ class BuildManager(BaseOrchestrator):
         service = self.get_service(AdapterService)
         return service.check_adapters_built(languages, verbose)
 
+    def check_adapters_in_cache(
+        self,
+        languages: list[str] | None = None,
+        verbose: bool = False,
+    ) -> tuple[list[str], list[str]]:
+        """Check for built adapters in repo cache (.cache/adapters/).
+
+        Unlike check_adapters_built(), this does NOT fall back to source paths. Use for
+        Docker suites that mount .cache/adapters/ into containers.
+        """
+        service = self.get_service(AdapterService)
+        return service.check_adapters_in_cache(languages, verbose)
+
     def find_adapter_source(
         self,
         language: str,

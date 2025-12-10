@@ -7,10 +7,10 @@ validation.
 
 from __future__ import annotations
 
-import logging
 import os
 from pathlib import Path
 
+from aidb_common.constants import SUPPORTED_LANGUAGES
 from aidb_common.env.reader import (
     read_bool,
     read_float,
@@ -20,8 +20,9 @@ from aidb_common.env.reader import (
     read_str,
 )
 from aidb_common.patterns import Singleton
+from aidb_logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ConfigManager(Singleton["ConfigManager"]):
@@ -471,8 +472,8 @@ class ConfigManager(Singleton["ConfigManager"]):
     # ========== MCP Server Configuration Methods ==========
 
     def get_mcp_server_name(self) -> str:
-        """Get MCP server name (default: aidb-debug-v2)."""
-        return read_str(self.AIDB_MCP_SERVER_NAME, "aidb-debug-v2")
+        """Get MCP server name (default: ai-debugger)."""
+        return read_str(self.AIDB_MCP_SERVER_NAME, "ai-debugger")
 
     def get_mcp_server_version(self) -> str:
         """Get MCP server version (default: 0.1.0)."""
@@ -724,7 +725,7 @@ class ConfigManager(Singleton["ConfigManager"]):
             "adapter_overrides": {},
         }
 
-        for adapter in ["python", "java", "javascript"]:
+        for adapter in SUPPORTED_LANGUAGES:
             env_var = self.ADAPTER_PATH_TEMPLATE.format(adapter.upper())
             value = os.environ.get(env_var)
             if value:
@@ -766,7 +767,7 @@ class ConfigManager(Singleton["ConfigManager"]):
     def validate_settings(self) -> list[str]:
         """Validate configuration settings and return warning messages."""
         warnings: list[str] = []
-        for adapter in ["python", "java", "javascript"]:
+        for adapter in SUPPORTED_LANGUAGES:
             override = self.get_binary_override(adapter)
             if override and not override.exists():
                 warnings.append(

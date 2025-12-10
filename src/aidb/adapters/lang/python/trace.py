@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 from aidb.patterns import Obj
+from aidb_common.constants import Language
 
 if TYPE_CHECKING:
     from aidb.interfaces.context import IContext
@@ -50,7 +51,7 @@ class PythonTraceManager(Obj):
         else:
             # Use context storage path if available (under log/)
             base_dir = Path(self.ctx.get_storage_path("log/adapter_traces", ""))
-            self.trace_dir = base_dir / "python"
+            self.trace_dir = base_dir / Language.PYTHON.value
             self.trace_dir.mkdir(parents=True, exist_ok=True)
 
         self.max_rotations = max_rotations

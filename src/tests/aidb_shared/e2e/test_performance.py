@@ -26,8 +26,16 @@ from tests._helpers.parametrization import parametrize_interfaces, parametrize_l
 from tests._helpers.test_bases.base_e2e_test import BaseE2ETest
 
 
+@pytest.mark.serial
+@pytest.mark.xdist_group(name="serial")
 class TestPerformance(BaseE2ETest):
-    """E2E performance tests with MCP instrumentation."""
+    """E2E performance tests with MCP instrumentation.
+
+    Marked serial to ensure consistent timing when running with pytest-xdist
+    parallelism. Performance tests are sensitive to CPU contention from parallel
+    workers. The xdist_group marker ensures all tests in this class run on the same
+    worker when using --dist loadgroup.
+    """
 
     perf = PerformanceAssertions()
 
@@ -37,10 +45,10 @@ class TestPerformance(BaseE2ETest):
         "session_startup": 3000,  # ms (native: ~2.6s, auto-adjusts for containers)
         "step_over": 150,  # ms (native: ~50ms, conservative)
         "breakpoint_hit": 150,  # ms (similar to step)
-        "variable_inspection": 200,  # ms (native: ~31ms, auto-adjusts)
+        "variable_inspection": 200,  # ms (native: ~31ms, conservative)
         "stack_trace": 100,  # ms (native: ~9ms, conservative)
-        "evaluation_simple": 150,  # ms (native: ~50ms, auto-adjusts)
-        "evaluation_complex": 200,  # ms (add buffer)
+        "evaluation_simple": 150,  # ms (native: ~50ms, conservative)
+        "evaluation_complex": 200,  # ms (conservative)
         "large_program_startup": 3000,  # ms (same as session startup)
         "repeated_cycle": 250,  # ms (continue + inspect)
     }

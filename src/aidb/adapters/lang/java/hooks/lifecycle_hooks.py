@@ -16,6 +16,7 @@ from aidb.api.constants import (
 )
 from aidb.common.errors import AidbError
 from aidb_common.config import config
+from aidb_common.constants import Language
 from aidb_common.env import reader
 from aidb_logging.utils import LogOnce
 
@@ -189,7 +190,7 @@ class JDTLSSetupHooks:
             from ..lsp.lsp_bridge import JavaLSPDAPBridge
 
             locator = AdapterBinaryLocator(ctx=self.adapter.ctx)
-            java_debug_jar = locator.locate("java")
+            java_debug_jar = locator.locate(Language.JAVA.value)
 
             # Locate JDT LS - check in priority order:
             # 1. AIDB_JDT_LS_HOME environment variable (explicit override)
@@ -207,7 +208,7 @@ class JDTLSSetupHooks:
             else:
                 # Check bundled location (in adapter directory)
                 try:
-                    adapter_dir = locator.get_adapter_dir("java")
+                    adapter_dir = locator.get_adapter_dir(Language.JAVA.value)
                     bundled_jdtls = adapter_dir / "jdtls"
 
                     if bundled_jdtls.exists():
@@ -433,7 +434,10 @@ class JDTLSCleanupHooks:
 
             if self.adapter._trace_manager:
                 trace_dir = Path(
-                    self.adapter._trace_manager.get_trace_log_path("java", "log"),
+                    self.adapter._trace_manager.get_trace_log_path(
+                        Language.JAVA.value,
+                        "log",
+                    ),
                 ).parent
                 eclipse_trace_path = trace_dir / "java.eclipse.log"
 

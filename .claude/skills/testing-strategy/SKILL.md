@@ -17,6 +17,22 @@ tags:
 
 **Priority:** E2E → Integration → Unit (Highest ROI First)
 
+______________________________________________________________________
+
+## CRITICAL: Test Execution Command
+
+**All tests MUST be run via `./dev-cli test run`:**
+
+```bash
+./dev-cli test run -s {suite} [-k 'pattern'] [-l {lang}]
+```
+
+- Multiple `-k` and `-l` flags supported
+- **NEVER use `--local`** - suites know their natural execution environment; forcing local causes unexpected behavior
+- Direct `pytest` invocation is NOT supported
+
+______________________________________________________________________
+
 This skill guides you through creating and modifying tests for the AIDB project. The test infrastructure is complete - your job is to implement tests using proven patterns.
 
 ## Related Skills

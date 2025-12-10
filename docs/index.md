@@ -43,7 +43,7 @@ Add to your MCP client settings (Claude Code, Cline, Cursor, etc.):
 ```json
 {
   "mcpServers": {
-    "aidb-debug": {
+    "ai-debugger": {
       "command": "python",
       "args": ["-m", "aidb_mcp"]
     }

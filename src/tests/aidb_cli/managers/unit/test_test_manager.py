@@ -8,6 +8,7 @@ import pytest
 
 from aidb.common.errors import AidbError
 from aidb_cli.managers.test.test_manager import TestManager
+from aidb_common.constants import SUPPORTED_LANGUAGES
 
 
 class TestTestManager:
@@ -26,7 +27,7 @@ class TestTestManager:
     def mock_build_manager(self):
         """Create a mock BuildManager."""
         manager = Mock()
-        manager.get_supported_languages.return_value = ["python", "javascript", "java"]
+        manager.get_supported_languages.return_value = SUPPORTED_LANGUAGES
         manager.find_adapter_source.return_value = Path("/fake/adapter")
         manager.check_adapters_built.return_value = (
             ["python", "javascript"],
@@ -94,10 +95,10 @@ class TestTestManager:
             assert result is True
             mock_command_executor.execute.assert_called_once()
 
-    @patch("aidb_cli.managers.test.test_manager.CliOutput")
+    @patch("aidb_cli.managers.test.test_manager.CliOutput.error")
     def test_check_prerequisites_docker_not_available(
         self,
-        mock_output,
+        mock_error,
         manager,
         mock_command_executor,
     ):
@@ -107,15 +108,15 @@ class TestTestManager:
         result = manager.check_prerequisites()
 
         assert result is False
-        mock_output.plain.assert_called_once()
-        assert "Docker is not installed" in str(mock_output.plain.call_args)
+        mock_error.assert_called_once()
+        assert "Docker is not installed" in str(mock_error.call_args)
 
-    @patch("aidb_cli.managers.test.test_manager.CliOutput")
+    @patch("aidb_cli.managers.test.test_manager.CliOutput.error")
     @patch("aidb_cli.services.test.test_execution_service.TestExecutionService")
     def test_check_prerequisites_compose_file_missing(
         self,
         mock_service_class,
-        mock_output,
+        mock_error,
         manager,
         mock_command_executor,
     ):
@@ -128,8 +129,8 @@ class TestTestManager:
             result = manager.check_prerequisites()
 
             assert result is False
-            assert mock_output.plain.call_count == 1
-            assert "Docker compose file not found" in str(mock_output.plain.call_args)
+            mock_error.assert_called_once()
+            assert "Docker compose file not found" in str(mock_error.call_args)
 
     def test_check_adapters_specific_languages(self, manager, mock_build_manager):
         """Test checking adapters for specific languages."""
@@ -549,7 +550,4 @@ class TestTestManager:
             result = manager.get_test_status()
 
             assert "adapters_built" in result
-            assert all(
-                lang in result["adapters_built"]
-                for lang in ["python", "javascript", "java"]
-            )
+            assert all(lang in result["adapters_built"] for lang in SUPPORTED_LANGUAGES)

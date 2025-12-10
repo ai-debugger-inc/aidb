@@ -8,7 +8,7 @@ from aidb.models import ExecutionStateResponse
 from aidb.session import Session
 
 from ..base import APIOperationBase
-from ..constants import DEFAULT_SINGLE_THREAD, DEFAULT_STEP_GRANULARITY
+from ..constants import DEFAULT_STEP_GRANULARITY
 from ..dap_utils import (
     resolve_thread_id,
 )
@@ -36,7 +36,6 @@ class SteppingOperations(APIOperationBase):
         self,
         operation: str,
         thread_id: int | None = None,
-        _single_thread: bool = DEFAULT_SINGLE_THREAD,
         granularity: str = DEFAULT_STEP_GRANULARITY,
     ) -> ExecutionStateResponse:
         """Execute a step operation.
@@ -47,8 +46,6 @@ class SteppingOperations(APIOperationBase):
             The step operation type ("stepIn", "stepOut", "next")
         thread_id : int, optional
             AidbThread to step, by default None (queries current thread)
-        _single_thread : bool
-            Step only the specified thread
         granularity : str
             Step granularity ("statement", "line", "instruction")
 
@@ -109,7 +106,6 @@ class SteppingOperations(APIOperationBase):
     async def step_into(
         self,
         thread_id: int | None = None,
-        single_thread: bool = DEFAULT_SINGLE_THREAD,
         granularity: str = DEFAULT_STEP_GRANULARITY,
     ) -> ExecutionStateResponse:
         """Step into the next function call.
@@ -120,8 +116,6 @@ class SteppingOperations(APIOperationBase):
         ----------
         thread_id : int, optional
             AidbThread to step, by default None (current thread)
-        single_thread : bool
-            Step only the specified thread, by default False
         granularity : str
             Step granularity: "statement", "line", or "instruction"
 
@@ -138,7 +132,6 @@ class SteppingOperations(APIOperationBase):
         return await self._execute_step_operation(
             "stepIn",
             thread_id,
-            single_thread,
             granularity,
         )
 
@@ -146,7 +139,6 @@ class SteppingOperations(APIOperationBase):
     async def step_out(
         self,
         thread_id: int | None = None,
-        single_thread: bool = DEFAULT_SINGLE_THREAD,
         granularity: str = DEFAULT_STEP_GRANULARITY,
     ) -> ExecutionStateResponse:
         """Step out of the current function.
@@ -157,8 +149,6 @@ class SteppingOperations(APIOperationBase):
         ----------
         thread_id : int, optional
             AidbThread to step, by default None (current thread)
-        single_thread : bool
-            Step only the specified thread, by default False
         granularity : str
             Step granularity: "statement", "line", or "instruction"
 
@@ -175,7 +165,6 @@ class SteppingOperations(APIOperationBase):
         return await self._execute_step_operation(
             "stepOut",
             thread_id,
-            single_thread,
             granularity,
         )
 
@@ -183,7 +172,6 @@ class SteppingOperations(APIOperationBase):
     async def step_over(
         self,
         thread_id: int | None = None,
-        single_thread: bool = DEFAULT_SINGLE_THREAD,
         granularity: str = DEFAULT_STEP_GRANULARITY,
     ) -> ExecutionStateResponse:
         """Step over the current line.
@@ -194,8 +182,6 @@ class SteppingOperations(APIOperationBase):
         ----------
         thread_id : int, optional
             AidbThread to step, by default None (current thread)
-        single_thread : bool
-            Step only the specified thread, by default False
         granularity : str
             Step granularity: "statement", "line", or "instruction"
 
@@ -212,6 +198,5 @@ class SteppingOperations(APIOperationBase):
         return await self._execute_step_operation(
             "next",
             thread_id,
-            single_thread,
             granularity,
         )

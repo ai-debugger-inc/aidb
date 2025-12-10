@@ -201,22 +201,14 @@ class ParallelTestExecutionService(BaseService):
         log_processes: dict[str, Any] = {}
 
         try:
-            # Execute tests in parallel
+            # Execute tests in parallel using pre-computed env_vars
             results = self._execute_parallel_tests(
                 languages=langs_to_run,
                 suite=suite,
-                markers=markers,
-                pattern=pattern,
-                target=target,
-                parallel=parallel,
-                coverage=coverage,
-                verbose=verbose,
-                failfast=failfast,
-                last_failed=last_failed,
-                timeout=timeout,
+                env_vars_per_language=env_vars_per_language,
                 centralized_env=centralized_env,
-                coordinator=coordinator,
                 execution_service=execution_service,
+                verbose=verbose,
             )
 
             # Aggregate and report results
@@ -401,18 +393,10 @@ class ParallelTestExecutionService(BaseService):
         self,
         languages: list[str],
         suite: str,
-        markers: list[str] | None,
-        pattern: str | None,
-        target: list[str] | None,
-        parallel: int | None,
-        coverage: bool,
-        verbose: bool,
-        failfast: bool,
-        last_failed: bool,
-        timeout: int | None,
+        env_vars_per_language: dict[str, dict[str, str]],
         centralized_env: dict[str, str],
-        coordinator: "TestCoordinatorService",
         execution_service: "TestExecutionService",
+        verbose: bool,
     ) -> dict[str, int]:
         """Execute tests in parallel for all languages.
 
@@ -422,105 +406,25 @@ class ParallelTestExecutionService(BaseService):
             List of languages to test
         suite : str
             Test suite name
-        markers : list[str] | None
-            Pytest markers
-        pattern : str | None
-            Test pattern
-        target : list[str] | None
-            Test targets (can specify multiple)
-        parallel : int | None
-            Number of parallel workers
-        coverage : bool
-            Enable coverage
-        verbose : bool
-            Verbose output
-        failfast : bool
-            Stop on first failure
-        last_failed : bool
-            Run only last failed tests
-        timeout : int | None
-            Test timeout
+        env_vars_per_language : dict[str, dict[str, str]]
+            Pre-computed environment variables per language
         centralized_env : dict[str, str]
             Centralized environment variables
-        coordinator : TestCoordinatorService
-            Test coordinator service
         execution_service : TestExecutionService
             Test execution service
+        verbose : bool
+            Verbose output
 
         Returns
         -------
         dict[str, int]
             Mapping of language to exit code
         """
-        # Generate timestamp once for all languages to ensure consistent session ID
-        shared_timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
 
         def run_language_tests(lang: str) -> tuple[str, int]:
             """Run tests for a specific language."""
-            # Add language marker filter to existing markers
-            lang_markers = markers.copy() if markers else []
-            lang_markers.append(f"language_{lang}")
-
-            # Process target to extract test path
-            test_paths, updated_pattern, updated_target = (
-                self._process_test_target(target, pattern)
-                if self.test_orchestrator
-                else (None, pattern, target)
-            )
-
-            # Build pytest arguments
-            pytest_args_list = coordinator.build_pytest_args(
-                suite=suite,
-                markers=lang_markers,
-                pattern=updated_pattern,
-                target=updated_target,
-                parallel=parallel,
-                coverage=coverage,
-                verbose=verbose,
-                failfast=failfast,
-                last_failed=last_failed,
-                timeout=timeout,
-            )
-            # Quote arguments that need quoting for shell safety
-            if pytest_args_list:
-                pytest_args = " ".join(shlex.quote(arg) for arg in pytest_args_list)
-            else:
-                pytest_args = None
-
-            # Prepare test environment (shared timestamp for consistent session ID)
-            env_vars = execution_service.prepare_test_environment(
-                suite=suite,
-                language=lang,
-                markers=" ".join(lang_markers),
-                pattern=updated_pattern,
-                pytest_args=pytest_args,
-                parallel=parallel,
-                timestamp=shared_timestamp,
-            )
-
-            # Map suite to correct test path for multi-language execution
-            # If test_paths not already set from target, use suite definition
-            if not test_paths:
-                from aidb_cli.services.test import TestSuites
-
-                suite_def = TestSuites.get(suite)
-                if suite_def:
-                    if suite_def.is_multilang:
-                        # Only frameworks suite has language subdirectories
-                        if suite == "frameworks":
-                            test_path = f"src/tests/{suite_def.path}{lang}/"
-                        else:
-                            # shared, mcp, launch use parametrization (no lang dirs)
-                            test_path = f"src/tests/{suite_def.path}"
-                    else:
-                        test_path = f"src/tests/{suite_def.path}"
-                else:
-                    # Fallback for unknown suites
-                    test_path = f"src/tests/frameworks/{lang}/"
-                env_vars["TEST_PATH"] = test_path
-            else:
-                # Multiple test paths - join with space
-                env_vars["TEST_PATH"] = " ".join(test_paths)
+            # Use pre-computed env_vars to ensure consistent session ID
+            env_vars = env_vars_per_language[lang]
 
             # Run tests (quiet mode - individual results shown below)
             profile = lang

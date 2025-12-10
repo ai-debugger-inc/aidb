@@ -14,14 +14,14 @@ class TestSmokeTestRetryLogic:
 
     def test_retry_logic_constants(self):
         """Verify retry logic uses expected constants."""
-        max_attempts = 5
-        wait_between = 30
+        max_attempts = 30
+        wait_between = 5
 
         # These values are hardcoded in the action
-        assert max_attempts == 5
-        assert wait_between == 30
+        assert max_attempts == 30
+        assert wait_between == 5
 
-        # Total wait time: 5 attempts × 30s = 150s max
+        # Total wait time: 30 attempts × 5s = 150s max
         max_wait_time = max_attempts * wait_between
         assert max_wait_time == 150
 
@@ -46,7 +46,7 @@ class TestSmokeTestRetryLogic:
 
     def test_retry_loop_structure(self):
         """Verify retry loop logic flow."""
-        max_attempts = 5
+        max_attempts = 30
         found = False
 
         # Simulate retry loop
@@ -61,16 +61,16 @@ class TestSmokeTestRetryLogic:
             # Check if last attempt
             if i == max_attempts:
                 # Last attempt - should warn and proceed
-                assert i == 5
+                assert i == 30
             else:
                 # Not last attempt - would sleep
-                assert i < 5
+                assert i < 30
 
         assert not found
 
     def test_successful_retry_early(self):
         """Verify loop breaks early on success."""
-        max_attempts = 5
+        max_attempts = 30
         found = False
         attempts_made = 0
 
@@ -446,10 +446,10 @@ class TestWaitTimes:
 
     def test_retry_mechanism_parameters(self):
         """Verify retry mechanism parameters are appropriate."""
-        max_attempts = 5
-        wait_between = 30
+        max_attempts = 30
+        wait_between = 5
 
-        # Total potential wait: 5 attempts × 30s = 150s
+        # Total potential wait: 30 attempts × 5s = 150s
         max_total_wait = max_attempts * wait_between
         assert max_total_wait == 150
 

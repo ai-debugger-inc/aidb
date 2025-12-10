@@ -6,7 +6,6 @@ from pathlib import Path
 import click
 
 from aidb.common.errors import AidbError
-from aidb_cli.core.constants import Icons
 from aidb_common.repo import detect_repo_root
 from aidb_logging import get_cli_logger
 
@@ -14,7 +13,7 @@ logger = get_cli_logger(__name__)
 
 
 def format_success(msg: str) -> str:
-    """Format a success message with green color.
+    """Format a success message with green color and checkmark.
 
     Parameters
     ----------
@@ -26,11 +25,11 @@ def format_success(msg: str) -> str:
     str
         Formatted message
     """
-    return click.style(msg, fg="green")
+    return click.style(f"[✔] {msg}", fg="green")
 
 
 def format_error(msg: str) -> str:
-    """Format an error message with red color and icon.
+    """Format an error message with red color and x mark.
 
     Parameters
     ----------
@@ -42,11 +41,11 @@ def format_error(msg: str) -> str:
     str
         Formatted message
     """
-    return click.style(f"{Icons.ERROR} {msg}", fg="red")
+    return click.style(f"[✘] {msg}", fg="red")
 
 
 def format_warning(msg: str) -> str:
-    """Format a warning message with yellow color.
+    """Format a warning message with yellow color and warning indicator.
 
     Parameters
     ----------
@@ -58,7 +57,7 @@ def format_warning(msg: str) -> str:
     str
         Formatted message
     """
-    return click.style(msg, fg="yellow")
+    return click.style(f"[⚠] {msg}", fg="yellow")
 
 
 def format_info(msg: str) -> str:

@@ -172,6 +172,8 @@ class BreakpointAction(Enum):
     REMOVE = "remove"
     LIST = "list"
     CLEAR_ALL = "clear_all"
+    WATCH = "watch"
+    UNWATCH = "unwatch"
 
 
 class VariableAction(Enum):
@@ -309,6 +311,7 @@ class ParamName:
     PORT = "port"
     MODULE = "module"
     SUBSCRIBE_EVENTS = "subscribe_events"
+    SOURCE_PATHS = "source_paths"
 
     # Execution control parameters
     COUNT = "count"
@@ -320,6 +323,7 @@ class ParamName:
     # Breakpoint parameters
     COLUMN = "column"
     HIT_CONDITION = "hit_condition"
+    ACCESS_TYPE = "access_type"  # For watchpoints: read, write, readWrite
 
     # Variable parameters
     NAME = "name"

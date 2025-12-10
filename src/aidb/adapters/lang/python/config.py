@@ -4,23 +4,61 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from aidb.adapters.base.config import AdapterConfig
+from aidb.adapters.base.config import AdapterCapabilities, AdapterConfig
 from aidb.adapters.base.initialize import InitializationOp, InitializationOpType
 from aidb.adapters.base.launch import BaseLaunchConfig
+from aidb.api.constants import DEFAULT_PYTHON_DEBUG_PORT, INIT_WAIT_FOR_INITIALIZED_S
 from aidb.common.errors import ConfigurationError
 from aidb.models.entities.breakpoint import HitConditionMode
+from aidb_common.constants import Language
+
+# Static capabilities from debugpy source code
+# Source: debugpy/src/debugpy/adapter/clients.py (initialize_request method)
+PYTHON_CAPABILITIES = AdapterCapabilities(
+    # Breakpoint capabilities
+    conditional_breakpoints=True,
+    logpoints=True,
+    hit_conditional_breakpoints=True,
+    function_breakpoints=True,
+    data_breakpoints=False,
+    # Inspection capabilities
+    evaluate_for_hovers=True,
+    set_variable=True,
+    set_expression=True,
+    completions=True,
+    exception_info=True,
+    clipboard_context=True,
+    value_formatting_options=True,
+    # Navigation capabilities
+    restart_frame=False,
+    step_in_targets=False,
+    goto_targets=True,
+    breakpoint_locations=False,
+    # Session capabilities
+    terminate_debuggee=True,
+    restart=False,
+    terminate_request=True,
+    # Module/source capabilities
+    modules=True,
+    loaded_sources=False,
+    delayed_stack_trace_loading=True,
+    # Advanced capabilities
+    exception_options=True,
+    read_memory=False,
+    write_memory=False,
+)
 
 
 @dataclass
 class PythonAdapterConfig(AdapterConfig):
     """Python debug adapter configuration."""
 
-    language: str = "python"
-    adapter_id: str = "python"
-    adapter_port: int = 5678
+    language: str = Language.PYTHON.value
+    adapter_id: str = Language.PYTHON.value
+    adapter_port: int = DEFAULT_PYTHON_DEBUG_PORT
     adapter_server: str = "debugpy"
     binary_identifier: str = "debugpy"  # Python module name
-    default_dap_port: int = 5678
+    default_dap_port: int = DEFAULT_PYTHON_DEBUG_PORT
     fallback_port_ranges: list[int] = field(default_factory=lambda: [6000, 7000])
     file_extensions: list[str] = field(default_factory=lambda: [".py"])
     supported_frameworks: list[str] = field(
@@ -54,6 +92,7 @@ class PythonAdapterConfig(AdapterConfig):
     )
 
     # Python (debugpy) supports all hit condition modes
+    # (DAP only returns boolean, not which modes - this is adapter-specific)
     supported_hit_conditions: set[HitConditionMode] = field(
         default_factory=lambda: {
             HitConditionMode.EXACT,
@@ -65,12 +104,15 @@ class PythonAdapterConfig(AdapterConfig):
             HitConditionMode.EQUALS,
         },
     )
-    supports_conditional_breakpoints: bool = True
-    supports_logpoints: bool = True
 
     # debugpy spawns a detached adapter process (PPID=1)
     detached_process_names: list[str] = field(
         default_factory=lambda: ["python", "debugpy"],
+    )
+
+    # Static capabilities from debugpy source
+    capabilities: AdapterCapabilities = field(
+        default_factory=lambda: PYTHON_CAPABILITIES,
     )
 
     def get_initialization_sequence(self) -> list[InitializationOp]:
@@ -92,13 +134,16 @@ class PythonAdapterConfig(AdapterConfig):
             # debugpy needs attach before initialized event when using
             # --wait-for-client
             InitializationOp(InitializationOpType.ATTACH, wait_for_response=False),
-            InitializationOp(InitializationOpType.WAIT_FOR_INITIALIZED, timeout=5.0),
+            InitializationOp(
+                InitializationOpType.WAIT_FOR_INITIALIZED,
+                timeout=INIT_WAIT_FOR_INITIALIZED_S,
+            ),
             InitializationOp(InitializationOpType.SET_BREAKPOINTS, optional=True),
             InitializationOp(InitializationOpType.CONFIGURATION_DONE),
             # debugpy sends attach response AFTER configurationDone
             InitializationOp(
                 InitializationOpType.WAIT_FOR_ATTACH_RESPONSE,
-                timeout=5.0,
+                timeout=INIT_WAIT_FOR_INITIALIZED_S,
             ),
         ]
 

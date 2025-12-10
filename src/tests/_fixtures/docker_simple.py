@@ -17,7 +17,6 @@ __all__ = [
     "DockerTestHelper",
 ]
 
-import logging
 import os
 import shutil
 from collections.abc import Generator
@@ -26,7 +25,9 @@ from typing import Optional
 
 import pytest
 
-logger = logging.getLogger(__name__)
+from aidb_logging import get_test_logger
+
+logger = get_test_logger(__name__)
 
 # Check if we're running in Docker test mode
 IN_DOCKER = os.environ.get("AIDB_DOCKER_TEST_MODE") == "1"

@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from aidb_cli.generators.core.generator import Generator
+from aidb_common.constants import SUPPORTED_LANGUAGES
 
 
 @pytest.fixture
@@ -25,7 +26,7 @@ def generator_with_output(temp_output_dir: Path) -> tuple[Generator, Path]:
 @pytest.fixture
 def all_languages() -> list[str]:
     """Return list of all supported languages."""
-    return ["python", "javascript", "java"]
+    return SUPPORTED_LANGUAGES
 
 
 @pytest.fixture

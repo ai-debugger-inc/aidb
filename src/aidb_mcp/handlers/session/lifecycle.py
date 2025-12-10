@@ -193,6 +193,18 @@ async def handle_session_start(args: dict[str, Any]) -> dict[str, Any]:
             # Store breakpoints in session context for later retrieval
             _store_breakpoints_in_context(session_context, breakpoints_parsed)
 
+            # Store source paths for code context resolution (remote debugging)
+            source_paths = args.get(ParamName.SOURCE_PATHS, [])
+            if source_paths:
+                session_context.source_paths = source_paths
+                logger.debug(
+                    "Stored source paths for code context resolution",
+                    extra={
+                        "session_id": session_id,
+                        "source_paths_count": len(source_paths),
+                    },
+                )
+
             # Store launch params for potential restart
             session_context.launch_params = {
                 ParamName.MODE: mode.value,
@@ -207,6 +219,7 @@ async def handle_session_start(args: dict[str, Any]) -> dict[str, Any]:
                 ParamName.LAUNCH_CONFIG_NAME: args.get(ParamName.LAUNCH_CONFIG_NAME),
                 ParamName.WORKSPACE_ROOT: args.get(ParamName.WORKSPACE_ROOT),
                 ParamName.SUBSCRIBE_EVENTS: subscribed_events,
+                ParamName.SOURCE_PATHS: source_paths,
             }
 
             # Set as default session and check if it changed

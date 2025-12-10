@@ -94,11 +94,11 @@ def set_config(ctx: click.Context, key_path: str, value: str, scope: str) -> Non
     )
 
     if success:
-        output.plain(
-            f"{Icons.SUCCESS} Set {key_path} = {parsed_value} ({scope} config)",
+        output.success(
+            f"Set {key_path} = {parsed_value} ({scope} config)",
         )
     else:
-        output.error(f"{Icons.ERROR} Failed to set configuration")
+        output.error("Failed to set configuration")
         ctx.exit(1)
 
 
@@ -162,17 +162,23 @@ def paths(ctx: click.Context) -> None:
 
     output.section("Configuration File Paths", Icons.GEAR)
 
-    user_exists = config_manager.user_config.exists()
-    user_icon = f"{Icons.SUCCESS}" if user_exists else f"{Icons.ERROR}"
-    output.plain(f"{user_icon} User config: {config_manager.user_config}")
+    if config_manager.user_config.exists():
+        output.success(f"User config: {config_manager.user_config}")
+    else:
+        output.error(f"User config: {config_manager.user_config}", to_stderr=False)
 
-    project_exists = config_manager.project_config.exists()
-    project_icon = f"{Icons.SUCCESS}" if project_exists else f"{Icons.ERROR}"
-    output.plain(f"{project_icon} Project config: {config_manager.project_config}")
+    if config_manager.project_config.exists():
+        output.success(f"Project config: {config_manager.project_config}")
+    else:
+        output.error(
+            f"Project config: {config_manager.project_config}",
+            to_stderr=False,
+        )
 
-    versions_exists = config_manager.versions_file.exists()
-    versions_icon = f"{Icons.SUCCESS}" if versions_exists else f"{Icons.ERROR}"
-    output.plain(f"{versions_icon} Versions file: {config_manager.versions_file}")
+    if config_manager.versions_file.exists():
+        output.success(f"Versions file: {config_manager.versions_file}")
+    else:
+        output.error(f"Versions file: {config_manager.versions_file}", to_stderr=False)
 
     output.plain("")
     output.subsection("Configuration Loading Priority")
@@ -202,16 +208,18 @@ def validate(ctx: click.Context) -> None:
     output.section("Configuration Validation", Icons.CHECK)
 
     for section, is_valid in version_results.items():
-        icon = f"{Icons.SUCCESS}" if is_valid else f"{Icons.ERROR}"
-        output.plain(f"{icon} versions.json {section}")
+        if is_valid:
+            output.success(f"versions.json {section}")
+        else:
+            output.error(f"versions.json {section}", to_stderr=False)
 
     user_valid = True
     if config_manager.user_config.exists():
         try:
             safe_read_yaml(config_manager.user_config)
-            output.plain(f"{Icons.SUCCESS} User config syntax")
+            output.success("User config syntax")
         except YamlOperationError as e:
-            output.plain(f"{Icons.ERROR} User config syntax: {e}")
+            output.error(f"User config syntax: {e}", to_stderr=False)
             user_valid = False
     else:
         output.plain("No user config file")
@@ -220,18 +228,18 @@ def validate(ctx: click.Context) -> None:
     if config_manager.project_config.exists():
         try:
             safe_read_yaml(config_manager.project_config)
-            output.plain(f"{Icons.SUCCESS} Project config syntax")
+            output.success("Project config syntax")
         except YamlOperationError as e:
-            output.plain(f"{Icons.ERROR} Project config syntax: {e}")
+            output.error(f"Project config syntax: {e}", to_stderr=False)
             project_valid = False
     else:
         output.plain("No project config file")
 
     output.plain("")
     if all_valid and user_valid and project_valid:
-        output.plain(f"{Icons.SUCCESS} All configurations are valid!")
+        output.success("All configurations are valid!")
     else:
-        output.plain(f"{Icons.ERROR} Some configuration issues found.")
+        output.error("Some configuration issues found.", to_stderr=False)
         output.plain(
             "Fix the issues above or run 'aidb config init' to create defaults.",
         )

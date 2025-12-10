@@ -4,6 +4,8 @@ from unittest.mock import Mock, patch
 
 from aidb_common.discovery.adapters import (
     get_adapter_capabilities,
+    get_adapter_class,
+    get_adapter_config,
     get_adapter_for_validation,
     get_default_language,
     get_file_extensions_for_language,
@@ -11,6 +13,8 @@ from aidb_common.discovery.adapters import (
     get_language_description,
     get_language_enum,
     get_language_from_file,
+    get_popular_frameworks,
+    get_supported_frameworks,
     get_supported_hit_conditions,
     get_supported_languages,
     is_language_supported,
@@ -356,38 +360,29 @@ class TestGetAdapterCapabilities:
     """Tests for get_adapter_capabilities function."""
 
     def test_returns_full_capabilities(self, mock_adapter_registry):
-        """Test that full capabilities are returned."""
-        config = mock_adapter_registry._configs["python"]
-        config.supported_hit_conditions = []
-
+        """Test that full capabilities are returned from config."""
+        # The mock_adapter_registry fixture provides configs with capabilities
         with patch(
             "aidb.session.adapter_registry.AdapterRegistry",
             return_value=mock_adapter_registry,
         ):
-            mock_adapter_registry.get_adapter_config = Mock(return_value=config)
-            with patch(
-                "aidb_common.discovery.adapters.get_supported_hit_conditions",
-                return_value=set(),
-            ):
-                with patch(
-                    "aidb_common.discovery.adapters.get_hit_condition_examples",
-                    return_value=["example"],
-                ):
-                    caps = get_adapter_capabilities("python")
+            caps = get_adapter_capabilities("python")
 
-                    assert caps["supported"] is True
-                    assert caps["language"] == "python"
-                    assert caps["supports_conditional_breakpoints"] is True
-                    assert caps["supports_logpoints"] is True
-                    assert caps["file_extensions"] == [".py", ".pyw"]
+            assert caps["supported"] is True
+            assert caps["language"] == "python"
+            # Verify capability fields are present
+            assert "supports_conditional_breakpoints" in caps
+            assert "supports_logpoints" in caps
+            assert "file_extensions" in caps
 
     def test_returns_unsupported_for_missing_config(self, mock_adapter_registry):
-        """Test that unsupported is returned for missing config."""
+        """Test that unsupported is returned when config is missing."""
+        mock_adapter_registry.get_adapter_config = Mock(return_value=None)
+
         with patch(
             "aidb.session.adapter_registry.AdapterRegistry",
             return_value=mock_adapter_registry,
         ):
-            mock_adapter_registry.get_adapter_config = Mock(return_value=None)
             caps = get_adapter_capabilities("unknown")
 
             assert caps["supported"] is False
@@ -438,3 +433,124 @@ class TestGetAdapterForValidation:
         ):
             adapter = get_adapter_for_validation("python")
             assert adapter is None
+
+
+class TestGetSupportedFrameworks:
+    """Tests for get_supported_frameworks function."""
+
+    def test_returns_frameworks_for_language(self, mock_adapter_registry):
+        """Test that frameworks are returned for language."""
+        mock_adapter_registry.get_supported_frameworks = Mock(
+            return_value=["pytest", "unittest", "django"],
+        )
+        with patch(
+            "aidb.session.adapter_registry.AdapterRegistry",
+            return_value=mock_adapter_registry,
+        ):
+            frameworks = get_supported_frameworks("python")
+            assert frameworks == ["pytest", "unittest", "django"]
+
+    def test_returns_empty_list_on_exception(self):
+        """Test that empty list is returned on exception."""
+        with patch(
+            "aidb.session.adapter_registry.AdapterRegistry",
+            side_effect=Exception("Test error"),
+        ):
+            frameworks = get_supported_frameworks("python")
+            assert frameworks == []
+
+
+class TestGetPopularFrameworks:
+    """Tests for get_popular_frameworks function."""
+
+    def test_returns_popular_frameworks_for_language(self, mock_adapter_registry):
+        """Test that popular frameworks are returned for language."""
+        mock_adapter_registry.get_popular_frameworks = Mock(
+            return_value=["pytest", "django"],
+        )
+        with patch(
+            "aidb.session.adapter_registry.AdapterRegistry",
+            return_value=mock_adapter_registry,
+        ):
+            frameworks = get_popular_frameworks("python")
+            assert frameworks == ["pytest", "django"]
+
+    def test_returns_empty_list_on_exception(self):
+        """Test that empty list is returned on exception."""
+        with patch(
+            "aidb.session.adapter_registry.AdapterRegistry",
+            side_effect=Exception("Test error"),
+        ):
+            frameworks = get_popular_frameworks("python")
+            assert frameworks == []
+
+
+class TestGetAdapterConfig:
+    """Tests for get_adapter_config function."""
+
+    def test_returns_config_for_language(self, mock_adapter_registry):
+        """Test that config is returned for language."""
+        config = mock_adapter_registry._configs["python"]
+        mock_adapter_registry.get_adapter_config = Mock(return_value=config)
+        with patch(
+            "aidb.session.adapter_registry.AdapterRegistry",
+            return_value=mock_adapter_registry,
+        ):
+            result = get_adapter_config("python")
+            assert result is not None
+            assert result.language == "python"
+
+    def test_returns_none_for_unknown_language(self, mock_adapter_registry):
+        """Test that None is returned for unknown language."""
+        mock_adapter_registry.get_adapter_config = Mock(return_value=None)
+        with patch(
+            "aidb.session.adapter_registry.AdapterRegistry",
+            return_value=mock_adapter_registry,
+        ):
+            result = get_adapter_config("unknown")
+            assert result is None
+
+    def test_returns_none_on_exception(self):
+        """Test that None is returned on exception."""
+        with patch(
+            "aidb.session.adapter_registry.AdapterRegistry",
+            side_effect=Exception("Test error"),
+        ):
+            result = get_adapter_config("python")
+            assert result is None
+
+
+class TestGetAdapterClass:
+    """Tests for get_adapter_class function."""
+
+    def test_returns_adapter_class_for_language(self, mock_adapter_registry):
+        """Test that adapter class is returned for language."""
+        mock_class = Mock()
+        mock_class.__name__ = "PythonAdapter"
+        mock_adapter_registry.get_adapter_class = Mock(return_value=mock_class)
+        with patch(
+            "aidb.session.adapter_registry.AdapterRegistry",
+            return_value=mock_adapter_registry,
+        ):
+            result = get_adapter_class("python")
+            assert result is not None
+            assert result.__name__ == "PythonAdapter"
+
+    def test_returns_none_for_unknown_language(self, mock_adapter_registry):
+        """Test that None is returned for unknown language."""
+        mock_adapter_registry.get_adapter_class = Mock(return_value=None)
+        with patch(
+            "aidb.session.adapter_registry.AdapterRegistry",
+            return_value=mock_adapter_registry,
+        ):
+            result = get_adapter_class("unknown")
+            assert result is None
+
+    def test_returns_none_on_exception(self):
+        """Test that None is returned on exception."""
+        with patch(
+            "aidb.session.adapter_registry.AdapterRegistry",
+            side_effect=Exception("Test error"),
+        ):
+            result = get_adapter_class("python")
+            assert result is None

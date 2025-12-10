@@ -83,7 +83,7 @@ Ask your AI assistant:
 
 > "Initialize debugging for Python. I want to debug `factorial.py`."
 
-The AI assistant will call `init` (or `mcp__aidb-debug__init` depending on your client) with:
+The AI assistant will call `init` (or `mcp__ai-debugger__init` depending on your client) with:
 
 ```python
 language='python'

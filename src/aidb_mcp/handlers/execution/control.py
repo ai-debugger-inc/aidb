@@ -11,6 +11,7 @@ from aidb_logging import get_mcp_logger as get_logger
 
 from ...core import ExecutionAction, ToolName
 from ...core.constants import ErrorMessage, ParamName, SessionState
+from ...core.context_utils import build_error_execution_state
 from ...core.decorators import mcp_tool
 from ...core.exceptions import ErrorCode
 from ...responses import ExecuteResponse
@@ -237,53 +238,13 @@ def _extract_execution_state(result: Any, context: Any) -> dict[str, Any]:
     }
 
 
-def _build_error_execution_state(api: Any, context: Any) -> dict[str, Any]:
-    """Build execution state for error response.
-
-    Parameters
-    ----------
-    api : Any
-        Debug API instance
-    context : Any
-        Session context
-
-    Returns
-    -------
-    dict
-        Execution state dictionary
-    """
-    try:
-        from ...core.context_utils import determine_detailed_status
-
-        detailed_status = determine_detailed_status(api, context, None)
-        return {
-            "status": detailed_status.value,
-            "session_state": (
-                SessionState.PAUSED.value
-                if context.is_paused
-                else SessionState.RUNNING.value
-                if context.is_running
-                else SessionState.STOPPED.value
-            ),
-            "current_location": (
-                f"{context.current_file}:{context.current_line}"
-                if context.current_file
-                else None
-            ),
-            "breakpoints_active": bool(context.breakpoints_set),
-            "error_context": True,
-        }
-    except Exception as state_error:
-        logger.debug("Could not build execution state: %s", state_error)
-        return {}
-
-
 async def _build_execution_response(
     action: ExecutionAction,
     session_id: str,
     api: Any,
     context: Any,
     state: dict[str, Any],
+    collect_output: bool = True,
 ) -> ExecuteResponse:
     """Build execution response with code context.
 
@@ -299,24 +260,42 @@ async def _build_execution_response(
         Session context
     state : dict
         Execution state
+    collect_output : bool
+        Whether to collect and include program output (logpoints, stdout, stderr)
 
     Returns
     -------
     ExecuteResponse
         Formatted execution response
     """
-    from ...core.context_utils import (
-        determine_detailed_status,
-        get_code_snapshot_if_paused,
+    from ...core.context_utils import build_response_context
+
+    resp_ctx = await build_response_context(
+        api,
+        context,
+        state["stop_reason"],
+        is_paused=state["stopped"],
     )
 
-    detailed_status = determine_detailed_status(api, context, state["stop_reason"])
-    has_breakpoints = bool(context.breakpoints_set) if context else False
-
-    # Get code snapshot if paused
-    code_context = None
-    if state["stopped"] and context:
-        code_context = await get_code_snapshot_if_paused(api, context)
+    # Collect program output (logpoints, stdout, stderr)
+    program_output = None
+    if collect_output and api:
+        try:
+            output_entries = await api.introspection.get_output(clear=True)
+            if output_entries:
+                # Filter to relevant categories
+                program_output = [
+                    e
+                    for e in output_entries
+                    if e.get("category") in ("console", "stdout", "stderr")
+                ]
+                if not program_output:
+                    program_output = None  # Don't include empty list
+        except Exception as output_error:
+            logger.debug(
+                "Failed to collect output",
+                extra={"error": str(output_error)},
+            )
 
     logger.info(
         "Execution completed",
@@ -326,10 +305,12 @@ async def _build_execution_response(
             "terminated": state["terminated"],
             "location": state["location"],
             "stop_reason": state["stop_reason"],
-            "detailed_status": detailed_status.value,
-            "has_breakpoints": has_breakpoints,
+            "detailed_status": resp_ctx.detailed_status,
+            "has_breakpoints": resp_ctx.has_breakpoints,
             "session_id": session_id,
-            "has_code_context": code_context is not None,
+            "has_code_context": resp_ctx.code_context is not None,
+            "has_output": program_output is not None,
+            "output_count": len(program_output) if program_output else 0,
             "state": (
                 SessionState.PAUSED.name
                 if state["stopped"]
@@ -345,9 +326,10 @@ async def _build_execution_response(
         location=state["location"],
         stop_reason=state["stop_reason"],
         session_id=session_id,
-        code_context=code_context,
-        has_breakpoints=has_breakpoints,
-        detailed_status=detailed_status.value,
+        code_context=resp_ctx.code_context,
+        has_breakpoints=resp_ctx.has_breakpoints,
+        detailed_status=resp_ctx.detailed_status,
+        program_output=program_output,
     )
 
     logger.debug(
@@ -422,6 +404,9 @@ async def handle_execution(args: dict[str, Any]) -> dict[str, Any]:
         # Extract execution state
         state = _extract_execution_state(result, context)
 
+        # Get collect_output parameter (defaults to True)
+        collect_output = args.get(ParamName.COLLECT_OUTPUT, True)
+
         # Build and return response
         response = await _build_execution_response(
             action,
@@ -429,6 +414,7 @@ async def handle_execution(args: dict[str, Any]) -> dict[str, Any]:
             api,
             context,
             state,
+            collect_output=collect_output,
         )
         return response.to_mcp_response()
 
@@ -457,7 +443,11 @@ async def handle_execution(args: dict[str, Any]) -> dict[str, Any]:
 
         # Try to add execution state if we have context
         if "context" in locals() and context and "api" in locals() and api:
-            execution_state = _build_error_execution_state(api, context)
+            execution_state = build_error_execution_state(
+                api,
+                context,
+                include_error_context=True,
+            )
             if execution_state:
                 error_response["data"]["execution_state"] = execution_state
 

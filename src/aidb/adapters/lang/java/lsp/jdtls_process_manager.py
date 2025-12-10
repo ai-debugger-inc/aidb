@@ -13,9 +13,11 @@ import tempfile
 import time
 from pathlib import Path
 
+from aidb.api.constants import MEDIUM_SLEEP_S, PROCESS_TERMINATE_TIMEOUT_S
 from aidb.common.errors import AidbError
 from aidb.patterns.base import Obj
 from aidb.resources.process_tags import ProcessTags, ProcessType
+from aidb_common.constants import Language
 
 
 class JDTLSProcessManager(Obj):
@@ -128,7 +130,7 @@ class JDTLSProcessManager(Obj):
                     ProcessTags.OWNER: ProcessTags.OWNER_VALUE,
                     ProcessTags.SESSION_ID: session_id,
                     ProcessTags.PROCESS_TYPE: ProcessType.LSP_SERVER,
-                    ProcessTags.LANGUAGE: "java",
+                    ProcessTags.LANGUAGE: Language.JAVA.value,
                     ProcessTags.START_TIME: str(int(time.time())),
                 },
             )
@@ -187,7 +189,7 @@ class JDTLSProcessManager(Obj):
                             pass
 
                     # Give children time to terminate gracefully
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(MEDIUM_SLEEP_S)
 
                     # Force kill any remaining children
                     for child in children:
@@ -217,7 +219,10 @@ class JDTLSProcessManager(Obj):
                     # Graceful path: SIGTERM with reduced timeout
                     self.process.terminate()
                     try:
-                        await asyncio.wait_for(self.process.wait(), timeout=2.0)
+                        await asyncio.wait_for(
+                            self.process.wait(),
+                            timeout=PROCESS_TERMINATE_TIMEOUT_S,
+                        )
                     except asyncio.TimeoutError:
                         self.ctx.warning("JDT LS process did not terminate, killing...")
                         self.process.kill()
@@ -306,7 +311,7 @@ class JDTLSProcessManager(Obj):
                     self.ctx.debug(f"Error terminating child {child.pid}: {e}")
 
             # Give debuggees time to terminate gracefully
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(MEDIUM_SLEEP_S)
 
             # Force kill any remaining debuggees
             for child in debuggees:

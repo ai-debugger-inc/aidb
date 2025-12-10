@@ -3,6 +3,7 @@
 import asyncio
 from typing import TYPE_CHECKING, Literal, Optional, cast
 
+from aidb.api.constants import SHORT_SLEEP_S, STACK_TRACE_TIMEOUT_S
 from aidb.common.errors import DebugTimeoutError
 from aidb.dap.protocol.bodies import StackTraceArguments
 from aidb.dap.protocol.requests import StackTraceRequest, ThreadsRequest
@@ -186,7 +187,7 @@ class BaseOperations(Obj):
             # Add explicit timeout to prevent infinite waits (especially Java pooled)
             response: Response = await self.session.dap.send_request(
                 request,
-                timeout=10.0,
+                timeout=STACK_TRACE_TIMEOUT_S,
             )
             stack_response = cast("StackTraceResponse", response)
             stack_response.ensure_success()
@@ -249,7 +250,7 @@ class BaseOperations(Obj):
         """
         # Use subscription-based waiting
         if not hasattr(self.session.events, "wait_for_stopped_or_terminated_async"):
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(SHORT_SLEEP_S)
             return "stopped"
 
         # Await the result directly

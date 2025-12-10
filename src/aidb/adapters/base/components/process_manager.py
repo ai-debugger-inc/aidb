@@ -15,23 +15,25 @@ import psutil
 from aidb.adapters.utils.output_capture import AdapterOutputCapture
 from aidb.api.constants import (
     BACKOFF_MULTIPLIER,
+    DEFAULT_ADAPTER_HOST,
     EVENT_POLL_TIMEOUT_S,
     INITIAL_RETRY_DELAY_S,
     MAX_PROCESS_WAIT_TIME_S,
     MEDIUM_SLEEP_S,
     PROCESS_CLEANUP_MIN_AGE_S,
+    PROCESS_COMMUNICATE_TIMEOUT_S,
     PROCESS_STARTUP_DELAY_S,
     PROCESS_WAIT_TIMEOUT_S,
+    RECEIVE_POLL_TIMEOUT_S,
 )
 from aidb.common.errors import DebugAdapterError, DebugConnectionError
 from aidb.patterns.base import Obj
 from aidb.resources.ports import PortHandler
 from aidb.resources.process_tags import ProcessTags
+from aidb_common.io import is_event_loop_error
 
 if TYPE_CHECKING:
     from aidb.adapters.base.config import AdapterConfig
-
-if TYPE_CHECKING:
     from aidb.interfaces.context import IContext
 
 
@@ -56,7 +58,7 @@ class ProcessManager(Obj):
     def __init__(
         self,
         ctx: Optional["IContext"] = None,
-        adapter_host: str = "localhost",
+        adapter_host: str = DEFAULT_ADAPTER_HOST,
         config: Optional["AdapterConfig"] = None,
     ):
         """Initialize process manager.
@@ -347,79 +349,151 @@ class ProcessManager(Obj):
                 self.ctx.debug(f"Could not kill child {child.pid}: {e}")
 
     async def stop(self) -> None:
-        """Stop the debug adapter and attached processes."""
+        """Stop the debug adapter and attached processes.
+
+        This method is resilient to event loop mismatches that can occur during pytest-
+        xdist parallel test execution. If async operations fail due to event loop
+        issues, it falls back to synchronous process termination.
+        """
         self.ctx.debug("Stopping managed processes")
-
-        # Stop output capture
-        if self._output_capture:
-            await self._output_capture.stop_capture_async()
-            stdout, stderr = self._output_capture.get_captured_output()
-            if stdout:
-                self.ctx.debug(f"Adapter stdout (last 500 chars): ...{stdout[-500:]}")
-            if stderr:
-                self.ctx.debug(f"Adapter stderr (last 500 chars): ...{stderr[-500:]}")
-
-        # Kill the process tree if it exists
-        if self._proc and self._proc.pid:
-            try:
-                # Get the process and all its children
-                parent = psutil.Process(self._proc.pid)
-                children = parent.children(recursive=True)
-
-                # Terminate all children first
-                self._terminate_child_processes(children)
-
-                # Terminate the parent adapter process
-                self._proc.terminate()
-
-                try:
-                    # Use adapter-specific timeout (Java: 2s, Python/JS: 0.5s)
-                    timeout = (
-                        self.config.process_manager_timeout
-                        if self.config
-                        else PROCESS_WAIT_TIMEOUT_S
-                    )
-                    await asyncio.wait_for(self._proc.wait(), timeout=timeout)
-                except asyncio.TimeoutError:
-                    # Force kill any remaining children
-                    self._kill_remaining_children(children)
-
-                    # Force kill the parent
-                    self._proc.kill()
-                    await asyncio.wait_for(self._proc.wait(), timeout=1)
-
-                # Close all subprocess transports to avoid ResourceWarnings
-                from aidb_common.io.subprocess import close_subprocess_transports
-
-                await close_subprocess_transports(self._proc, self.ctx, "Adapter")
-
-            except (ProcessLookupError, OSError, psutil.NoSuchProcess) as e:
-                self.ctx.debug(f"Process already terminated or error stopping: {e}")
-
-        # Kill attached process if different from adapter process
-        if self._attached_pid and self._attached_pid != (
-            self._proc.pid if self._proc else None
-        ):
-            try:
-                os.kill(self._attached_pid, signal.SIGTERM)
-                await asyncio.sleep(MEDIUM_SLEEP_S)
-                # Check if still running and force kill if needed
-                try:
-                    os.kill(self._attached_pid, 0)  # Check if still alive
-                    os.kill(self._attached_pid, signal.SIGKILL)  # Force kill
-                except OSError:
-                    pass  # Process already dead
-            except (ProcessLookupError, OSError) as e:
-                self.ctx.debug(
-                    f"Attached process already terminated or error stopping: {e}",
-                )
+        await self._stop_output_capture()
+        await self._stop_adapter_process()
+        await self._stop_attached_process()
 
         # Clear internal state
         self._attached_pid = None
         self._proc = None
         self._output_capture = None
-
         self.ctx.debug("Managed processes stopped")
+
+    async def _stop_output_capture(self) -> None:
+        """Stop output capture with event loop safety."""
+        if not self._output_capture:
+            return
+
+        try:
+            await self._output_capture.stop_capture_async()
+        except RuntimeError as e:
+            if is_event_loop_error(e):
+                self.ctx.debug(f"Output capture stop skipped (event loop): {e}")
+            else:
+                raise
+
+        stdout, stderr = self._output_capture.get_captured_output()
+        if stdout:
+            self.ctx.debug(f"Adapter stdout (last 500 chars): ...{stdout[-500:]}")
+        if stderr:
+            self.ctx.debug(f"Adapter stderr (last 500 chars): ...{stderr[-500:]}")
+
+    async def _stop_adapter_process(self) -> None:
+        """Stop the adapter process tree with event loop safety."""
+        if not (self._proc and self._proc.pid):
+            return
+
+        try:
+            parent = psutil.Process(self._proc.pid)
+            children = parent.children(recursive=True)
+            self._terminate_child_processes(children)
+            self._proc.terminate()
+
+            await self._wait_for_process_exit(children)
+            await self._close_process_transports()
+
+        except (ProcessLookupError, OSError, psutil.NoSuchProcess) as e:
+            self.ctx.debug(f"Process already terminated or error stopping: {e}")
+
+    async def _wait_for_process_exit(
+        self,
+        children: list[psutil.Process],
+    ) -> None:
+        """Wait for process exit with timeout and event loop safety.
+
+        Note: Caller must ensure self._proc is not None before calling.
+        """
+        # Guard against None (should never happen if called correctly)
+        if not self._proc:
+            return
+
+        timeout = (
+            self.config.process_manager_timeout
+            if self.config
+            else PROCESS_WAIT_TIMEOUT_S
+        )
+        try:
+            await asyncio.wait_for(self._proc.wait(), timeout=timeout)
+        except asyncio.TimeoutError:
+            self._kill_remaining_children(children)
+            self._proc.kill()
+            await self._safe_wait_after_kill()
+        except RuntimeError as e:
+            if is_event_loop_error(e):
+                self.ctx.debug(f"Async wait failed (event loop), using sync kill: {e}")
+                self._kill_remaining_children(children)
+                self._proc.kill()
+            else:
+                raise
+
+    async def _safe_wait_after_kill(self) -> None:
+        """Wait for process after kill, handling event loop errors.
+
+        Note: Caller must ensure self._proc is not None before calling.
+        """
+        # Guard against None (should never happen if called correctly)
+        if not self._proc:
+            return
+
+        try:
+            await asyncio.wait_for(
+                self._proc.wait(),
+                timeout=RECEIVE_POLL_TIMEOUT_S,
+            )
+        except RuntimeError as e:
+            if is_event_loop_error(e):
+                self.ctx.debug(f"Process wait skipped after kill (event loop): {e}")
+            else:
+                raise
+
+    async def _close_process_transports(self) -> None:
+        """Close subprocess transports with event loop safety."""
+        from aidb_common.io.subprocess import close_subprocess_transports
+
+        try:
+            await close_subprocess_transports(self._proc, self.ctx, "Adapter")
+        except RuntimeError as e:
+            if is_event_loop_error(e):
+                self.ctx.debug(f"Transport close skipped (event loop): {e}")
+            else:
+                raise
+
+    async def _stop_attached_process(self) -> None:
+        """Stop any separately attached process."""
+        if not self._attached_pid or self._attached_pid == (
+            self._proc.pid if self._proc else None
+        ):
+            return
+
+        try:
+            os.kill(self._attached_pid, signal.SIGTERM)
+            # Brief wait before checking - handle event loop mismatch
+            try:
+                await asyncio.sleep(MEDIUM_SLEEP_S)
+            except RuntimeError as e:
+                if is_event_loop_error(e):
+                    # Event loop mismatch - skip async sleep (process is already
+                    # signaled, will be killed below if still running)
+                    pass
+                else:
+                    raise
+            # Check if still running and force kill if needed
+            try:
+                os.kill(self._attached_pid, 0)  # Check if still alive
+                os.kill(self._attached_pid, signal.SIGKILL)  # Force kill
+            except OSError:
+                pass  # Process already dead
+        except (ProcessLookupError, OSError) as e:
+            self.ctx.debug(
+                f"Attached process already terminated or error stopping: {e}",
+            )
 
     def attach_pid(self, pid: int) -> None:
         """Attach to an existing process for management.
@@ -711,7 +785,7 @@ class ProcessManager(Obj):
             self.ctx.info(f"Cleaning up orphaned debug adapter process PID={proc.pid}")
             proc.terminate()
             try:
-                proc.wait(timeout=5)
+                proc.wait(timeout=PROCESS_COMMUNICATE_TIMEOUT_S)
             except psutil.TimeoutExpired:
                 proc.kill()
         except Exception as e:

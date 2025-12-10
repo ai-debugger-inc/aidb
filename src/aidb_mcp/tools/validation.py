@@ -10,6 +10,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from aidb_common.constants import Language
 from aidb_common.path import normalize_path
 from aidb_logging import get_mcp_logger as get_logger
 
@@ -241,7 +242,7 @@ def validate_expression(
         r"sys\.exit",  # System exit
     ]
 
-    if language == "python":
+    if language == Language.PYTHON:
         for pattern in dangerous_patterns:
             if re.search(pattern, expression, re.IGNORECASE):
                 logger.warning(

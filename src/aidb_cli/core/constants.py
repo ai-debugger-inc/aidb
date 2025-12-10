@@ -18,6 +18,11 @@ class LogLevel(str, Enum):
 # Streaming configuration
 STREAM_WINDOW_SIZE = 10  # Maximum lines for boxed streaming output
 
+# CLI timeout constants (in seconds)
+THREAD_JOIN_TIMEOUT_S = 2  # Timeout for thread.join() operations
+PROCESS_WAIT_TIMEOUT_S = 5  # Timeout for subprocess.wait() operations
+SERVICE_DISCOVERY_TIMEOUT_S = 10  # Timeout for service discovery/health checks
+
 
 class ExitCode:
     """Exit codes for CLI operations."""
@@ -138,7 +143,7 @@ class PreCommitHooks:
 class ProjectNames:
     """Project and service names used in AIDB CLI."""
 
-    MCP_SERVER = "aidb-debug"
+    MCP_SERVER = "ai-debugger"
     TEST_PROJECT = "aidb-test"
 
 
@@ -345,3 +350,27 @@ class CIFormatting:
     MAX_FAILING_TESTS_DISPLAY = 20
     TEST_NAME_MAX_LENGTH = 55
     TEST_NAME_TRUNCATE_LENGTH = 52
+
+
+class ExternalURLs:
+    """External URLs used in CLI messages and documentation."""
+
+    # Tool installation URLs
+    CLAUDE_CODE_CLI = "https://claude.ai/code"
+    GITHUB_CLI = "https://cli.github.com/"
+    NEKTOS_ACT = "https://github.com/nektos/act"
+
+    # Help message templates
+    CLAUDE_CODE_INSTALL_MSG = f"Install Claude Code CLI first: {CLAUDE_CODE_CLI}"
+    GITHUB_CLI_INSTALL_MSG = f"Install it from: {GITHUB_CLI}"
+    ACT_INSTALL_MSG = f"'act' not found. Install from: {NEKTOS_ACT}"
+
+
+class CliTimeouts:
+    """CLI operation timeouts in seconds."""
+
+    MCP_RESTART_DELAY_S = 1.0  # Delay between unregister and register
+    DOCKER_HEALTH_CHECK_INTERVAL_S = 2.0  # Sleep between health checks
+    DOCS_SERVER_STARTUP_DELAY_S = 2.0  # Wait for docs server to start
+    STREAM_POLL_INTERVAL_S = 0.1  # Poll interval for stream reading
+    STREAM_MIN_POLL_INTERVAL_S = 0.01  # Minimum poll interval for busy loops

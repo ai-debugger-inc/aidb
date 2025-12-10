@@ -9,6 +9,7 @@ from aidb_cli.services.docker.docker_image_checksum_service import (
     DockerImageChecksumService,
     DockerImageType,
 )
+from aidb_common.constants import SUPPORTED_LANGUAGES
 
 
 class TestDockerImageType:
@@ -24,13 +25,13 @@ class TestDockerImageType:
     def test_all_language_images(self):
         """Test all_language_images returns language-specific images."""
         images = DockerImageType.all_language_images()
-        assert images == ["python", "javascript", "java"]
+        assert images == SUPPORTED_LANGUAGES
         assert "base" not in images
 
     def test_all_images(self):
         """Test all_images returns all image types including base."""
         images = DockerImageType.all_images()
-        assert images == ["base", "python", "javascript", "java"]
+        assert images == ["base"] + SUPPORTED_LANGUAGES
 
 
 class TestDockerImageChecksumService:
@@ -297,7 +298,7 @@ class TestDockerImageChecksumService:
         results = service_with_files.check_all_images()
 
         # Should have results for all image types
-        assert set(results.keys()) == {"base", "python", "javascript", "java"}
+        assert set(results.keys()) == {"base"} | set(SUPPORTED_LANGUAGES)
 
         # All should be tuples of (needs_rebuild, reason)
         for _image_type, (needs_rebuild, reason) in results.items():

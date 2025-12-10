@@ -1,7 +1,10 @@
-"""Proof-of-concept tests for DebugInterface abstraction.
+"""Basic debugging operation tests using DebugInterface abstraction.
 
 These tests demonstrate the zero-duplication pattern by running the same test logic
 against both MCP and API entry points via parametrization.
+
+For advanced breakpoint features (conditional, hit conditions, logpoints), see
+test_advanced_breakpoints.py.
 """
 
 import pytest

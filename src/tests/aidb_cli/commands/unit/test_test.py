@@ -98,7 +98,7 @@ class TestTargetParameterFunctionality:
         assert result.exit_code == 0
         # Both parameters should be available
         assert "--target" in result.output
-        assert "--pattern" in result.output
+        assert "-k" in result.output
 
 
 class TestEnhancedPatternFunctionality:
@@ -139,7 +139,7 @@ class TestEnhancedPatternFunctionality:
             cli_runner,
             mock_repo_root,
             None,
-            ["test", "run", "--suite=cli", "-p", complex_pattern, "--local"],
+            ["test", "run", "--suite=cli", "-k", complex_pattern, "--local"],
         )
 
         # Test should pass and parameter should be accepted
