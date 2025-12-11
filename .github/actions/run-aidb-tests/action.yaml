@@ -75,6 +75,27 @@ runs:
           echo '{"suite": "${{ inputs.suite }}", "flaky_tests": [], "consistently_failing": [], "rerun_count": 0}' > flakes.json
         fi
 
+    - name: Combine parallel coverage data
+      if: inputs.skip-coverage != 'true'
+      shell: bash
+      run: |
+        source venv/bin/activate
+        # Combine parallel coverage files (.coverage.*) into single .coverage file
+        if ls .coverage.* 1> /dev/null 2>&1; then
+          echo "Found parallel coverage files:"
+          ls -la .coverage.*
+          coverage combine
+          echo "Combined into .coverage:"
+          ls -la .coverage
+        else
+          echo "No parallel coverage files found (.coverage.*)"
+          if [ -f .coverage ]; then
+            echo "Single .coverage file exists"
+          else
+            echo "No coverage data found"
+          fi
+        fi
+
     - name: Upload coverage artifact
       if: inputs.skip-coverage != 'true'
       uses: actions/upload-artifact@v4
