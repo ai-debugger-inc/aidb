@@ -262,11 +262,36 @@ class TestBuildCoverageArgs:
 
         assert result == ["--cov=aidb_mcp", "--cov-report=term-missing"]
 
-    def test_build_coverage_args_custom_suite(self):
-        """Test coverage args for custom suite name."""
-        result = self.service._build_coverage_args("custom")
+    def test_build_coverage_args_unknown_suite_falls_back_to_aidb(self):
+        """Test coverage args for unknown suite falls back to aidb module."""
+        result = self.service._build_coverage_args("unknown_suite")
 
-        assert result == ["--cov=aidb_custom", "--cov-report=term-missing"]
+        # Unknown suites fall back to the core aidb module
+        assert result == ["--cov=aidb", "--cov-report=term-missing"]
+
+    def test_build_coverage_args_core_suite_maps_to_aidb(self):
+        """Test coverage args for core suite maps to aidb module."""
+        result = self.service._build_coverage_args("core")
+
+        assert result == ["--cov=aidb", "--cov-report=term-missing"]
+
+    def test_build_coverage_args_shared_suite_maps_to_aidb(self):
+        """Test coverage args for shared suite maps to aidb module."""
+        result = self.service._build_coverage_args("shared")
+
+        assert result == ["--cov=aidb", "--cov-report=term-missing"]
+
+    def test_build_coverage_args_common_suite(self):
+        """Test coverage args for common suite."""
+        result = self.service._build_coverage_args("common")
+
+        assert result == ["--cov=aidb_common", "--cov-report=term-missing"]
+
+    def test_build_coverage_args_logging_suite(self):
+        """Test coverage args for logging suite."""
+        result = self.service._build_coverage_args("logging")
+
+        assert result == ["--cov=aidb_logging", "--cov-report=term-missing"]
 
 
 class TestTestCoordinatorServiceIntegration:
