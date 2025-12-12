@@ -265,7 +265,9 @@ class <Language>SyntaxValidator(LanguageSyntaxValidator):
         pass
 ```
 
-**Registration**: Update `src/aidb/adapters/base/syntax_validator.py` in the `for_language()` method to register your validator:
+**Registration**: Update `src/aidb/adapters/base/syntax_validator.py`
+
+Register your validator in the `for_language()` method:
 
 ```python
 @classmethod
@@ -289,7 +291,7 @@ def for_language(cls, language: str) -> Optional["LanguageSyntaxValidator"]:
 
 ### 1.5 Adapter Discovery
 
-**No action required!** The `AdapterRegistry` automatically discovers adapters in `src/aidb/adapters/lang/` (see `src/aidb/session/adapter_registry.py:340`).
+**No action required!** The `AdapterRegistry` automatically discovers adapters in `src/aidb/adapters/lang/` (see `src/aidb/session/adapter_registry.py`).
 
 The registry uses reflection to find:
 
@@ -301,7 +303,7 @@ The registry uses reflection to find:
 
 ### 2.1 Add to Language Enum
 
-**File**: `src/aidb_common/constants.py:10`
+**File**: `src/aidb_common/constants.py`
 
 ```python
 class Language(str, Enum):
@@ -335,7 +337,7 @@ class Language(str, Enum):
 
 ### 2.2 Update MCP Constants (If Needed)
 
-**File**: `src/aidb_mcp/core/constants.py:13`
+**File**: `src/aidb_mcp/core/constants.py`
 
 Only update if the adapter type differs from the language name:
 
@@ -355,7 +357,7 @@ class DebugAdapter(Enum):
 
 **File**: `src/aidb_cli/generators/plugins/<language>_generator.py`
 
-**Pattern**: Inherit from `LanguageGenerator` (see `src/aidb_cli/generators/plugins/base.py:21`)
+**Pattern**: Inherit from `LanguageGenerator` (see `src/aidb_cli/generators/plugins/base.py`)
 
 ```python
 from aidb_cli.generators.plugins.base import LanguageGenerator
@@ -440,7 +442,7 @@ The `__init__.py` file should automatically export your generator if it follows 
 
 **File**: `.github/scripts/adapters/builders/<language>.py`
 
-**Pattern**: Inherit from `AdapterBuilder` (see `.github/scripts/adapters/base.py:16`)
+**Pattern**: Inherit from `AdapterBuilder` (see `.github/scripts/adapters/base.py`)
 
 ```python
 from pathlib import Path
@@ -492,7 +494,7 @@ class <Language>AdapterBuilder(AdapterBuilder):
 
 ### 4.2 Register Builder
 
-**File**: `.github/scripts/adapters/registry.py:15`
+**File**: `.github/scripts/adapters/registry.py`
 
 ```python
 from .builders import (
@@ -546,7 +548,7 @@ adapters:
 **Platform Configuration**:
 
 - For **universal** adapters (like Java): Set `universal: true`, no platform list needed
-- For **platform-specific** adapters: The workflow uses the global `platforms` list from `versions.json:109`
+- For **platform-specific** adapters: The workflow uses the global `platforms` list from `versions.json`
 
 **Version Management:**
 
@@ -627,7 +629,7 @@ Several test files contain hardcoded language mappings that need updates:
 
 #### 5.2.1 Test Content Provider
 
-**File**: `src/tests/_assets/test_content.py:44`
+**File**: `src/tests/_assets/test_content.py`
 
 Add your language to the file mapping:
 
@@ -948,8 +950,8 @@ Use this as a quick checklist of all files that require updates:
 
 **Constants & Enums:**
 
-- `src/aidb_common/constants.py` - Add to Language enum (line ~10)
-- `src/aidb_mcp/core/constants.py` - (If needed) Add to DebugAdapter enum (line ~13)
+- `src/aidb_common/constants.py` - Add to Language enum
+- `src/aidb_mcp/core/constants.py` - (If needed) Add to DebugAdapter enum
 
 **CLI Integration:**
 
@@ -959,25 +961,25 @@ Use this as a quick checklist of all files that require updates:
 **CI/CD:**
 
 - `.github/scripts/adapters/builders/<language>.py` - New builder script
-- `.github/scripts/adapters/registry.py` - Register builder (line ~15)
+- `.github/scripts/adapters/registry.py` - Register builder
 - `versions.json` - Add adapter configuration
-- `.github/scripts/validation/build_env.py` - Add validation (line ~116)
+- `.github/scripts/validation/build_env.py` - Add validation
 
 **Testing:**
 
-- `src/tests/_assets/test_content.py` - Add file mapping (line ~44)
-- `src/tests/_fixtures/scenarios.py` - Add extension and error mappings (line ~30, ~53)
+- `src/tests/_assets/test_content.py` - Add file mapping
+- `src/tests/_fixtures/scenarios.py` - Add extension and error mappings
 
 ### Optional Updates
 
 **Core Implementation:**
 
 - `src/aidb/adapters/lang/<language>/syntax_validator.py` - Syntax validator
-- `src/aidb/adapters/base/syntax_validator.py` - Register validator (line ~87)
+- `src/aidb/adapters/base/syntax_validator.py` - Register validator
 
 **CI/CD:**
 
-- `.github/workflows/adapter-build.yaml` - Add setup steps (line ~105)
+- `.github/workflows/adapter-build.yaml` - Add setup steps if needed
 
 **Testing:**
 

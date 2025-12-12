@@ -71,18 +71,18 @@ All tests must be run through the dev-cli:
 # Run specific test pattern
 ./dev-cli test run -s shared -k "test_session"
 
-# Run language-specific tests
-./dev-cli test run -s python
-./dev-cli test run -s javascript
-./dev-cli test run -s java
+# Run framework tests with language filter
+./dev-cli test run -s frameworks -l python
+./dev-cli test run -s frameworks -l javascript
+./dev-cli test run -s frameworks -l java
 
 # Run with coverage
-./dev-cli test run -s shared --coverage
+./dev-cli test run -s shared -c
 ```
 
-```{important}
-Never use `--local` flag unless you know what you're doing. Test suites already
-know their natural execution environment.
+```{note}
+Test suites run in Docker by default for consistent environments. Only use `--local`
+to force local execution when necessary (not recommended for most development).
 ```
 
 ### Code Quality

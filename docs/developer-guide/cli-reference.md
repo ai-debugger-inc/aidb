@@ -6,7 +6,8 @@ The AIDB developer CLI (`./dev-cli`) provides commands for testing, Docker manag
 
 ```bash
 # Initial setup
-./dev-cli install setup --completion
+./dev-cli install setup
+./dev-cli completion install --yes  # Optional: enable shell completion
 
 # Run tests
 ./dev-cli test run -s shared -v
@@ -23,8 +24,8 @@ The AIDB developer CLI (`./dev-cli`) provides commands for testing, Docker manag
 ### install
 
 ```bash
-./dev-cli install setup [--completion]     # Install dependencies
-./dev-cli install reinstall [--completion] # Clean reinstall
+./dev-cli install setup     # Install dependencies and pre-commit hooks
+./dev-cli install reinstall # Clean reinstall
 ```
 
 ### test
@@ -41,7 +42,7 @@ The AIDB developer CLI (`./dev-cli`) provides commands for testing, Docker manag
 - `-t, --target` — Specific test path (repeatable)
 - `-k` — pytest `-k` pattern expression
 - `-n, --parallel` — Number of parallel test workers
-- `--local` — Run locally instead of Docker
+- `--local` — Force local execution (not recommended; suites auto-detect environment)
 - `-x, --failfast, --exitfirst` — Stop on first failure
 - `--lf, --last-failed` — Rerun failed tests only
 - `--ff, --failed-first` — Run failed tests first
@@ -50,11 +51,11 @@ The AIDB developer CLI (`./dev-cli`) provides commands for testing, Docker manag
 
 **Examples:**
 ```bash
-./dev-cli test run -s shared -v                    # Shared tests, verbose
-./dev-cli test run -s mcp --local -x               # MCP tests, local, stop on fail
-./dev-cli test run -s cli -k "test_docs*"          # Pattern matching
-./dev-cli test run -t src/tests/aidb/test_api.py  # Specific file
-./dev-cli test run -s shared -n 4                  # Run with 4 parallel workers
+./dev-cli test run -s shared -v                     # Shared tests, verbose
+./dev-cli test run -s mcp -x                        # MCP tests, stop on fail
+./dev-cli test run -s cli -k "test_docs*"           # Pattern matching
+./dev-cli test run -t src/tests/aidb/test_api.py    # Specific file
+./dev-cli test run -s shared -n 4                   # Run with 4 parallel workers
 ```
 
 ### adapters

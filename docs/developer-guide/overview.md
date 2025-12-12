@@ -66,7 +66,7 @@ graph TB
    - `AidbMCPServer` (`server/app.py`): Main MCP server handling tool calls
    - `ToolRegistry` (`registry.py`): Central registry for handler management
    - `get_all_mcp_tools()` (`tools/definitions.py`): Tool definitions function
-   - Domain-based handlers: `session/`, `inspection/`, `execution/`, `context/`
+   - Domain-based handlers: `handlers/` organized by functionality
 
 2. **API Layer** (`aidb/api/`): High-level Python API for debugging operations
 

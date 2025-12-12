@@ -259,7 +259,7 @@ def get_launch_configuration(self) -> dict[str, Any]:
 
 ## Environment Variable Patterns
 
-See `src/aidb_common/env.py` for environment handling utilities.
+See `src/aidb_common/env/` for environment handling utilities (reader.py, resolver.py).
 
 Use the template method pattern for environment preparation:
 
@@ -326,7 +326,7 @@ Tags enable:
 
 ## DAP Protocol Reference
 
-The authoritative DAP protocol reference is in `src/aidb/dap/protocol.py` - fully typed and always up-to-date.
+The authoritative DAP protocol reference is in `src/aidb/dap/protocol/` - fully typed and always up-to-date.
 
 ```python
 from aidb.dap.protocol.types import (
@@ -391,4 +391,4 @@ All file paths mentioned in this skill are relative to the repo root:
 - JavaScript source resolver: `src/aidb/adapters/lang/javascript/source_path_resolver.py`
 - Java adapter: `src/aidb/adapters/lang/java/java.py`
 - Java source resolver: `src/aidb/adapters/lang/java/source_path_resolver.py`
-- DAP protocol: `src/aidb/dap/protocol.py`
+- DAP protocol: `src/aidb/dap/protocol/` (types.py, requests.py, responses.py, events.py, bodies.py, base.py)
