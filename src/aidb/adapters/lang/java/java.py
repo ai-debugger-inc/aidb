@@ -649,8 +649,21 @@ class JavaAdapter(DebugAdapter):
         AidbError
             If the bridge is not available or connection fails
         """
+        # Ensure LSP-DAP bridge is initialized for remote attach
+        # (normally done in PRE_LAUNCH hook, but attach skips launch)
         if not self._lsp_dap_bridge:
-            msg = "JDT LS bridge not available - cannot attach to remote JVM"
+            self.ctx.info("Initializing LSP-DAP bridge for remote attach...")
+            from .hooks import JDTLSSetupHooks
+
+            setup_hooks = JDTLSSetupHooks(self)
+            await setup_hooks.ensure_bridge_initialized()
+
+            # Start the bridge (launch JDT LS) - not done by ensure_bridge_initialized
+            if self._lsp_dap_bridge:
+                await self._lsp_dap_bridge.start()
+
+        if not self._lsp_dap_bridge:
+            msg = "JDT LS bridge not available. Remote attach requires JDT LS."
             raise AidbError(msg)
 
         self.ctx.info(f"Attaching to remote JVM at {host}:{port}")
@@ -662,6 +675,18 @@ class JavaAdapter(DebugAdapter):
             project_name=project_name,
             timeout=timeout,
         )
+
+        # Store attach config for DAP attach request (used by get_launch_configuration).
+        # The java-debug adapter expects hostName and port in the attach request.
+        self._launch_config = {
+            "type": "java",
+            "request": "attach",
+            "hostName": host,
+            "port": port,
+            "timeout": timeout,
+            "projectName": project_name or self.config.DEFAULT_PROJECT_NAME,
+        }
+        self.ctx.debug(f"Stored attach config: {self._launch_config}")
 
         # Return dummy process (None) and the DAP port. The first element is
         # expected by the API but not used for attach

@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Optional
 
-from aidb.models import SessionStatus
+from aidb.models import SessionStatus, StartRequestType
 from aidb.patterns import Obj
 
 if TYPE_CHECKING:
@@ -162,15 +162,26 @@ class SessionState(Obj):
                 # Check if the adapter process is still running
                 # Note: Some adapters (e.g., Java with LSP-DAP bridge) may use
                 # dummy processes, so this is less reliable than DAP state
-                adapter_is_alive = (
-                    self.session.adapter.is_alive
-                    if hasattr(self.session, "adapter")
-                    and self.session.adapter
-                    and hasattr(self.session.adapter, "is_alive")
-                    else None
+                #
+                # Skip this check for remote attach sessions - they connect to
+                # an external process and don't have a local adapter process
+                is_remote_attach = (
+                    hasattr(self.session, "start_request_type")
+                    and self.session.start_request_type == StartRequestType.ATTACH
+                    and hasattr(self.session, "_attach_params")
+                    and self.session._attach_params
+                    and self.session._attach_params.get("host")
                 )
-                if adapter_is_alive is not None and not adapter_is_alive:
-                    return SessionStatus.TERMINATED
+                if not is_remote_attach:
+                    adapter_is_alive = (
+                        self.session.adapter.is_alive
+                        if hasattr(self.session, "adapter")
+                        and self.session.adapter
+                        and hasattr(self.session.adapter, "is_alive")
+                        else None
+                    )
+                    if adapter_is_alive is not None and not adapter_is_alive:
+                        return SessionStatus.TERMINATED
 
                 # If we have a valid DAP connection and not stopped, we're running
                 return SessionStatus.RUNNING

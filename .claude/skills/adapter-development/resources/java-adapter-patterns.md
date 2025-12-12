@@ -93,6 +93,7 @@ src/aidb/adapters/lang/java/
 ├── config.py                   # Configuration classes
 ├── compilation.py              # Compilation management (legacy)
 ├── jdtls_project_pool.py       # JDT LS pooling (LRU cache)
+├── source_detection.py         # Maven/Gradle source path auto-detection
 └── lsp_bridge.py               # Legacy compatibility layer
 ```
 
@@ -319,6 +320,13 @@ def _register_java_hooks(self) -> None:
 
 - `JavaToolchain` - `java_toolchain.py` - Java/javac executable discovery
 - `JavaClasspathBuilder` - `classpath_builder.py` - Classpath construction
+
+**Source Path Detection**:
+
+- `detect_java_source_paths()` - `source_detection.py` - Auto-detect Maven/Gradle source paths
+  - Recursively scans for `pom.xml`, `build.gradle`, `build.gradle.kts`
+  - Collects standard source dirs: `src/main/java`, `src/test/java`, `src/main/kotlin`, etc.
+  - Used by MCP session start for automatic source path resolution in remote debugging
 
 **Legacy/Compatibility**:
 

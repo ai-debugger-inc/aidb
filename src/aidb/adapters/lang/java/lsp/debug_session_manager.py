@@ -386,6 +386,9 @@ class DebugSessionManager(Obj):
         """
         self.ctx.info(f"Requesting attach session to {host}:{port}")
 
+        # Trigger java-debug plugin initialization before startDebugSession
+        await self._ensure_java_debug_ready(lsp_client)
+
         # Build attach configuration
         default_project = JavaAdapterConfig.DEFAULT_PROJECT_NAME
         attach_config = {
@@ -396,6 +399,8 @@ class DebugSessionManager(Obj):
             "timeout": timeout,
             "projectName": project_name or default_project,
         }
+
+        self.ctx.debug(f"Attach configuration: {json.dumps(attach_config, indent=2)}")
 
         # Request DAP port from java-debug plugin for attach
         try:

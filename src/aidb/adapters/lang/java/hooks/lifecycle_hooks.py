@@ -173,7 +173,7 @@ class JDTLSSetupHooks:
         # Store in context for use by other hooks
         context.data["jdtls_workspace"] = workspace_dir
 
-    async def initialize_bridge(self, context: HookContext) -> None:  # noqa: C901
+    async def initialize_bridge(self, context: HookContext) -> None:
         """Pre-launch hook to initialize LSP-DAP bridge.
 
         Parameters
@@ -184,112 +184,125 @@ class JDTLSSetupHooks:
         self.adapter.ctx.debug("Pre-launch hook: Initializing LSP-DAP bridge")
 
         try:
-            # Get necessary paths using binary locator
-            from aidb.adapters.utils.binary_locator import AdapterBinaryLocator
-
-            from ..lsp.lsp_bridge import JavaLSPDAPBridge
-
-            locator = AdapterBinaryLocator(ctx=self.adapter.ctx)
-            java_debug_jar = locator.locate(Language.JAVA.value)
-
-            # Locate JDT LS - check in priority order:
-            # 1. AIDB_JDT_LS_HOME environment variable (explicit override)
-            # 2. Bundled with adapter (in ~/.aidb/adapters/java/jdtls/)
-            # 3. System installation (/opt/jdtls)
-
-            jdtls_home_env = reader.read_str("AIDB_JDT_LS_HOME", default=None)
-
-            if jdtls_home_env:
-                # User specified explicit path via environment variable
-                jdtls_path = Path(jdtls_home_env)
-                self.adapter.ctx.debug(
-                    f"Using JDT LS from AIDB_JDT_LS_HOME: {jdtls_path}",
-                )
-            else:
-                # Check bundled location (in adapter directory)
-                try:
-                    adapter_dir = locator.get_adapter_dir(Language.JAVA.value)
-                    bundled_jdtls = adapter_dir / "jdtls"
-
-                    if bundled_jdtls.exists():
-                        jdtls_path = bundled_jdtls
-                        self.adapter.ctx.debug(f"Using bundled JDT LS: {jdtls_path}")
-                    else:
-                        # Fallback to system location
-                        jdtls_path = Path("/opt/jdtls")
-                        self.adapter.ctx.debug(f"Using system JDT LS: {jdtls_path}")
-                except Exception as e:
-                    # Adapter directory not found, try system location
-                    self.adapter.ctx.debug(f"Could not locate adapter directory: {e}")
-                    jdtls_path = Path("/opt/jdtls")
-                    self.adapter.ctx.debug(f"Using system JDT LS: {jdtls_path}")
-
-            if not jdtls_path.exists():
-                msg = (
-                    "JDT LS not found. Java debugging requires JDT LS. "
-                    "Set AIDB_JDT_LS_HOME or install adapter with bundled JDT LS."
-                )
-                self.adapter.ctx.error(msg)
-                context.cancelled = True
-                context.result = msg
-                raise AidbError(msg)
-
-            java_cmd = await self.adapter._get_java_executable()
-
-            # Try test pool first (test isolation, doesn't need workspace_folders)
-            use_test_pool = reader.read_bool("AIDB_TEST_JAVA_LSP_POOL", default=False)
-            if use_test_pool:
-                try:
-                    from tests._fixtures.java_lsp_pool import get_test_jdtls_pool
-
-                    pool = get_test_jdtls_pool()
-                    if pool:
-                        self.adapter.ctx.info(
-                            "Using shared JDT LS pool from test infrastructure",
-                        )
-                        bridge = await pool.get_or_start_bridge(
-                            jdtls_path=jdtls_path,
-                            java_debug_jar=java_debug_jar,
-                            java_command=java_cmd,
-                        )
-                        self.adapter._lsp_dap_bridge = bridge
-                        self.adapter.ctx.debug(
-                            "Test pool bridge initialized successfully",
-                        )
-                        return  # Early return - test pool satisfied the request
-                except ImportError:
-                    self.adapter.ctx.debug(
-                        "Test pool requested but not available "
-                        "(not in test environment)",
-                    )
-                except Exception as e:
-                    self.adapter.ctx.warning(
-                        f"Failed to get test pool: {e}, falling back to "
-                        "production pool or standalone",
-                    )
-
-            # Create lightweight bridge for production pool or standalone use
-            # Production pool selection happens in launch() where workspace_folders
-            # are available
-            self.adapter._lsp_dap_bridge = JavaLSPDAPBridge(
-                jdtls_path=jdtls_path,
-                java_debug_jar=java_debug_jar,
-                java_command=java_cmd,
-                ctx=self.adapter.ctx,
-            )
-
-            LogOnce.debug(
-                self.adapter.ctx,
-                "java_lsp_dap_bridge_init",
-                "LSP-DAP bridge initialized successfully",
-            )
-
+            await self.ensure_bridge_initialized()
         except Exception as e:
             self.adapter.ctx.error(f"Failed to initialize LSP-DAP bridge: {e}")
             context.cancelled = True
             context.result = f"Failed to initialize LSP-DAP bridge: {e}"
-            msg = f"Failed to initialize LSP-DAP bridge: {e}"
-            raise AidbError(msg) from e
+            raise
+
+    async def ensure_bridge_initialized(self) -> None:  # noqa: C901
+        """Ensure the LSP-DAP bridge is initialized.
+
+        This method can be called directly (e.g., for remote attach scenarios)
+        or via the initialize_bridge hook during normal launch.
+
+        Raises
+        ------
+        AidbError
+            If the bridge cannot be initialized
+        """
+        # Skip if already initialized
+        if self.adapter._lsp_dap_bridge is not None:
+            self.adapter.ctx.debug("LSP-DAP bridge already initialized")
+            return
+
+        # Get necessary paths using binary locator
+        from aidb.adapters.utils.binary_locator import AdapterBinaryLocator
+
+        from ..lsp.lsp_bridge import JavaLSPDAPBridge
+
+        locator = AdapterBinaryLocator(ctx=self.adapter.ctx)
+        java_debug_jar = locator.locate(Language.JAVA.value)
+
+        # Locate JDT LS - check in priority order:
+        # 1. AIDB_JDT_LS_HOME environment variable (explicit override)
+        # 2. Bundled with adapter (in ~/.aidb/adapters/java/jdtls/)
+        # 3. System installation (/opt/jdtls)
+
+        jdtls_home_env = reader.read_str("AIDB_JDT_LS_HOME", default=None)
+
+        if jdtls_home_env:
+            # User specified explicit path via environment variable
+            jdtls_path = Path(jdtls_home_env)
+            self.adapter.ctx.debug(
+                f"Using JDT LS from AIDB_JDT_LS_HOME: {jdtls_path}",
+            )
+        else:
+            # Check bundled location (in adapter directory)
+            try:
+                adapter_dir = locator.get_adapter_dir(Language.JAVA.value)
+                bundled_jdtls = adapter_dir / "jdtls"
+
+                if bundled_jdtls.exists():
+                    jdtls_path = bundled_jdtls
+                    self.adapter.ctx.debug(f"Using bundled JDT LS: {jdtls_path}")
+                else:
+                    # Fallback to system location
+                    jdtls_path = Path("/opt/jdtls")
+                    self.adapter.ctx.debug(f"Using system JDT LS: {jdtls_path}")
+            except Exception as e:
+                # Adapter directory not found, try system location
+                self.adapter.ctx.debug(f"Could not locate adapter directory: {e}")
+                jdtls_path = Path("/opt/jdtls")
+                self.adapter.ctx.debug(f"Using system JDT LS: {jdtls_path}")
+
+        if not jdtls_path.exists():
+            msg = (
+                "JDT LS not found. Java debugging requires JDT LS. "
+                "Set AIDB_JDT_LS_HOME or install adapter with bundled JDT LS."
+            )
+            self.adapter.ctx.error(msg)
+            raise AidbError(msg)
+
+        java_cmd = await self.adapter._get_java_executable()
+
+        # Try test pool first (test isolation, doesn't need workspace_folders)
+        use_test_pool = reader.read_bool("AIDB_TEST_JAVA_LSP_POOL", default=False)
+        if use_test_pool:
+            try:
+                from tests._fixtures.java_lsp_pool import get_test_jdtls_pool
+
+                pool = get_test_jdtls_pool()
+                if pool:
+                    self.adapter.ctx.info(
+                        "Using shared JDT LS pool from test infrastructure",
+                    )
+                    bridge = await pool.get_or_start_bridge(
+                        jdtls_path=jdtls_path,
+                        java_debug_jar=java_debug_jar,
+                        java_command=java_cmd,
+                    )
+                    self.adapter._lsp_dap_bridge = bridge
+                    self.adapter.ctx.debug(
+                        "Test pool bridge initialized successfully",
+                    )
+                    return  # Early return - test pool satisfied the request
+            except ImportError:
+                self.adapter.ctx.debug(
+                    "Test pool requested but not available (not in test environment)",
+                )
+            except Exception as e:
+                self.adapter.ctx.warning(
+                    f"Failed to get test pool: {e}, falling back to "
+                    "production pool or standalone",
+                )
+
+        # Create lightweight bridge for production pool or standalone use
+        # Production pool selection happens in launch() where workspace_folders
+        # are available
+        self.adapter._lsp_dap_bridge = JavaLSPDAPBridge(
+            jdtls_path=jdtls_path,
+            java_debug_jar=java_debug_jar,
+            java_command=java_cmd,
+            ctx=self.adapter.ctx,
+        )
+
+        LogOnce.debug(
+            self.adapter.ctx,
+            "java_lsp_dap_bridge_init",
+            "LSP-DAP bridge initialized successfully",
+        )
 
 
 class JDTLSReadinessHooks:
