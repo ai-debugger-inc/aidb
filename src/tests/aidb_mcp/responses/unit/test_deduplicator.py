@@ -216,7 +216,7 @@ class TestResponseDeduplicator:
         # Mock verbose mode (not compact)
         from aidb_common.config.runtime import ConfigManager
 
-        monkeypatch.setattr(ConfigManager, "is_mcp_compact", lambda _: False)
+        monkeypatch.setattr(ConfigManager, "is_mcp_verbose", lambda _: True)
 
         response = {
             "data": {

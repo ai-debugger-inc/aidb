@@ -426,7 +426,7 @@ class SessionLifecycleMixin:
             Response containing attach status
         """
         if hasattr(self.adapter, "attach_remote"):
-            _, dap_port = self.adapter.attach_remote(
+            _, dap_port = await self.adapter.attach_remote(
                 host=host,
                 port=port,
                 timeout=timeout,

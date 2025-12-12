@@ -474,7 +474,13 @@ class Session(
                 config=adapter_config,
                 **self.adapter_kwargs,
             )
-            self.ctx.debug(f"Got adapter for language {self.language}: {self.adapter}")
+
+            # Propagate start_request_type to adapter config for initialization sequence
+            self.adapter.config.dap_start_request_type = self.start_request_type
+            self.ctx.debug(
+                f"Got adapter for language {self.language}: {self.adapter} "
+                f"(mode={self.start_request_type.value})",
+            )
         except Exception as e:
             self.ctx.error(f"Failed to get adapter for language {self.language}: {e}")
             raise

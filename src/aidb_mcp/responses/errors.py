@@ -451,11 +451,11 @@ class AdapterNotFoundError(ErrorResponse):
 
         # Add immediate action suggestions
         response["immediate_actions"] = [
-            f"Use download_adapter tool with language='{self.language}'"
+            f"Use adapter tool with action='download', language='{self.language}'"
             if self.language
-            else "Use download_adapter tool",
-            "Check adapter installation with list_installed_adapters tool",
-            "Download all adapters with download_all_adapters tool",
+            else "Use adapter tool with action='download'",
+            "Check adapter installation with adapter tool action='list'",
+            "Download all adapters with adapter tool action='download_all'",
         ]
 
         return response

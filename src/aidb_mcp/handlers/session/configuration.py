@@ -180,7 +180,7 @@ async def _handle_config_adapters(_args: dict[str, Any]) -> dict[str, Any]:
                     "installed": False,
                     "status": AdapterStatus.MISSING.value,
                     "suggestions": [
-                        f"Use download_adapter tool with language='{language}'",
+                        f"Use adapter tool: action='download', language='{language}'",
                     ],
                 }
 
@@ -204,8 +204,8 @@ async def _handle_config_adapters(_args: dict[str, Any]) -> dict[str, Any]:
         # Add quick actions if any adapters are missing
         if installed_count < total_adapters:
             response_dict["quick_actions"] = [
-                "Use download_all_adapters tool to install all missing adapters",
-                "Use list_installed_adapters tool for detailed status",
+                "Use adapter tool: action='download_all' to install all",
+                "Use adapter tool: action='list' for detailed status",
             ]
 
         return response_dict

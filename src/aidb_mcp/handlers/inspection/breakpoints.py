@@ -344,7 +344,7 @@ async def _handle_watch_breakpoint(
             name=var_parts[-1],
         )
 
-        if not data_bp_info.data_id:
+        if not data_bp_info.dataId:
             return UnsupportedOperationError(
                 operation=f"Watch '{var_name}'",
                 adapter_type="Java adapter",
@@ -357,7 +357,7 @@ async def _handle_watch_breakpoint(
 
         # Step 3: Set the data breakpoint
         response = await api.orchestration.data_breakpoint(
-            data_id=data_bp_info.data_id,
+            data_id=data_bp_info.dataId,
             access_type=access_type,
             condition=condition,
             hit_condition=hit_condition,

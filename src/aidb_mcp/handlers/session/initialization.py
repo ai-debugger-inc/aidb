@@ -210,8 +210,8 @@ async def _check_adapter_availability(language: str) -> dict[str, Any]:
             "available": False,
             "reason": f"{language.capitalize()} adapter not installed",
             "suggestions": [
-                f"Use download_adapter tool with language='{language}'",
-                "Use download_all_adapters tool to install all adapters",
+                f"Use adapter tool with action='download', language='{language}'",
+                "Use adapter tool with action='download_all' to install all adapters",
             ],
         }
 
@@ -225,7 +225,7 @@ async def _check_adapter_availability(language: str) -> dict[str, Any]:
             "available": None,
             "reason": f"Could not check adapter status: {e}",
             "suggestions": [
-                f"Try download_adapter tool with language='{language}'",
+                f"Try adapter tool with action='download', language='{language}'",
             ],
         }
 

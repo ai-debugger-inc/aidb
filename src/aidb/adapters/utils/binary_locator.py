@@ -256,7 +256,7 @@ class AdapterBinaryLocator(Obj):
             f"\n📦 To install the {language} adapter:",
             "",
             "🚀 Option 1: Automatic download (recommended):",
-            f"  • MCP: Use download_adapter tool with language='{language}'",
+            f"  • MCP: Use adapter tool with action='download', language='{language}'",
             "",
             "📁 Option 2: Manual download from GitHub releases:",
             "  1. Go to: https://github.com/ai-debugger-inc/aidb/releases/latest",

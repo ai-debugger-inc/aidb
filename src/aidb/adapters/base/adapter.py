@@ -940,8 +940,8 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
                     f"Adapter version mismatch: {adapter_name} adapter "
                     f"(v{adapter_version}) was built with AIDB "
                     f"v{adapter_aidb_version}, current AIDB is "
-                    f"v{current_aidb_version}. Use the MCP download_adapter tool "
-                    "or update the adapter manually."
+                    f"v{current_aidb_version}. Use the MCP adapter tool "
+                    "(action='download') or update the adapter manually."
                 ),
             )
         else:
