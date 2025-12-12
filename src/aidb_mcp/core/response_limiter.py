@@ -78,6 +78,49 @@ class ResponseLimiter:
         return limited, True
 
     @classmethod
+    def limit_threads(
+        cls,
+        threads: dict[int, Any],
+        max_threads: int | None = None,
+        current_thread_id: int | None = None,
+    ) -> tuple[dict[int, Any], bool]:
+        """Limit threads to configured maximum, prioritizing current thread.
+
+        Parameters
+        ----------
+        threads : dict[int, Any]
+            Threads dict (thread_id -> thread_data)
+        max_threads : int, optional
+            Maximum threads (defaults to config)
+        current_thread_id : int, optional
+            Current/stopped thread ID to prioritize
+
+        Returns
+        -------
+        tuple[dict[int, Any], bool]
+            (limited_threads, was_truncated)
+        """
+        if max_threads is None:
+            max_threads = ConfigManager().get_mcp_max_threads()
+
+        if len(threads) <= max_threads:
+            return threads, False
+
+        # Prioritize current thread (the one that triggered the stop)
+        limited: dict[int, Any] = {}
+        if current_thread_id is not None and current_thread_id in threads:
+            limited[current_thread_id] = threads[current_thread_id]
+
+        # Fill remaining slots
+        for tid, tdata in threads.items():
+            if len(limited) >= max_threads:
+                break
+            if tid not in limited:
+                limited[tid] = tdata
+
+        return limited, True
+
+    @classmethod
     def limit_code_context(
         cls,
         lines: list[tuple[int, str]],

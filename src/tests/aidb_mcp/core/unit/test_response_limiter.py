@@ -181,3 +181,80 @@ class TestResponseLimiter:
 
         assert len(limited) == 0
         assert truncated is False
+
+    def test_limits_threads(self):
+        """Test thread limiting."""
+        threads = {i: {"id": i, "name": f"Thread-{i}"} for i in range(20)}
+
+        limited, truncated = ResponseLimiter.limit_threads(threads, max_threads=10)
+
+        assert len(limited) == 10
+        assert truncated is True
+
+    def test_threads_no_truncation_when_under_limit(self):
+        """Test no truncation when threads under limit."""
+        threads = {i: {"id": i, "name": f"Thread-{i}"} for i in range(5)}
+
+        limited, truncated = ResponseLimiter.limit_threads(threads, max_threads=10)
+
+        assert len(limited) == 5
+        assert truncated is False
+        assert limited == threads
+
+    def test_threads_prioritizes_current_thread(self):
+        """Test that current thread is always included in limited results."""
+        threads = {i: {"id": i, "name": f"Thread-{i}"} for i in range(100)}
+        current_thread_id = 99  # Last thread
+
+        limited, truncated = ResponseLimiter.limit_threads(
+            threads,
+            max_threads=5,
+            current_thread_id=current_thread_id,
+        )
+
+        assert len(limited) == 5
+        assert truncated is True
+        # Current thread should be included even though it's last
+        assert current_thread_id in limited
+        assert limited[current_thread_id]["id"] == 99
+
+    def test_threads_current_thread_not_in_threads(self):
+        """Test when current_thread_id is not in the threads dict."""
+        threads = {i: {"id": i, "name": f"Thread-{i}"} for i in range(20)}
+        current_thread_id = 999  # Not in threads
+
+        limited, truncated = ResponseLimiter.limit_threads(
+            threads,
+            max_threads=10,
+            current_thread_id=current_thread_id,
+        )
+
+        assert len(limited) == 10
+        assert truncated is True
+        # Missing current thread doesn't break anything
+        assert 999 not in limited
+
+    def test_empty_threads_dict(self):
+        """Test limiting with empty threads dict."""
+        threads: dict[int, Any] = {}
+
+        limited, truncated = ResponseLimiter.limit_threads(threads, max_threads=10)
+
+        assert len(limited) == 0
+        assert truncated is False
+
+    def test_threads_default_config_value(self, monkeypatch):
+        """Test that threads uses config default when no explicit limit."""
+        from aidb_common.config.runtime import ConfigManager
+
+        monkeypatch.setattr(
+            ConfigManager,
+            "get_mcp_max_threads",
+            lambda self: 3,
+        )
+
+        threads = {i: {"id": i} for i in range(10)}
+        limited, truncated = ResponseLimiter.limit_threads(threads)
+
+        assert len(limited) == 3
+        assert truncated is True
