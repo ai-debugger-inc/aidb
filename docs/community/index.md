@@ -29,7 +29,7 @@ Our project is open source and available on GitHub:
 - **Repository**: https://github.com/ai-debugger-inc/aidb
 - **Report bugs**: [File an issue](https://github.com/ai-debugger-inc/aidb/issues)
 - **Request features**: [File an issue](https://github.com/ai-debugger-inc/aidb/issues) with the "enhancement" label
-- **Contribute**: Check out our contribution guidelines
+- **Contribute**: Check out our [contribution guidelines](contributing.md)
 - **Star the repo**: Help us grow the community
 
 ## Contributing
@@ -42,7 +42,10 @@ We welcome contributions from the community! Whether it's:
 - Example debugging workflows
 - Language adapter enhancements
 
-Check out our [GitHub repository](https://github.com/ai-debugger-inc/aidb) to get started.
+**[Read the full Contributing Guide →](contributing.md)**
+
+Before contributing, please review our [Code of
+Conduct](https://github.com/ai-debugger-inc/aidb/blob/main/CODE_OF_CONDUCT.md).
 
 ## Community Guidelines
 
@@ -69,5 +72,6 @@ We're excited to have you here!
 ---
 hidden:
 ---
+contributing
 releases
 ```
