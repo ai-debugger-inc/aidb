@@ -90,12 +90,35 @@ class JavaLSPDAPBridge(Obj):
         self._pooled_failures: int = 0
 
     def __setattr__(self, name: str, value: Any) -> None:
-        """Propagate _is_pooled flag to debug_session_manager."""
+        """Propagate _is_pooled flag to child components."""
         super().__setattr__(name, value)
 
-        # When pool sets bridge._is_pooled = True, propagate to debug_session_manager
-        if name == "_is_pooled" and hasattr(self, "debug_session_manager"):
-            self.debug_session_manager._is_pooled = value
+        # When pool sets bridge._is_pooled = True, propagate to child components
+        # so they can check pooled status without circular references
+        if name == "_is_pooled":
+            if hasattr(self, "debug_session_manager"):
+                self.debug_session_manager._is_pooled = value
+            if hasattr(self, "lsp_client") and self.lsp_client is not None:
+                self.lsp_client._is_pooled = value
+
+    def is_pooled(self) -> bool:
+        """Check if this bridge is managed by a pool.
+
+        Returns True if this bridge was allocated from either the test pool
+        or the per-project production pool. Pooled bridges should NOT be
+        stopped when a debug session ends - they are returned to the pool.
+
+        This is the SINGLE SOURCE OF TRUTH for pool detection. All code
+        should use this method rather than:
+        - Querying pool registries directly (expensive)
+        - Checking bridge.process state (ambiguous)
+
+        Returns
+        -------
+        bool
+            True if this bridge is managed by a pool, False otherwise.
+        """
+        return getattr(self, "_is_pooled", False)
 
     @property
     def process(self) -> asyncio.subprocess.Process | None:
@@ -288,7 +311,7 @@ class JavaLSPDAPBridge(Obj):
             raise AidbError(msg)
         try:
             # Proactive restart for unhealthy pooled bridges
-            if getattr(self.debug_session_manager, "_is_pooled", False):
+            if self.is_pooled():
                 threshold = (
                     reader.read_int(
                         "AIDB_JAVA_POOLED_RESTART_THRESHOLD",
@@ -326,7 +349,7 @@ class JavaLSPDAPBridge(Obj):
             )
         except Exception as e:
             # Final fallback for pooled bridges: restart JDT LS and retry once.
-            if getattr(self.debug_session_manager, "_is_pooled", False):
+            if self.is_pooled():
                 from aidb.common.errors import AidbError
 
                 self.ctx.warning(
@@ -403,7 +426,7 @@ class JavaLSPDAPBridge(Obj):
             return []
 
         # For pooled bridges, proactively check LSP health and restart if unresponsive
-        if getattr(self.debug_session_manager, "_is_pooled", False):
+        if self.is_pooled():
             try:
                 _ = await self.lsp_client.execute_command(
                     "java.project.getAll",

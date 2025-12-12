@@ -60,7 +60,8 @@ JavaAdapter (extends DebugAdapter)
 │   ├── WorkspaceManager        - Workspace & project management
 │   └── DebugSessionManager     - Debug session delegation
 ├── JavaToolchain               - Java/javac executable discovery
-├── JavaClasspathBuilder        - Classpath construction
+├── JavaClasspathBuilder        - Classpath construction & utilities
+├── JavaBuildSystemDetector     - Maven/Gradle project detection
 └── Lifecycle Hooks             - Environment validation, setup, cleanup
     ├── JavaEnvironmentValidator    - Pre-launch environment checks
     ├── JDTLSSetupHooks             - Pre-launch bridge initialization
@@ -87,8 +88,9 @@ src/aidb/adapters/lang/java/
 │   └── lifecycle_hooks.py     # 4 hook classes (574 lines)
 ├── tooling/                    # Java utilities
 │   ├── __init__.py
-│   ├── java_toolchain.py      # Java/javac discovery (146 lines)
-│   └── classpath_builder.py   # Classpath construction (165 lines)
+│   ├── java_toolchain.py      # Java/javac discovery
+│   ├── classpath_builder.py   # Classpath construction & utilities
+│   └── build_system_detector.py  # Maven/Gradle detection
 ├── java.py                     # Main adapter (698 lines)
 ├── config.py                   # Configuration classes
 ├── compilation.py              # Compilation management (legacy)
@@ -262,7 +264,9 @@ def _register_java_hooks(self) -> None:
 
 **JavaToolchain**: Discovers Java/javac executables from config, JAVA_HOME, or PATH
 
-**JavaClasspathBuilder**: Constructs classpath from target directory + configured paths + temp compile directory. Extracts main class from `.java`, `.class`, or `.jar` files.
+**JavaClasspathBuilder**: Constructs classpath from target directory + configured paths + temp compile directory. Extracts main class from `.java`, `.class`, or `.jar` files. Provides utilities for flattening JDT LS classpaths, adding target/classes, and adding test-classes for JUnit.
+
+**JavaBuildSystemDetector**: Detects Maven/Gradle project roots by walking up directory tree looking for `pom.xml`, `build.gradle`, or `build.gradle.kts`. Provides fallback resolution (workspace_root → cwd → target).
 
 **WorkspaceManager** (LSP component): Manages JDT LS workspace directories. Creates temp workspace if not specified. Handles workspace folder registration.
 
@@ -319,7 +323,8 @@ def _register_java_hooks(self) -> None:
 **Tooling Components** (`src/aidb/adapters/lang/java/tooling/`):
 
 - `JavaToolchain` - `java_toolchain.py` - Java/javac executable discovery
-- `JavaClasspathBuilder` - `classpath_builder.py` - Classpath construction
+- `JavaClasspathBuilder` - `classpath_builder.py` - Classpath construction, flattening, test-classes
+- `JavaBuildSystemDetector` - `build_system_detector.py` - Maven/Gradle project root detection
 
 **Source Path Detection**:
 

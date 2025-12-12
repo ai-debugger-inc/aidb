@@ -416,19 +416,13 @@ class InitializationMixin(BaseOperations):
 
         # For pooled bridges, check if plugin was already initialized
         # Pooled bridges reuse JDT LS instances, so the plugin is already loaded
-        is_pooled = getattr(bridge, "_is_pooled", False)
-        if is_pooled and hasattr(bridge, "debug_session_manager"):
-            session_mgr_pooled = getattr(
-                bridge.debug_session_manager,
-                "_is_pooled",
-                False,
+        # Use is_pooled() as the single source of truth for pool detection
+        if hasattr(bridge, "is_pooled") and bridge.is_pooled():
+            self.ctx.debug(
+                "Skipping plugin readiness wait for pooled bridge "
+                "(plugin already initialized from previous sessions)",
             )
-            if session_mgr_pooled:
-                self.ctx.debug(
-                    "Skipping plugin readiness wait for pooled bridge "
-                    "(plugin already initialized from previous sessions)",
-                )
-                return
+            return
 
         self.ctx.info(
             f"Waiting for java-debug plugin readiness (timeout: {timeout}s)...",

@@ -1,211 +1,11 @@
-"""Unit tests for SessionManager and ResourceTracker.
-
-Tests session lifecycle management, resource tracking, and cleanup.
-"""
+"""Unit tests for SessionManager."""
 
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from aidb.api.session_manager import ResourceTracker, SessionManager
+from aidb.api.session_manager import SessionManager
 from aidb.common.errors import AidbError
-
-
-class TestResourceTrackerInit:
-    """Tests for ResourceTracker initialization."""
-
-    def test_init_creates_empty_state(self, mock_ctx):
-        """ResourceTracker initializes with empty tracking state."""
-        tracker = ResourceTracker(ctx=mock_ctx)
-
-        assert tracker._session_resources == {}
-        assert tracker._resource_owners == {}
-
-    def test_init_without_context(self):
-        """ResourceTracker can initialize without context."""
-        tracker = ResourceTracker()
-
-        assert tracker.ctx is None
-        assert tracker._session_resources == {}
-
-
-class TestResourceTrackerTracking:
-    """Tests for ResourceTracker resource tracking."""
-
-    def test_track_resource_adds_to_session(self, mock_ctx):
-        """track_resource adds resource to session tracking."""
-        tracker = ResourceTracker(ctx=mock_ctx)
-
-        tracker.track_resource("port", 5678, "session-1")
-
-        assert "session-1" in tracker._session_resources
-        assert "port" in tracker._session_resources["session-1"]
-        assert 5678 in tracker._session_resources["session-1"]["port"]
-
-    def test_track_resource_updates_reverse_lookup(self, mock_ctx):
-        """track_resource updates reverse lookup map."""
-        tracker = ResourceTracker(ctx=mock_ctx)
-
-        tracker.track_resource("port", 5678, "session-1")
-
-        assert tracker._resource_owners[("port", 5678)] == "session-1"
-
-    def test_track_multiple_resources_same_type(self, mock_ctx):
-        """Multiple resources of same type are tracked."""
-        tracker = ResourceTracker(ctx=mock_ctx)
-
-        tracker.track_resource("port", 5678, "session-1")
-        tracker.track_resource("port", 5679, "session-1")
-
-        assert len(tracker._session_resources["session-1"]["port"]) == 2
-
-    def test_track_multiple_resource_types(self, mock_ctx):
-        """Multiple resource types are tracked separately."""
-        tracker = ResourceTracker(ctx=mock_ctx)
-
-        tracker.track_resource("port", 5678, "session-1")
-        tracker.track_resource("process", 1234, "session-1")
-
-        assert "port" in tracker._session_resources["session-1"]
-        assert "process" in tracker._session_resources["session-1"]
-
-
-class TestResourceTrackerUntracking:
-    """Tests for ResourceTracker resource untracking."""
-
-    def test_untrack_resource_removes_tracking(self, mock_ctx):
-        """untrack_resource removes resource from tracking."""
-        tracker = ResourceTracker(ctx=mock_ctx)
-        tracker.track_resource("port", 5678, "session-1")
-
-        tracker.untrack_resource("port", 5678)
-
-        assert ("port", 5678) not in tracker._resource_owners
-        # Session entry may be removed if empty
-        if "session-1" in tracker._session_resources:
-            assert 5678 not in tracker._session_resources["session-1"].get("port", [])
-
-    def test_untrack_resource_returns_session_id(self, mock_ctx):
-        """untrack_resource returns the session that owned the resource."""
-        tracker = ResourceTracker(ctx=mock_ctx)
-        tracker.track_resource("port", 5678, "session-1")
-
-        result = tracker.untrack_resource("port", 5678)
-
-        assert result == "session-1"
-
-    def test_untrack_unknown_resource_returns_none(self, mock_ctx):
-        """untrack_resource returns None for unknown resource."""
-        tracker = ResourceTracker(ctx=mock_ctx)
-
-        result = tracker.untrack_resource("port", 9999)
-
-        assert result is None
-
-
-class TestResourceTrackerQueries:
-    """Tests for ResourceTracker query methods."""
-
-    def test_get_session_resources_returns_copy(self, mock_ctx):
-        """get_session_resources returns a copy of resources dict."""
-        tracker = ResourceTracker(ctx=mock_ctx)
-        tracker.track_resource("port", 5678, "session-1")
-
-        resources = tracker.get_session_resources("session-1")
-
-        assert resources["port"] == [5678]
-        # Verify the outer dict is a copy (modifying dict doesn't affect tracker)
-        resources["new_type"] = ["new_value"]
-        assert "new_type" not in tracker._session_resources["session-1"]
-
-    def test_get_session_resources_unknown_session(self, mock_ctx):
-        """get_session_resources returns empty dict for unknown session."""
-        tracker = ResourceTracker(ctx=mock_ctx)
-
-        resources = tracker.get_session_resources("unknown")
-
-        assert resources == {}
-
-    def test_get_resource_owner_returns_correct_session(self, mock_ctx):
-        """get_resource_owner returns the owning session."""
-        tracker = ResourceTracker(ctx=mock_ctx)
-        tracker.track_resource("port", 5678, "session-1")
-        tracker.track_resource("port", 5679, "session-2")
-
-        owner1 = tracker.get_resource_owner("port", 5678)
-        owner2 = tracker.get_resource_owner("port", 5679)
-
-        assert owner1 == "session-1"
-        assert owner2 == "session-2"
-
-    def test_get_resource_owner_unknown_returns_none(self, mock_ctx):
-        """get_resource_owner returns None for unknown resource."""
-        tracker = ResourceTracker(ctx=mock_ctx)
-
-        owner = tracker.get_resource_owner("port", 9999)
-
-        assert owner is None
-
-
-class TestResourceTrackerClear:
-    """Tests for ResourceTracker clear operations."""
-
-    def test_clear_session_resources_removes_all(self, mock_ctx):
-        """clear_session_resources removes all resources for session."""
-        tracker = ResourceTracker(ctx=mock_ctx)
-        tracker.track_resource("port", 5678, "session-1")
-        tracker.track_resource("process", 1234, "session-1")
-
-        counts = tracker.clear_session_resources("session-1")
-
-        assert counts == {"port": 1, "process": 1}
-        assert "session-1" not in tracker._session_resources
-        assert ("port", 5678) not in tracker._resource_owners
-        assert ("process", 1234) not in tracker._resource_owners
-
-    def test_clear_session_resources_unknown_session(self, mock_ctx):
-        """clear_session_resources returns empty dict for unknown session."""
-        tracker = ResourceTracker(ctx=mock_ctx)
-
-        counts = tracker.clear_session_resources("unknown")
-
-        assert counts == {}
-
-
-class TestResourceTrackerLeakDetection:
-    """Tests for ResourceTracker leak detection."""
-
-    def test_detect_leaks_returns_sessions_with_resources(self, mock_ctx):
-        """detect_leaks returns sessions that still have resources."""
-        tracker = ResourceTracker(ctx=mock_ctx)
-        tracker.track_resource("port", 5678, "session-1")
-        tracker.track_resource("process", 1234, "session-2")
-
-        leaks = tracker.detect_leaks()
-
-        assert "session-1" in leaks
-        assert "session-2" in leaks
-        assert "port" in leaks["session-1"]
-        assert "process" in leaks["session-2"]
-
-    def test_detect_leaks_empty_when_no_resources(self, mock_ctx):
-        """detect_leaks returns empty dict when no resources tracked."""
-        tracker = ResourceTracker(ctx=mock_ctx)
-
-        leaks = tracker.detect_leaks()
-
-        assert leaks == {}
-
-    def test_get_all_resources(self, mock_ctx):
-        """get_all_resources returns all tracked resources."""
-        tracker = ResourceTracker(ctx=mock_ctx)
-        tracker.track_resource("port", 5678, "session-1")
-        tracker.track_resource("process", 1234, "session-2")
-
-        all_resources = tracker.get_all_resources()
-
-        assert "session-1" in all_resources
-        assert "session-2" in all_resources
 
 
 class TestSessionManagerInit:
@@ -219,13 +19,13 @@ class TestSessionManagerInit:
             assert manager._active_sessions == 0
             assert manager._current_session is None
 
-    def test_init_creates_registry_and_tracker(self, mock_ctx):
-        """SessionManager creates registry and resource tracker."""
+    def test_init_creates_registry(self, mock_ctx):
+        """SessionManager creates registry."""
         with patch("aidb.api.session_manager.SessionRegistry") as mock_registry_cls:
             manager = SessionManager(ctx=mock_ctx)
 
             mock_registry_cls.assert_called_once_with(ctx=mock_ctx)
-            assert manager._resource_tracker is not None
+            assert manager._registry is not None
 
 
 class TestSessionManagerProperties:
@@ -306,8 +106,8 @@ class TestSessionManagerCreateSession:
             with pytest.raises(AidbError, match="Maximum concurrent sessions"):
                 manager.create_session(target="/path/to/script.py")
 
-    def test_create_session_tracks_resource(self, mock_ctx):
-        """create_session tracks the session as a resource."""
+    def test_create_session_sets_current(self, mock_ctx):
+        """create_session sets the current session."""
         with patch("aidb.api.session_manager.SessionRegistry"):
             with patch("aidb.api.session_manager.SessionBuilder") as mock_builder_cls:
                 mock_builder = MagicMock()
@@ -326,10 +126,12 @@ class TestSessionManagerCreateSession:
 
                 manager = SessionManager(ctx=mock_ctx)
 
-                manager.create_session(target="/path/to/script.py", language="python")
+                result = manager.create_session(
+                    target="/path/to/script.py", language="python"
+                )
 
-                resources = manager.get_session_resources("test-session-id")
-                assert "session" in resources
+                assert manager._current_session == mock_session
+                assert result == mock_session
 
 
 class TestSessionManagerDestroySession:
@@ -367,47 +169,16 @@ class TestSessionManagerDestroySession:
 
             assert manager._active_sessions == 0
 
-    def test_destroy_session_clears_resources(self, mock_ctx, mock_session):
-        """destroy_session clears tracked resources."""
+    def test_destroy_session_does_not_go_negative(self, mock_ctx):
+        """destroy_session does not allow negative session count."""
         with patch("aidb.api.session_manager.SessionRegistry"):
             manager = SessionManager(ctx=mock_ctx)
-            manager._current_session = mock_session
-            manager._active_sessions = 1
-            manager._resource_tracker.track_resource(
-                "session", mock_session.id, mock_session.id
-            )
+            manager._active_sessions = 0
 
             manager.destroy_session()
+            manager.destroy_session()  # Call twice
 
-            resources = manager.get_session_resources(mock_session.id)
-            assert resources == {}
-
-
-class TestSessionManagerResourceSummary:
-    """Tests for SessionManager resource summary."""
-
-    def test_get_resource_summary(self, mock_ctx):
-        """get_resource_summary returns comprehensive summary."""
-        with patch("aidb.api.session_manager.SessionRegistry"):
-            manager = SessionManager(ctx=mock_ctx)
-            manager._active_sessions = 2
-            manager._resource_tracker.track_resource("port", 5678, "session-1")
-
-            summary = manager.get_resource_summary()
-
-            assert summary["active_sessions"] == 2
-            assert summary["total_resources"] == 1
-            assert "session-1" in summary["resources_by_session"]
-
-    def test_detect_resource_leaks(self, mock_ctx):
-        """detect_resource_leaks delegates to tracker."""
-        with patch("aidb.api.session_manager.SessionRegistry"):
-            manager = SessionManager(ctx=mock_ctx)
-            manager._resource_tracker.track_resource("port", 5678, "session-1")
-
-            leaks = manager.detect_resource_leaks()
-
-            assert "session-1" in leaks
+            assert manager._active_sessions == 0
 
 
 class TestSessionManagerGetLaunchConfig:

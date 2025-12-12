@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from aidb.adapters.lang.java.tooling import JavaBuildSystemDetector
+
 __all__ = ["detect_java_source_paths"]
 
 # Standard source directory names in Maven/Gradle projects
@@ -48,11 +50,7 @@ def _is_build_root(path: Path) -> bool:
     bool
         True if directory contains pom.xml or build.gradle
     """
-    return (
-        (path / "pom.xml").exists()
-        or (path / "build.gradle").exists()
-        or (path / "build.gradle.kts").exists()
-    )
+    return JavaBuildSystemDetector.is_maven_gradle_project(path)
 
 
 def _collect_source_paths(project_root: Path, source_paths: list[str]) -> None:

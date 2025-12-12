@@ -228,7 +228,20 @@ class Session(
         )
 
     def is_paused(self) -> bool:
-        """Check if the session is currently paused/stopped."""
+        """Check if the session is currently paused at a breakpoint or step.
+
+        This is the recommended method for checking session pause state. It checks
+        the high-level session status which is updated when the session receives
+        stopped events from the debug adapter.
+
+        For low-level DAP client state checking (e.g., during initialization when
+        child sessions may stop before full session setup), use ``is_dap_stopped()``.
+
+        Returns
+        -------
+        bool
+            True if the session is in PAUSED status, False otherwise
+        """
         return self.state.is_paused()
 
     # ---------------------------
@@ -251,14 +264,16 @@ class Session(
         return self.connector.get_events_api()
 
     def is_dap_stopped(self) -> bool:
-        """Check if the DAP client reports stopped state.
+        """Check if the DAP client reports stopped state (low-level).
 
-        This checks the low-level DAP client connection status, which may
-        differ from the high-level session lifecycle state during initialization
-        or teardown (e.g., JavaScript child sessions may stop at breakpoints
-        before the session is fully initialized).
+        This checks the low-level DAP event processor state directly, which may
+        differ from the high-level session status during initialization or
+        teardown. Use this when you need to check the raw DAP state, such as:
+        - JavaScript child sessions that stop before full initialization
+        - Detecting stopped state during complex session transitions
 
-        For high-level session status checking, use is_paused() instead.
+        For most use cases, prefer ``is_paused()`` which checks the high-level
+        session status.
 
         Returns
         -------
@@ -554,28 +569,3 @@ class Session(
             - timestamp: Unix timestamp when output was received
         """
         return self.connector.get_output(clear=clear)
-
-    def is_stopped(self) -> bool:
-        """Check if the session is stopped (paused at a breakpoint or step).
-
-        This is a unified method that handles both parent and child sessions
-        correctly. It checks the DAP client's stopped state, which is accurate
-        for:
-        - Parent sessions that are paused at breakpoints
-        - Child sessions (JavaScript/TypeScript) that may stop before full
-          session initialization
-
-        For high-level session lifecycle status, use ``is_paused()`` instead.
-        For low-level DAP client state, use ``is_dap_stopped()`` instead.
-
-        Returns
-        -------
-        bool
-            True if the session is stopped/paused, False otherwise
-        """
-        # For child sessions or sessions with DAP client, check DAP state
-        if self.connector.has_dap_client():
-            return self.is_dap_stopped()
-
-        # Fallback to session state for sessions without DAP client yet
-        return self.state.is_paused()

@@ -16,7 +16,12 @@ from ...core.context_utils import build_error_execution_state
 from ...core.decorators import mcp_tool
 from ...responses import StepResponse
 from ...responses.errors import InternalError
-from ...responses.helpers import handle_timeout_error, invalid_parameter, not_paused
+from ...responses.helpers import (
+    handle_timeout_error,
+    invalid_parameter,
+    is_session_paused,
+    not_paused,
+)
 
 logger = get_logger(__name__)
 
@@ -89,11 +94,8 @@ def _check_debugger_paused(
     if api and hasattr(api, "get_active_session"):
         active_session = api.get_active_session()
 
-    if (
-        active_session
-        and hasattr(active_session, "dap")
-        and not active_session.dap.is_stopped
-    ):
+    # Use shared utility for defensive session state checking
+    if not is_session_paused(active_session):
         logger.debug(
             "Step operation blocked - not paused",
             extra={

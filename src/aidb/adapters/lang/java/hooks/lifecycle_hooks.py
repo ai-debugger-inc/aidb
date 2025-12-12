@@ -327,11 +327,7 @@ class JDTLSReadinessHooks:
             Hook context containing launch result (unused)
         """
         # Skip wait for pooled bridges - they're already initialized
-        if self.adapter._lsp_dap_bridge and getattr(
-            self.adapter._lsp_dap_bridge,
-            "_is_pooled",
-            False,
-        ):
+        if self.adapter._lsp_dap_bridge and self.adapter._lsp_dap_bridge.is_pooled():
             self.adapter.ctx.debug(
                 "Post-launch hook: Skipping wait for pooled JDT LS bridge "
                 "(already initialized)",
@@ -367,22 +363,15 @@ class JDTLSReadinessHooks:
             # LSP executeCommand between sessions as JDT LS may stop responding
             # on long-lived connections. Only configure trace on first use or
             # for non-pooled bridges.
-            try:
-                if getattr(
-                    self.adapter._lsp_dap_bridge,
-                    "_is_pooled",
-                    False,
-                ) and getattr(
-                    self.adapter._lsp_dap_bridge,
-                    "dap_port",
-                    None,
-                ):
-                    self.adapter.ctx.debug(
-                        "Skipping JDT LS trace update for pooled bridge reuse",
-                    )
-                    return
-            except Exception:  # noqa: S110
-                pass
+            if self.adapter._lsp_dap_bridge.is_pooled() and getattr(
+                self.adapter._lsp_dap_bridge,
+                "dap_port",
+                None,
+            ):
+                self.adapter.ctx.debug(
+                    "Skipping JDT LS trace update for pooled bridge reuse",
+                )
+                return
 
             # When trace is enabled, always use FINEST for maximum verbosity
             self.adapter.ctx.info("Enabling JDT LS trace logging with level: FINEST")
@@ -591,48 +580,17 @@ class JDTLSCleanupHooks:
     def _is_bridge_pooled(self) -> bool:
         """Check if the current LSP-DAP bridge is managed by a pool.
 
+        Uses the _is_pooled flag (via bridge.is_pooled()) which is set when
+        the bridge is allocated from a pool. This is the authoritative check -
+        no need to query pool registries directly.
+
         Returns
         -------
         bool
             True if bridge is pooled, False otherwise
         """
-        is_pooled_bridge = False
-        self.adapter.ctx.debug(
-            f"[CLEANUP] Bridge._is_pooled flag: "
-            f"{getattr(self.adapter._lsp_dap_bridge, '_is_pooled', False)}",
-        )
-
-        # Check test pool
-        try:
-            from tests._fixtures.java_lsp_pool import get_test_jdtls_pool
-
-            test_pool = get_test_jdtls_pool()
-            if test_pool and test_pool.bridge == self.adapter._lsp_dap_bridge:
-                is_pooled_bridge = True
-                self.adapter.ctx.debug(
-                    "Pooled bridge (test) detected - skipping stop (managed by pool)",
-                )
-        except ImportError:
-            pass
-
-        # Check per-project pool
-        if not is_pooled_bridge:
-            try:
-                from ..jdtls_project_pool import get_jdtls_project_pool_sync
-
-                proj_pool = get_jdtls_project_pool_sync()
-                if proj_pool:
-                    # If any active entry matches this bridge, consider it pooled
-                    for entry in proj_pool._entries.values():  # type: ignore[attr-defined]
-                        if entry.bridge == self.adapter._lsp_dap_bridge:
-                            is_pooled_bridge = True
-                            self.adapter.ctx.debug(
-                                "Pooled bridge (per-project) detected - "
-                                "skipping stop (managed by pool)",
-                            )
-                            break
-            except Exception as e:
-                # Pool check failed, assume non-pooled
-                self.adapter.ctx.debug(f"Per-project pool check failed: {e}")
-
-        return is_pooled_bridge
+        if self.adapter._lsp_dap_bridge:
+            is_pooled = self.adapter._lsp_dap_bridge.is_pooled()
+            self.adapter.ctx.debug(f"[CLEANUP] Bridge.is_pooled(): {is_pooled}")
+            return is_pooled
+        return False

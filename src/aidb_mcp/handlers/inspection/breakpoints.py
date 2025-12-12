@@ -19,6 +19,7 @@ from ...responses.errors import InternalError, UnsupportedOperationError
 from ...responses.helpers import (
     internal_error,
     invalid_parameter,
+    is_session_paused,
     missing_parameter,
 )
 
@@ -285,14 +286,9 @@ async def _handle_watch_breakpoint(
             ),
         ).to_mcp_response()
 
-    # Validate we're paused
+    # Validate we're paused - use shared utility for defensive checking
     session = api.session if api and hasattr(api, "session") else None
-    if (
-        session
-        and hasattr(session, "state")
-        and hasattr(session.state, "is_paused")
-        and not session.state.is_paused()
-    ):
+    if session and not is_session_paused(session):
         return UnsupportedOperationError(
             operation="Set watchpoint",
             adapter_type="Java adapter",

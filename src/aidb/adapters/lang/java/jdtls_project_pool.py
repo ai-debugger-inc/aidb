@@ -122,6 +122,11 @@ class JDTLSProjectPool:
                 java_command=java_command,
                 ctx=self.ctx,
             )
+            # Set _is_pooled flag - SINGLE SOURCE OF TRUTH for pool detection.
+            # Check via bridge.is_pooled() rather than:
+            # - Querying pool registries (expensive)
+            # - Checking bridge.process state (ambiguous)
+            # Flag propagates to children (debug_session_manager, lsp_client).
             bridge._is_pooled = True
 
             self.ctx.info(

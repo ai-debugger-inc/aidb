@@ -160,6 +160,106 @@ class ExecutionOperations(SessionOperationsMixin):
         """
         super().__init__(session, ctx)
 
+    def _build_terminated_state(self) -> ExecutionStateResponse:
+        """Build ExecutionStateResponse for terminated state.
+
+        Returns
+        -------
+        ExecutionStateResponse
+            Response indicating the session has terminated
+        """
+        from aidb.models import ExecutionState, SessionStatus, StopReason
+
+        exec_state = ExecutionState(
+            status=SessionStatus.TERMINATED,
+            running=False,
+            paused=False,
+            stop_reason=StopReason.EXIT,
+            terminated=True,
+        )
+        return ExecutionStateResponse(success=True, execution_state=exec_state)
+
+    async def _probe_callstack_for_paused_state(
+        self,
+    ) -> ExecutionStateResponse | None:
+        """Probe callstack to detect paused state when event wasn't received.
+
+        Some adapters delay the stopped event until after the continue response.
+        This method probes the callstack to detect if we're actually paused.
+
+        Returns
+        -------
+        ExecutionStateResponse | None
+            Response if paused state detected, None otherwise
+        """
+        try:
+            thread_id = await self.get_current_thread_id()
+            stack_response = await self.session.debug.callstack(thread_id=thread_id)
+
+            if not (stack_response.success and stack_response.frames):
+                return None
+
+            top = stack_response.frames[0]
+            from aidb.models import ExecutionState, SessionStatus, StopReason
+
+            exec_state = ExecutionState(
+                status=SessionStatus.PAUSED,
+                running=False,
+                paused=True,
+                stop_reason=StopReason.UNKNOWN,
+                thread_id=thread_id,
+                frame_id=top.id,
+                current_file=top.source.path if top.source else None,
+                current_line=top.line,
+            )
+            self.ctx.debug(
+                f"continue: Fallback detected paused state via callstack; "
+                f"line={exec_state.current_line} file={exec_state.current_file}",
+            )
+            return ExecutionStateResponse(success=True, execution_state=exec_state)
+        except Exception as probe_err:
+            self.ctx.debug(f"continue: Fallback callstack probe failed: {probe_err}")
+            return None
+
+    async def _handle_continue_wait_result(
+        self,
+        result: str,
+    ) -> ExecutionStateResponse | None:
+        """Handle the result of waiting for stop/terminated event.
+
+        Parameters
+        ----------
+        result : str
+            Result from wait_for_stopped_or_terminated_async ("stopped", "timeout",
+            "terminated")
+
+        Returns
+        -------
+        ExecutionStateResponse | None
+            Response if a final state was determined, None to fall through
+        """
+        if result == "stopped":
+            self.ctx.debug("continue: Taking _build_stopped_execution_state path")
+            return await _build_stopped_execution_state(self)
+
+        if result == "terminated":
+            return self._build_terminated_state()
+
+        if result == "timeout":
+            self.ctx.debug("continue: Got timeout, checking if session terminated...")
+
+            # If session terminated, return terminated state
+            if self.session.dap.is_terminated:
+                return self._build_terminated_state()
+
+            # Probe callstack to detect delayed paused state
+            probed_response = await self._probe_callstack_for_paused_state()
+            if probed_response:
+                return probed_response
+
+        # Fall through (running state)
+        return None
+
     @instrument_step("continue")
     @clears_frame_cache
     async def continue_(
@@ -181,124 +281,38 @@ class ExecutionOperations(SessionOperationsMixin):
         ExecutionStateResponse
             Current execution state after continuing
         """
-        # Debug logging
         self.ctx.debug(f"continue_: Session status = {self.session.status}")
         thread_id = request.arguments.threadId if request.arguments else "None"
 
-        # Always send the continue request to resume execution, even if already stopped.
-        # The is_dap_stopped() check was causing continue to be skipped when hitting
-        # breakpoints in loops, preventing advancement to subsequent iterations.
+        # Send the continue request to resume execution
         self.ctx.debug(f"continue_: Sending continue request with threadId={thread_id}")
         response = await self.session.dap.send_request(request)
         self.ctx.debug(f"continue_: Got response: {response}")
 
         if wait_for_stop:
-            # Log wait start if debug enabled
             if self.ctx.is_debug_enabled():
                 self.ctx.debug(
                     "continue: waiting for stop/terminate event (edge-triggered)",
                 )
 
+            # Wait for stop/terminate event
             try:
-                # Use edge-triggered mode to wait for NEXT event, not stale state
                 result = await self.session.events.wait_for_stopped_or_terminated_async(
                     timeout=STACK_TRACE_TIMEOUT_S,
                     edge_triggered=True,
                 )
             except DebugTimeoutError:
-                # Timeout waiting for stop - program may have run to completion
-                # without hitting breakpoints
                 result = "timeout"
 
-            # Log wait result if debug enabled
             if self.ctx.is_debug_enabled():
                 self.ctx.debug(f"continue: wait completed with result={result}")
-                is_stopped = result == "stopped"
-                self.ctx.debug(
-                    f"continue: result type={type(result)}, "
-                    f"result==`stopped`: {is_stopped}",
-                )
 
-            # If we waited for stop and got a stop/terminate, return the actual state
-            if result == "stopped":
-                # Build proper stopped state response
-                self.ctx.debug("continue: Taking _build_stopped_execution_state path")
-                return await _build_stopped_execution_state(self)
-            if result == "timeout":
-                self.ctx.debug(
-                    "continue: Got timeout, checking if session terminated...",
-                )
-                # If session terminated, return terminated state immediately.
-                if self.session.dap.is_terminated:
-                    # Program terminated without hitting breakpoints
-                    from aidb.models import ExecutionState, SessionStatus, StopReason
+            # Handle the wait result
+            wait_response = await self._handle_continue_wait_result(result)
+            if wait_response:
+                return wait_response
 
-                    exec_state = ExecutionState(
-                        status=SessionStatus.TERMINATED,
-                        running=False,
-                        paused=False,
-                        stop_reason=StopReason.EXIT,
-                        terminated=True,
-                    )
-
-                    return ExecutionStateResponse(
-                        success=True,
-                        execution_state=exec_state,
-                    )
-                # Otherwise, probe callstack to detect a paused state in cases
-                # where adapters delay the stopped event until after continue response.
-                try:
-                    thread_id_probe = await self.get_current_thread_id()
-                    stack_response = await self.session.debug.callstack(
-                        thread_id=thread_id_probe,
-                    )
-                    if stack_response.success and stack_response.frames:
-                        top = stack_response.frames[0]
-                        from aidb.models import (
-                            ExecutionState,
-                            SessionStatus,
-                            StopReason,
-                        )
-
-                        exec_state = ExecutionState(
-                            status=SessionStatus.PAUSED,
-                            running=False,
-                            paused=True,
-                            stop_reason=StopReason.UNKNOWN,
-                            thread_id=thread_id_probe,
-                            frame_id=top.id,
-                            current_file=top.source.path if top.source else None,
-                            current_line=top.line,
-                        )
-                        self.ctx.debug(
-                            "continue: Fallback detected paused state via callstack; "
-                            f"line={exec_state.current_line} "
-                            f"file={exec_state.current_file}",
-                        )
-                        return ExecutionStateResponse(
-                            success=True,
-                            execution_state=exec_state,
-                        )
-                except Exception as probe_err:
-                    self.ctx.debug(
-                        f"continue: Fallback callstack probe failed: {probe_err}",
-                    )
-                # Otherwise fall through to return running state
-            elif result == "terminated":
-                # Build ExecutionState for terminated state
-                from aidb.models import ExecutionState, SessionStatus, StopReason
-
-                exec_state = ExecutionState(
-                    status=SessionStatus.TERMINATED,
-                    running=False,
-                    paused=False,
-                    stop_reason=StopReason.EXIT,
-                    terminated=True,
-                )
-
-                return ExecutionStateResponse(success=True, execution_state=exec_state)
-
-        # Fall through to default response (no location info)
+        # Fall through to default response (running state)
         self.ctx.debug(
             f"continue: Falling through to from_dap() path, "
             f"wait_for_stop={wait_for_stop}",

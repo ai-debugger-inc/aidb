@@ -253,17 +253,17 @@ class AdapterBinaryLocator(Obj):
         arch_name = get_arch_name(machine)
 
         instructions = [
-            f"\n📦 To install the {language} adapter:",
+            f"\nTo install the {language} adapter:",
             "",
-            "🚀 Option 1: Automatic download (recommended):",
-            f"  • MCP: Use adapter tool with action='download', language='{language}'",
+            "Option 1: Automatic download (recommended):",
+            f"  - MCP: Use adapter tool with action='download', language='{language}'",
             "",
-            "📁 Option 2: Manual download from GitHub releases:",
+            "Option 2: Manual download from GitHub releases:",
             "  1. Go to: https://github.com/ai-debugger-inc/aidb/releases/latest",
             f"  2. Download: {adapter_name}-*-{platform_name}-{arch_name}.tar.gz",
             f"  3. Extract to: ~/.aidb/adapters/{adapter_name}/",
             "",
-            "🔧 Option 3: Set environment variable:",
+            "Option 3: Set environment variable:",
             f"  export AIDB_{language.upper()}_ADAPTER_PATH=/path/to/adapter",
             "",
             "For offline installation, download the adapter archive on another",

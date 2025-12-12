@@ -8,11 +8,9 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 
 from aidb.audit.middleware import audit_operation
 from aidb.common.errors import AidbError
-from aidb.dap.client.constants import EventType
 from aidb.models import (
     AidbBreakpoint,
     AidbStopResponse,
-    SessionStatus,
     StartRequestType,
     StartResponse,
 )
@@ -163,177 +161,25 @@ class SessionLifecycleMixin:
         StartResponse
             Response containing session startup status
         """
-        try:
-            # Launch the adapter process
-            await self._launch_adapter_process()
+        from aidb.session.utils.launch_initializer import LaunchInitializer
 
-            # Connect the DAP client
-            if self.dap:
-                await self.dap.connect()
-                # Note: Pending subscriptions (from deferred sessions) will be
-                # transferred to the DAP client as events are subscribed
-
-                # Subscribe to breakpoint events for state synchronization
-                await self._setup_breakpoint_event_subscription()
-
-            # Execute the adapter-specific initialization sequence
-            sequence = self.adapter.config.get_initialization_sequence()
-            await self._execute_initialization_sequence(sequence)
-
-            # Call post-initialization operations (e.g., set initial breakpoints)
-            result = await self.debug.start(
-                auto_wait=auto_wait,
-                wait_timeout=wait_timeout,
-            )
-
-            # Mark session as started if successful
-            if result.success:
-                self.started = True
-
-            return result
-
-        except Exception as e:
-            import traceback
-
-            self.ctx.error(f"Failed to launch: {e}")
-            self.ctx.error(f"Traceback: {traceback.format_exc()}")
-            return StartResponse(
-                success=False,
-                message=f"Launch failed: {e}",
-            )
-
-    async def _launch_adapter_process(self) -> None:
-        """Launch the debug adapter process.
-
-        This method handles the actual launching of the debug adapter, which varies by
-        language and configuration.
-        """
-        try:
-            # Use the adapter's launch method based on start request type
-            if self.start_request_type.value == "launch":
-                process_info = await self.adapter.launch(
-                    self.target,
-                    port=self.adapter_port,
-                    args=self.args,
-                    env=self.adapter_kwargs.get("env"),
-                    cwd=self.adapter_kwargs.get("cwd"),
-                )
-            elif self.start_request_type.value == "attach":
-                process_info = await self.adapter.attach(self.target)
-            else:
-                msg = f"Unknown start request type: {self.start_request_type}"
-                raise ValueError(
-                    msg,
-                )
-
-            self.ctx.debug(f"Adapter process launched: {process_info}")
-
-            # Update the session's adapter port if it changed (shouldn't happen now)
-            if isinstance(process_info, tuple) and len(process_info) >= 2:
-                _, actual_port = process_info
-                if actual_port != self.adapter_port:
-                    self.ctx.debug(
-                        f"Adapter used different port {actual_port} "
-                        f"than allocated {self.adapter_port}",
-                    )
-                    self.adapter_port = actual_port
-                    # Need to recreate DAP client with correct port
-                    if self.connector._dap:
-                        self.connector._dap = None
-                        self._setup_dap_client()
-
-        except Exception as e:
-            self.ctx.error(f"Failed to launch adapter process: {e}")
-            raise
-
-    async def _execute_initialization_sequence(self, sequence: list) -> None:
-        """Execute the DAP initialization sequence.
-
-        This delegates to the InitializationOps class which handles
-        the actual DAP protocol initialization.
-
-        Parameters
-        ----------
-        sequence : list
-            List of initialization steps to execute
-        """
-        # Delegate to the initialization operations module
-        from aidb.session.ops.initialization import InitializationMixin
-
-        init_ops = InitializationMixin(session=cast("Session", self), ctx=self.ctx)
-        await init_ops._execute_initialization_sequence(sequence)
+        session = cast("Session", self)
+        initializer = LaunchInitializer(session=session, ctx=self.ctx)
+        return await initializer.handle_launch_mode(auto_wait, wait_timeout)
 
     async def _setup_breakpoint_event_subscription(self) -> None:
         """Subscribe to breakpoint events for state synchronization.
 
         This sets up the critical bridge that syncs asynchronous breakpoint verification
-        events from the DAP adapter back to session state. Without this, breakpoints
-        remain unverified in session state even after the adapter confirms verification.
+        events from the DAP adapter back to session state.
         """
-        # Idempotence check: skip if already subscribed
+        from aidb.session.utils.event_subscription_manager import (
+            EventSubscriptionManager,
+        )
+
         session = cast("Session", self)
-        if hasattr(session, "_event_subscriptions") and session._event_subscriptions:
-            self.ctx.debug(
-                "Breakpoint event subscriptions already set up, skipping",
-            )
-            return
-
-        if not self.dap or not hasattr(self.dap, "events"):
-            self.ctx.debug(
-                "Cannot subscribe to breakpoint events: "
-                "DAP or events API not available",
-            )
-            return
-
-        # Initialize tracking dict if not present
-        if not hasattr(session, "_event_subscriptions"):
-            session._event_subscriptions = {}
-
-        try:
-            # Subscribe to breakpoint events using the session's handler
-            # The handler (_on_breakpoint_event) is defined in SessionBreakpointsMixin
-            subscription_id = await self.dap.events.subscribe_to_event(
-                EventType.BREAKPOINT.value,
-                session._on_breakpoint_event,
-            )
-            session._event_subscriptions[EventType.BREAKPOINT.value] = subscription_id
-            self.ctx.debug(
-                f"Subscribed to breakpoint events for state sync "
-                f"(subscription_id={subscription_id})",
-            )
-
-            # Subscribe to loadedSource events for proactive rebinding
-            # This accelerates breakpoint verification by re-sending setBreakpoints
-            # when sources load, rather than waiting for async verification
-            loaded_source_key = EventType.LOADED_SOURCE.value
-            loadedsource_sub_id = await self.dap.events.subscribe_to_event(
-                loaded_source_key,
-                session._on_loaded_source_event,
-            )
-            session._event_subscriptions[loaded_source_key] = loadedsource_sub_id
-            self.ctx.debug(
-                f"Subscribed to loadedSource events for proactive rebinding "
-                f"(subscription_id={loadedsource_sub_id})",
-            )
-
-            # Subscribe to terminated event to clear breakpoint cache
-            # This prevents returning stale breakpoint data after session ends
-            terminated_sub_id = await self.dap.events.subscribe_to_event(
-                EventType.TERMINATED.value,
-                session._on_terminated_event,
-            )
-            session._event_subscriptions[EventType.TERMINATED.value] = terminated_sub_id
-            self.ctx.debug(
-                f"Subscribed to terminated event for cache cleanup "
-                f"(subscription_id={terminated_sub_id})",
-            )
-        except Exception as e:
-            # Non-fatal: breakpoint sync is important but not critical
-            # for basic operation
-            self.ctx.warning(
-                f"Failed to subscribe to breakpoint events: {e}. "
-                "Breakpoint verification state may not update correctly.",
-            )
+        manager = EventSubscriptionManager(session=session, ctx=self.ctx)
+        await manager.setup_breakpoint_event_subscription()
 
     async def _handle_attach_mode(
         self,
@@ -354,310 +200,37 @@ class SessionLifecycleMixin:
         StartResponse
             Response containing attach status
         """
-        params = self._attach_params
-        if params is None:
-            msg = "No attach parameters set"
-            raise AidbError(msg)
-        host = params.get("host")
-        port = params.get("port")
-        pid = params.get("pid")
-        timeout = params.get("timeout", 10000)
-        project_name = params.get("project_name")
+        from aidb.session.utils.attach_initializer import AttachInitializer
 
-        try:
-            if host and port:
-                # Remote or local attach via host:port
-                return await self._attach_to_host_port(
-                    host,
-                    port,
-                    timeout,
-                    project_name,
-                    auto_wait,
-                    wait_timeout,
-                )
-            if pid:
-                # Local attach via PID
-                return await self._attach_to_pid(
-                    pid,
-                    timeout,
-                    project_name,
-                    auto_wait,
-                    wait_timeout,
-                )
-            msg = "Attach mode requires either host:port or pid"
-            raise AidbError(msg)
-
-        except Exception as e:
-            self.ctx.error(f"Failed to attach: {e}")
-            return StartResponse(
-                success=False,
-                message=f"Attach failed: {e}",
-            )
-
-    async def _attach_to_host_port(
-        self,
-        host: str,
-        port: int,
-        timeout: int,
-        project_name: str | None,
-        auto_wait: bool | None = None,
-        wait_timeout: float = 5.0,
-    ) -> StartResponse:
-        """Attach to a process via host and port.
-
-        Parameters
-        ----------
-        host : str
-            Host to attach to
-        port : int
-            Port to attach to
-        timeout : int
-            Timeout in milliseconds
-        project_name : Optional[str]
-            Project name for context
-        auto_wait : bool, optional
-            Whether to automatically wait for the first stop event
-        wait_timeout : float, optional
-            Timeout in seconds for auto-wait
-
-        Returns
-        -------
-        StartResponse
-            Response containing attach status
-        """
-        if hasattr(self.adapter, "attach_remote"):
-            _, dap_port = await self.adapter.attach_remote(
-                host=host,
-                port=port,
-                timeout=timeout,
-                project_name=project_name,
-            )
-            # Update the session's adapter port if it changed
-            if dap_port and dap_port != self.adapter_port:
-                self.ctx.debug(
-                    f"Adapter port changed from {self.adapter_port} to {dap_port}",
-                )
-                self.adapter_port = dap_port
-                # Update the DAP client's port before connecting
-                if hasattr(self, "dap") and self.dap:
-                    await self.dap.update_adapter_port(dap_port)
-        else:
-            # Fallback - use launch mode flow
-            return await self._handle_launch_mode(auto_wait, wait_timeout)
-
-        # Connect to DAP and perform initialization
-        if self.dap:
-            await self.dap.connect()
-            # Subscribe to breakpoint events for state synchronization
-            await self._setup_breakpoint_event_subscription()
-
-        # Execute the adapter-specific initialization sequence
-        sequence = self.adapter.config.get_initialization_sequence()
-        await self._execute_initialization_sequence(sequence)
-
-        # Call post-initialization operations (e.g., set initial breakpoints)
-        result = await self.debug.start(auto_wait=auto_wait, wait_timeout=wait_timeout)
-
-        if result.success:
-            self.started = True
-
-        return result
-
-    async def _attach_to_pid(
-        self,
-        pid: int,
-        timeout: int,
-        project_name: str | None,
-        auto_wait: bool | None = None,
-        wait_timeout: float = 5.0,
-    ) -> StartResponse:
-        """Attach to a process via PID.
-
-        Parameters
-        ----------
-        pid : int
-            Process ID to attach to
-        timeout : int
-            Timeout in milliseconds
-        project_name : Optional[str]
-            Project name for context
-        auto_wait : bool, optional
-            Whether to automatically wait for the first stop event
-        wait_timeout : float, optional
-            Timeout in seconds for auto-wait
-
-        Returns
-        -------
-        StartResponse
-            Response containing attach status
-        """
-        if hasattr(self.adapter, "attach_pid"):
-            _, dap_port = self.adapter.attach_pid(
-                pid=pid,
-                timeout=timeout,
-                project_name=project_name,
-            )
-            # Update the session's adapter port if it changed
-            if dap_port and dap_port != self.adapter_port:
-                self.ctx.debug(
-                    f"Adapter port changed from {self.adapter_port} to {dap_port}",
-                )
-                self.adapter_port = dap_port
-                # Update the DAP client's port before connecting
-                if hasattr(self, "dap") and self.dap:
-                    await self.dap.update_adapter_port(dap_port)
-        else:
-            # Fallback - use launch mode flow
-            return await self._handle_launch_mode(auto_wait, wait_timeout)
-
-        # Connect to DAP and perform initialization
-        if self.dap:
-            await self.dap.connect()
-            # Subscribe to breakpoint events for state synchronization
-            await self._setup_breakpoint_event_subscription()
-
-        # Execute the adapter-specific initialization sequence
-        sequence = self.adapter.config.get_initialization_sequence()
-        await self._execute_initialization_sequence(sequence)
-
-        # Call post-initialization operations (e.g., set initial breakpoints)
-        result = await self.debug.start(auto_wait=auto_wait, wait_timeout=wait_timeout)
-
-        if result.success:
-            self.started = True
-
-        return result
-
-    async def _destroy_child_sessions(self) -> None:
-        """Clean up child sessions."""
-        for child_id in self.child_session_ids[
-            :
-        ]:  # Copy list to avoid modification during iteration
-            child = self.registry.get_session(child_id)
-            if child:
-                await child.destroy()
-
-    async def _stop_debug_session(self, session: Any) -> None:
-        """Stop the debug session if running.
-
-        Parameters
-        ----------
-        session : Any
-            Session object with status attribute
-        """
-        if session.status == SessionStatus.RUNNING:
-            try:
-                await self.debug.stop()
-            except Exception as e:
-                self.ctx.debug(f"Error stopping session during destroy: {e}")
-
-    async def _disconnect_dap_client(self) -> None:
-        """Disconnect DAP client if connected."""
-        if hasattr(self, "connector") and self.connector._dap:
-            try:
-                await self.connector._dap.disconnect()
-            except Exception as e:
-                self.ctx.debug(f"Error disconnecting DAP client: {e}")
-
-    async def _stop_adapter(self) -> None:
-        """Stop adapter (terminates process and releases resources)."""
-        if hasattr(self, "adapter") and self.adapter:
-            try:
-                if hasattr(self.adapter, "stop"):
-                    await self.adapter.stop()
-            except Exception as e:
-                self.ctx.debug(f"Error stopping adapter: {e}")
-
-    async def _cleanup_resources(self) -> None:
-        """Clean up all resources (ports and processes) for this session."""
-        # Await any pending breakpoint update tasks before cleanup
         session = cast("Session", self)
-        if (
-            hasattr(session, "_breakpoint_update_tasks")
-            and session._breakpoint_update_tasks
-        ):
-            import asyncio
-
-            await asyncio.gather(
-                *session._breakpoint_update_tasks,
-                return_exceptions=True,
-            )
-            session._breakpoint_update_tasks.clear()
-
-        try:
-            # Unsubscribe from events before cleanup
-            # Use timeout to prevent hanging if receiver is blocked
-            if (
-                hasattr(session, "_event_subscriptions")
-                and session._event_subscriptions
-                and hasattr(self, "connector")
-                and self.connector._dap
-            ):
-                import asyncio
-
-                for event_type, sub_id in session._event_subscriptions.items():
-                    try:
-                        await asyncio.wait_for(
-                            self.connector._dap.events.unsubscribe_from_event(sub_id),
-                            timeout=2.0,  # Don't block cleanup indefinitely
-                        )
-                        self.ctx.debug(
-                            f"Unsubscribed from {event_type} events (id={sub_id})",
-                        )
-                    except asyncio.TimeoutError:
-                        self.ctx.warning(
-                            f"Timeout unsubscribing from {event_type} (id={sub_id})",
-                        )
-                    except Exception as e:
-                        self.ctx.debug(
-                            f"Failed to unsubscribe from {event_type}: {e}",
-                        )
-                session._event_subscriptions.clear()
-
-            if hasattr(self, "resource_manager") and self.resource_manager:
-                cleanup_result = await self.resource_manager.cleanup_all_resources()
-                self.ctx.debug(
-                    f"Resource cleanup complete: "
-                    f"terminated {cleanup_result.get('terminated_processes', 0)} "
-                    f"procs, "
-                    f"released {cleanup_result.get('released_ports', 0)} ports",
-                )
-            else:
-                # Fallback: Release ALL ports for this session using port registry
-                from aidb.resources.ports import PortRegistry
-
-                port_registry = PortRegistry(session_id=self._id, ctx=self.ctx)
-                released_ports = port_registry.release_session_ports(self._id)
-                if released_ports:
-                    self.ctx.debug(
-                        f"Released {len(released_ports)} ports: {released_ports}",
-                    )
-                else:
-                    self.ctx.debug(f"No ports to release for session {self._id}")
-        except Exception as e:
-            self.ctx.error(f"Error during resource cleanup: {e}")
+        initializer = AttachInitializer(session=session, ctx=self.ctx)
+        return await initializer.handle_attach_mode(auto_wait, wait_timeout)
 
     @audit_operation(component="session.lifecycle", operation="destroy")
     async def destroy(self) -> None:
-        """Clean up and destroy the session."""
+        """Clean up and destroy the session.
+
+        This method orchestrates the complete session shutdown:
+        1. Destroy child sessions
+        2. Stop debug session
+        3. Disconnect DAP client
+        4. Stop adapter
+        5. Clean up resources
+
+        Raises
+        ------
+        AidbError
+            If the destroy operation fails
+        """
+        from aidb.session.utils.shutdown_orchestrator import SessionShutdownOrchestrator
+
         session = cast("Session", self)
         self.ctx.debug(f"Destroying session {session.id}")
 
         try:
-            # Clean up child sessions first
-            await self._destroy_child_sessions()
-
-            # Stop the debug session if running
-            await self._stop_debug_session(session)
-
-            # Disconnect DAP client
-            await self._disconnect_dap_client()
-
-            # Stop adapter
-            await self._stop_adapter()
-
-            # Clean up all resources
-            await self._cleanup_resources()
+            # Delegate shutdown orchestration
+            shutdown = SessionShutdownOrchestrator(session=session, ctx=self.ctx)
+            await shutdown.execute_full_shutdown()
 
             # Unregister from session registry
             self.registry.unregister_session(session.id)

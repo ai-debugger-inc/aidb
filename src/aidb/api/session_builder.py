@@ -11,6 +11,7 @@ from aidb.patterns import Obj
 from aidb.session import Session
 
 from .breakpoint_converter import BreakpointConverter
+from .constants import ADAPTER_ARG_ARGS, ADAPTER_ARG_PROGRAM, ADAPTER_ARG_TARGET
 
 if TYPE_CHECKING:
     from aidb.interfaces.context import IContext
@@ -215,6 +216,63 @@ class SessionBuilder(Obj):
         self._start_request_type: StartRequestType | None = None
         return self
 
+    def _load_and_apply_launch_config(
+        self,
+        config_name: str,
+        workspace_root: str | Path | None = None,
+        target: str | None = None,
+        override_existing: bool = True,
+    ) -> bool:
+        """Load launch configuration and apply settings to builder state.
+
+        Parameters
+        ----------
+        config_name : str
+            Name of launch configuration
+        workspace_root : str | Path, optional
+            Root directory containing .vscode/launch.json
+        target : str, optional
+            Target for ${file} variable resolution
+        override_existing : bool
+            If True, override existing target/args; if False, only fill missing values
+
+        Returns
+        -------
+        bool
+            True if configuration was loaded successfully
+        """
+        manager = LaunchConfigurationManager(workspace_root)
+        launch_config = manager.get_configuration(config_name, target=target)
+
+        if not launch_config:
+            return False
+
+        adapter_args = launch_config.to_adapter_args()
+
+        # Extract key parameters
+        self._language = launch_config.type
+
+        if override_existing or not self._target:
+            self._target = adapter_args.pop(
+                ADAPTER_ARG_TARGET,
+                None,
+            ) or adapter_args.pop(ADAPTER_ARG_PROGRAM, None)
+        else:
+            # Remove but don't use
+            adapter_args.pop(ADAPTER_ARG_TARGET, None)
+            adapter_args.pop(ADAPTER_ARG_PROGRAM, None)
+
+        if override_existing or not self._args:
+            self._args = adapter_args.pop(ADAPTER_ARG_ARGS, None)
+        else:
+            adapter_args.pop(ADAPTER_ARG_ARGS, None)
+
+        self._launch_config = launch_config
+
+        # Merge remaining adapter args
+        self._kwargs.update(adapter_args)
+        return True
+
     def with_launch_config(
         self,
         config_name: str,
@@ -248,25 +306,12 @@ class SessionBuilder(Obj):
         # Try to load the config WITHOUT target first (may fail with ${file} error)
         # If it fails, we'll retry later when we have the target
         try:
-            manager = LaunchConfigurationManager(workspace_root)
-            launch_config = manager.get_configuration(
+            self._load_and_apply_launch_config(
                 config_name,
+                workspace_root,
                 target=None,
+                override_existing=True,
             )
-
-            if launch_config:
-                adapter_args = launch_config.to_adapter_args()
-                # Extract key parameters
-                self._language = launch_config.type
-                self._target = adapter_args.pop("target", None) or adapter_args.pop(
-                    "program",
-                    None,
-                )
-                self._args = adapter_args.pop("args", None)
-                self._launch_config = launch_config
-
-                # Merge remaining adapter args
-                self._kwargs.update(adapter_args)
         except VSCodeVariableError as e:
             # If we get a ${file} error, it's OK - we'll resolve when target is set
             if "${file}" not in str(e) and "${{file}}" not in str(e):
@@ -300,34 +345,18 @@ class SessionBuilder(Obj):
 
         # If we have a pending launch config with ${file} variables, resolve it now
         if self._launch_config_name and not self._launch_config:
+            import contextlib
+
             from aidb.common.errors import VSCodeVariableError
 
-            try:
-                manager = LaunchConfigurationManager(self._launch_config_workspace)
-                launch_config = manager.get_configuration(
+            # If still can't resolve ${file}, let it fail later with clear error
+            with contextlib.suppress(VSCodeVariableError):
+                self._load_and_apply_launch_config(
                     self._launch_config_name,
-                    target=target,  # Pass target for ${file} resolution
+                    self._launch_config_workspace,
+                    target=target,
+                    override_existing=False,
                 )
-
-                if launch_config:
-                    adapter_args = launch_config.to_adapter_args()
-                    # Extract key parameters
-                    self._language = launch_config.type
-                    # Don't override target if we already have one
-                    if not self._target:
-                        self._target = adapter_args.pop(
-                            "target",
-                            None,
-                        ) or adapter_args.pop("program", None)
-                    if not self._args:
-                        self._args = adapter_args.pop("args", None)
-                    self._launch_config = launch_config
-
-                    # Merge remaining adapter args
-                    self._kwargs.update(adapter_args)
-            except VSCodeVariableError:
-                # If still can't resolve, let it fail later with clear error
-                pass
 
         return self
 
