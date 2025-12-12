@@ -209,8 +209,8 @@ async def _handle_adapter_list(_args: dict[str, Any]) -> dict[str, Any]:
             total_installed=0,
             install_directory=str(downloader.install_dir),
             suggestions=[
-                "Use download_adapter tool to install a specific adapter",
-                "Use download_all_adapters tool to install all adapters",
+                "Use adapter tool with action='download' and language parameter",
+                "Use adapter tool with action='download_all' to install all adapters",
             ],
         ).to_mcp_response()
 
@@ -354,8 +354,4 @@ async def handle_adapter_management(args: dict[str, Any]) -> dict[str, Any]:
 # Handler registry for adapter management tool
 HANDLERS = {
     ToolName.ADAPTER: handle_adapter_management,
-    # Deprecated handlers - kept for backward compatibility
-    ToolName.DOWNLOAD_ADAPTER: _handle_adapter_download,
-    ToolName.DOWNLOAD_ALL_ADAPTERS: _handle_adapter_download_all,
-    ToolName.LIST_INSTALLED_ADAPTERS: _handle_adapter_list,
 }

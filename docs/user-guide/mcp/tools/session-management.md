@@ -154,7 +154,7 @@ The `init` tool is the **mandatory first step** for all debugging operations. It
        "available": false,
        "reason": "Python adapter not installed",
        "suggestions": [
-         "Use download_adapter tool with language='python'"
+         "Use adapter tool with action='download', language='python'"
        ]
      }
    }

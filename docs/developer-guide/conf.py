@@ -38,7 +38,7 @@ myst_fence_as_directive = ["mermaid"]
 # API docs generation can be slow - use smart change detection
 
 
-def _should_generate_api_docs() -> bool:
+def _should_generate_api_docs() -> bool:  # noqa: C901
     """Check if API docs need regeneration based on source file changes."""
     # Allow manual override to skip
     if os.getenv("SKIP_API_DOCS", "0") == "1":
@@ -52,7 +52,7 @@ def _should_generate_api_docs() -> bool:
     src_dir = ROOT.parent.parent / "src"
     packages = ["aidb", "aidb_cli", "aidb_mcp", "aidb_logging", "aidb_common"]
 
-    hash_obj = hashlib.md5()
+    hash_obj = hashlib.md5()  # noqa: S324
     file_count = 0
 
     for pkg in packages:

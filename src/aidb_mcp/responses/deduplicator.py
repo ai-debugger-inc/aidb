@@ -137,7 +137,7 @@ class ResponseDeduplicator:
         2. Removes fields that are null/empty when appropriate
         3. Preserves semantic meaning (keeps meaningful nulls)
         """
-        if not ConfigManager().is_mcp_compact():
+        if ConfigManager().is_mcp_verbose():
             # Verbose mode - return as-is
             return response
 

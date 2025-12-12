@@ -1,5 +1,6 @@
 """DAP protocol utilities for request creation."""
 
+from aidb.common.validation import validate_frame_id, validate_thread_id
 from aidb.dap.protocol.bodies import (
     ContinueArguments,
     GotoArguments,
@@ -7,7 +8,7 @@ from aidb.dap.protocol.bodies import (
 )
 from aidb.dap.protocol.requests import ContinueRequest, GotoRequest, PauseRequest
 
-from .base import ValidationMixin
+from .constants import DEFAULT_FRAME_ID, DEFAULT_THREAD_ID
 
 
 def resolve_thread_id(thread_id: int | None) -> int:
@@ -23,7 +24,7 @@ def resolve_thread_id(thread_id: int | None) -> int:
     int
         Resolved thread ID
     """
-    return ValidationMixin.validate_thread_id(thread_id)
+    return validate_thread_id(thread_id, default=DEFAULT_THREAD_ID)
 
 
 def resolve_frame_id(frame_id: int | None) -> int:
@@ -39,7 +40,7 @@ def resolve_frame_id(frame_id: int | None) -> int:
     int
         Resolved frame ID
     """
-    return ValidationMixin.validate_frame_id(frame_id)
+    return validate_frame_id(frame_id, default=DEFAULT_FRAME_ID)
 
 
 def create_continue_request(

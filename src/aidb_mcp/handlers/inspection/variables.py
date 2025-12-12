@@ -16,6 +16,7 @@ from ...responses import VariableGetResponse, VariableSetResponse
 from ...responses.errors import InternalError, UnsupportedOperationError
 from ...responses.helpers import (
     internal_error,
+    is_session_paused,
     missing_parameter,
     not_paused,
 )
@@ -27,33 +28,25 @@ logger = get_logger(__name__)
 def _check_paused_state(api, context) -> dict[str, Any] | None:
     """Check if debugger is paused.
 
-    Returns error response if not paused, None otherwise.
+    Returns error response if not paused, None otherwise. Uses shared
+    is_session_paused() utility with context fallback.
     """
-    # Check actual session state from the API
-    if api and hasattr(api, "session"):
-        session = api.session
-        if hasattr(session, "state") and hasattr(session.state, "is_paused"):
-            if not session.state.is_paused():
-                return not_paused(
-                    operation="variable operation",
-                    suggestion=("Set a breakpoint or wait for execution to pause"),
-                    session=session,
-                )
-        else:
-            # Fallback to context check if state API not available
-            if not context.at_breakpoint and not (context.error_info):
-                return not_paused(
-                    operation="variable operation",
-                    suggestion=("Set a breakpoint or wait for execution to pause"),
-                    session=session,
-                )
-    else:
-        # No API available, use context check
-        if not context.at_breakpoint and not (context.error_info):
+    session = api.session if api and hasattr(api, "session") else None
+
+    # Primary check: use shared utility for defensive session state checking
+    if session:
+        if not is_session_paused(session):
             return not_paused(
                 operation="variable operation",
                 suggestion="Set a breakpoint or wait for execution to pause",
-                # No session available in this case
+                session=session,
+            )
+    else:
+        # No API/session available - fallback to context check
+        if not context.at_breakpoint and not context.error_info:
+            return not_paused(
+                operation="variable operation",
+                suggestion="Set a breakpoint or wait for execution to pause",
             )
     return None
 

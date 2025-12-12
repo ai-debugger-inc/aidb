@@ -309,6 +309,25 @@ def create_version_file(version, repo_root):
     return True
 
 
+def update_releases_md(version, repo_root):
+    """Update version in docs/community/releases.md."""
+    releases_path = repo_root / "docs" / "community" / "releases.md"
+    if not releases_path.exists():
+        return False
+
+    content = releases_path.read_text()
+
+    # Update **Version**: X.Y.Z pattern in Current Status section
+    pattern = r"(\*\*Version\*\*:\s*)\d+\.\d+\.\d+"
+    new_content = re.sub(pattern, rf"\g<1>{version}", content)
+
+    if content != new_content:
+        releases_path.write_text(new_content)
+        print(f"Updated {releases_path.relative_to(repo_root)}")
+        return True
+    return False
+
+
 def main():
     """Main function to sync versions."""
     # Get repository root
@@ -342,6 +361,7 @@ def main():
     changes |= update_versions_json(version, repo_root)
     changes |= update_vscode_extension_package_json(version, repo_root)
     changes |= update_workflow_aidb_version(version, repo_root)
+    changes |= update_releases_md(version, repo_root)
     changes |= create_version_file(version, repo_root)
 
     if changes:

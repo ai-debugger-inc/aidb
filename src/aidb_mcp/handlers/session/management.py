@@ -31,7 +31,12 @@ from ...session import (
     get_session_id_from_args,
     list_sessions,
 )
-from ...session.manager import _DEBUG_SESSIONS, _SESSION_CONTEXTS, _state_lock
+from ...session.manager_core import (
+    get_session_api,
+)
+from ...session.manager_core import (
+    get_session_id as get_session_context,
+)
 
 if TYPE_CHECKING:
     from ...core.types import BreakpointSpec
@@ -107,46 +112,45 @@ async def _handle_session_status(args: dict[str, Any]) -> dict[str, Any]:
             terminated=True,
         ).to_mcp_response()
 
-    # Get the actual session object
-    with _state_lock:
-        if session_id not in _DEBUG_SESSIONS:
-            return no_session(operation="status")
+    # Get the session API using public interface
+    api = get_session_api(session_id)
+    if api is None:
+        return no_session(operation="status")
 
-        api = _DEBUG_SESSIONS[session_id]
-        language, terminated, paused = await _get_session_state(api)
+    language, terminated, paused = await _get_session_state(api)
 
-        # Get additional context information
-        context = _SESSION_CONTEXTS.get(session_id)
-        current_location = None
-        breakpoint_count = 0
-        stopped_reason = None
+    # Get additional context information using public interface
+    context = get_session_context(session_id)
+    current_location = None
+    breakpoint_count = 0
+    stopped_reason = None
 
-        if context:
-            # Build current_location from context
-            if context.current_file and context.current_line:
-                current_location = f"{context.current_file}:{context.current_line}"
-            elif context.current_file:
-                current_location = context.current_file
+    if context:
+        # Build current_location from context
+        if context.current_file and context.current_line:
+            current_location = f"{context.current_file}:{context.current_line}"
+        elif context.current_file:
+            current_location = context.current_file
 
-            # Get breakpoint count
-            breakpoint_count = len(context.breakpoints_set)
+        # Get breakpoint count
+        breakpoint_count = len(context.breakpoints_set)
 
-            # Infer stopped_reason
-            if context.at_breakpoint:
-                stopped_reason = StopReason.BREAKPOINT
-            elif paused and context.last_operation:
-                stopped_reason = context.last_operation
+        # Infer stopped_reason
+        if context.at_breakpoint:
+            stopped_reason = StopReason.BREAKPOINT
+        elif paused and context.last_operation:
+            stopped_reason = context.last_operation
 
-        return SessionStatusResponse(
-            session_id=session_id,
-            started=api.started if api else False,
-            paused=paused,
-            terminated=terminated,
-            language=language if language != DefaultValue.UNKNOWN else None,
-            current_location=current_location,
-            breakpoint_count=breakpoint_count,
-            stopped_reason=stopped_reason,
-        ).to_mcp_response()
+    return SessionStatusResponse(
+        session_id=session_id,
+        started=api.started if api else False,
+        paused=paused,
+        terminated=terminated,
+        language=language if language != DefaultValue.UNKNOWN else None,
+        current_location=current_location,
+        breakpoint_count=breakpoint_count,
+        stopped_reason=stopped_reason,
+    ).to_mcp_response()
 
 
 async def _handle_session_list(_args: dict[str, Any]) -> dict[str, Any]:
@@ -333,19 +337,18 @@ async def _handle_session_restart(args: dict[str, Any]) -> dict[str, Any]:
     if not session_id:
         return no_session(operation="restart")
 
-    # Get the session and context
-    with _state_lock:
-        if session_id not in _DEBUG_SESSIONS:
-            return no_session(operation="restart")
+    # Get the session API using public interface
+    api = get_session_api(session_id)
+    if api is None:
+        return no_session(operation="restart")
 
-        api = _DEBUG_SESSIONS[session_id]
-        session_context = _SESSION_CONTEXTS.get(session_id)
-
-        if not session_context:
-            return internal_error(
-                operation="restart",
-                exception=ValueError("Session context not found"),
-            )
+    # Get session context using public interface
+    session_context = get_session_context(session_id)
+    if not session_context:
+        return internal_error(
+            operation="restart",
+            exception=ValueError("Session context not found"),
+        )
 
     keep_breakpoints = args.get(ParamName.KEEP_BREAKPOINTS, True)
 

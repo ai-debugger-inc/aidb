@@ -128,8 +128,6 @@ Before implementing new functionality, use the `code-reuse-enforcement` skill to
 
 - Avoid unnecessary comments; code should be self-documenting where possible
 - Always use the repo's venv when running project-related Python commands
-- This is a greenfield project: prefer clean implementations over backward
-  compatibility layers or deprecation patterns
 - Place imports at the top of the file (unless avoiding a circular import)
 - Do not use emojis in log messages
 - Adhere to the style guidelines defined in the pre-commit configuration

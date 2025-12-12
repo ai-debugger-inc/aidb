@@ -42,7 +42,7 @@ def _is_test_run_command(ctx: click.Context) -> bool:
     )
 
 
-def handle_exceptions(func: F) -> F:
+def handle_exceptions(func: F) -> F:  # noqa: C901
     """Handle exceptions and convert to appropriate exit codes.
 
     Parameters
@@ -57,7 +57,7 @@ def handle_exceptions(func: F) -> F:
     """
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs) -> None:
+    def wrapper(*args, **kwargs) -> None:  # noqa: C901
         try:
             return func(*args, **kwargs)
         except KeyboardInterrupt:

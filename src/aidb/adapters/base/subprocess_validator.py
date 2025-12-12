@@ -204,7 +204,7 @@ class SubprocessValidator:
                     # Check for shebang (script that should be run directly)
                     if header[:2] == b"#!":
                         return True
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         return False

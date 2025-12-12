@@ -49,7 +49,7 @@ async def _async_main() -> None:
 
             await shutdown_jdtls_project_pool()
         except Exception as e:  # pragma: no cover - defensive cleanup
-            logger.debug(f"JDT LS project pool shutdown skipped: {e}")
+            logger.debug("JDT LS project pool shutdown skipped: %s", e)
         logger.info("Server shutdown complete")
 
 

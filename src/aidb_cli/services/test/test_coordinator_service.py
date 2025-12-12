@@ -174,15 +174,20 @@ class TestCoordinatorService(BaseService):
     def _build_coverage_args(self, suite: str) -> list[str]:
         """Build coverage-related arguments.
 
+        Uses the coverage_module field from SuiteDefinition to determine
+        which module to measure coverage for.
+
         Args:
             suite: Test suite name
 
         Returns:
             List of coverage arguments
         """
-        if suite:
-            return [f"--cov=aidb_{suite}", "--cov-report=term-missing"]
-        return ["--cov=aidb", "--cov-report=term-missing"]
+        from aidb_cli.services.test import TestSuites
+
+        suite_def = TestSuites.get(suite) if suite else None
+        module = suite_def.coverage_module if suite_def else "aidb"
+        return [f"--cov={module}", "--cov-report=term-missing"]
 
     def validate_prerequisites(
         self,

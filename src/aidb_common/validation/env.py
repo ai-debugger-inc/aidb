@@ -51,15 +51,13 @@ def validate_mutex_vars(groups: list[list[str]]) -> None:
         set_vars = [var for var in group if var in os.environ]
 
         if len(set_vars) == 0:
-            msg = f"Exactly one of these environment variables must be set: {', '.join(group)}"
-            raise EnvironmentValidationError(
-                msg,
-            )
+            group_str = ", ".join(group)
+            msg = f"Exactly one of these environment variables must be set: {group_str}"
+            raise EnvironmentValidationError(msg)
         if len(set_vars) > 1:
-            msg = f"Only one of these environment variables can be set: {', '.join(set_vars)}"
-            raise EnvironmentValidationError(
-                msg,
-            )
+            set_vars_str = ", ".join(set_vars)
+            msg = f"Only one of these environment variables can be set: {set_vars_str}"
+            raise EnvironmentValidationError(msg)
 
 
 def validate_var_format(key: str, pattern: str, required: bool = True) -> bool:
@@ -101,7 +99,7 @@ def validate_var_format(key: str, pattern: str, required: bool = True) -> bool:
     return True
 
 
-def validate_env_types(specs: dict[str, dict[str, Any]]) -> None:
+def validate_env_types(specs: dict[str, dict[str, Any]]) -> None:  # noqa: C901
     """Validate environment variables against type specifications.
 
     Parameters
@@ -151,10 +149,12 @@ def validate_env_types(specs: dict[str, dict[str, Any]]) -> None:
 
                 # Range validation
                 if "min_value" in spec and parsed_value < spec["min_value"]:
-                    msg = f"Environment variable {var_name} must be >= {spec['min_value']}"
+                    min_val = spec["min_value"]
+                    msg = f"Environment variable {var_name} must be >= {min_val}"
                     raise EnvironmentValidationError(msg)
                 if "max_value" in spec and parsed_value > spec["max_value"]:
-                    msg = f"Environment variable {var_name} must be <= {spec['max_value']}"
+                    max_val = spec["max_value"]
+                    msg = f"Environment variable {var_name} must be <= {max_val}"
                     raise EnvironmentValidationError(msg)
 
             elif var_type == "float":
@@ -165,10 +165,12 @@ def validate_env_types(specs: dict[str, dict[str, Any]]) -> None:
 
                 # Range validation
                 if "min_value" in spec and parsed_value < spec["min_value"]:
-                    msg = f"Environment variable {var_name} must be >= {spec['min_value']}"
+                    min_val = spec["min_value"]
+                    msg = f"Environment variable {var_name} must be >= {min_val}"
                     raise EnvironmentValidationError(msg)
                 if "max_value" in spec and parsed_value > spec["max_value"]:
-                    msg = f"Environment variable {var_name} must be <= {spec['max_value']}"
+                    max_val = spec["max_value"]
+                    msg = f"Environment variable {var_name} must be <= {max_val}"
                     raise EnvironmentValidationError(msg)
 
             elif var_type == "bool":
@@ -190,10 +192,11 @@ def validate_env_types(specs: dict[str, dict[str, Any]]) -> None:
 
                 # Choice validation
                 if "choices" in spec and parsed_value not in spec["choices"]:
-                    msg = f"Environment variable {var_name} must be one of: {', '.join(spec['choices'])}"
-                    raise EnvironmentValidationError(
-                        msg,
+                    choices_str = ", ".join(spec["choices"])
+                    msg = (
+                        f"Environment variable {var_name} must be one of: {choices_str}"
                     )
+                    raise EnvironmentValidationError(msg)
 
                 # Pattern validation
                 if (
@@ -201,10 +204,12 @@ def validate_env_types(specs: dict[str, dict[str, Any]]) -> None:
                     and parsed_value
                     and not re.match(spec["pattern"], parsed_value)
                 ):
-                    msg = f"Environment variable {var_name} does not match required pattern: {spec['pattern']}"
-                    raise EnvironmentValidationError(
-                        msg,
+                    pattern = spec["pattern"]
+                    msg = (
+                        f"Environment variable {var_name} does not match "
+                        f"required pattern: {pattern}"
                     )
+                    raise EnvironmentValidationError(msg)
 
         except Exception as e:
             if isinstance(e, EnvironmentValidationError):

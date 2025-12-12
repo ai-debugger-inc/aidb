@@ -157,3 +157,112 @@ class JavaClasspathBuilder:
         """
         # Remove .class extension if present, then replace path separators with dots
         return class_name.removesuffix(".class").replace("/", ".").replace("\\", ".")
+
+    @staticmethod
+    def flatten_classpath(classpath: list) -> list[str]:
+        """Flatten nested classpath lists from JDT LS.
+
+        JDT LS resolveClasspath may return nested list structures. This method
+        flattens them into a single-level list of classpath entries.
+
+        Parameters
+        ----------
+        classpath : list
+            Potentially nested list of classpath entries
+
+        Returns
+        -------
+        list[str]
+            Flat list of classpath entries (empty strings filtered out)
+        """
+        flat_classpath: list[str] = []
+        for entry in classpath:
+            if isinstance(entry, list):
+                flat_classpath.extend(entry)
+            elif entry:  # Skip empty strings
+                flat_classpath.append(entry)
+        return flat_classpath
+
+    @staticmethod
+    def add_target_classes(
+        classpath: list[str],
+        target_dir: Path,
+    ) -> list[str]:
+        """Add target/classes to classpath if missing.
+
+        For Maven/Gradle projects, JDT LS may not include target/classes
+        when resolving classpath. This method adds it at the beginning
+        if it exists and isn't already present.
+
+        Parameters
+        ----------
+        classpath : list[str]
+            Current classpath entries
+        target_dir : Path
+            Target directory (project root or source directory)
+
+        Returns
+        -------
+        list[str]
+            Updated classpath with target/classes prepended if applicable
+        """
+        main_classes_dir = target_dir / "target" / "classes"
+        if main_classes_dir.exists():
+            main_classes_path = str(main_classes_dir)
+            if main_classes_path not in classpath:
+                # Insert at beginning of classpath
+                classpath = [main_classes_path, *classpath]
+        return classpath
+
+    @staticmethod
+    def add_test_classes(
+        classpath: list[str],
+        project_root: Path | None,
+        main_class: str,
+    ) -> list[str]:
+        """Add target/test-classes for JUnit launchers.
+
+        JDT LS resolves classpath for main classes only, missing test outputs.
+        This method adds test-classes when running JUnit tests.
+
+        Parameters
+        ----------
+        classpath : list[str]
+            Current classpath entries
+        project_root : Path | None
+            Project root directory
+        main_class : str
+            Main class name to check for JUnit launcher
+
+        Returns
+        -------
+        list[str]
+            Updated classpath with test-classes added if applicable
+        """
+        # Check if this is a JUnit launcher
+        is_junit_launcher = "junit" in main_class.lower()
+        if not is_junit_launcher or not project_root:
+            return classpath
+
+        test_classes_dir = project_root / "target" / "test-classes"
+        if not test_classes_dir.exists():
+            return classpath
+
+        test_classes_path = str(test_classes_dir)
+        if test_classes_path in classpath:
+            return classpath
+
+        # Insert after target/classes if present, otherwise at start
+        main_classes = str(project_root / "target" / "classes")
+        try:
+            idx = classpath.index(main_classes)
+            classpath = [
+                *classpath[: idx + 1],
+                test_classes_path,
+                *classpath[idx + 1 :],
+            ]
+        except ValueError:
+            # target/classes not in classpath, add at beginning
+            classpath = [test_classes_path, *classpath]
+
+        return classpath

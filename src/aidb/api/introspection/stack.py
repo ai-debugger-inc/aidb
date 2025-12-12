@@ -65,7 +65,12 @@ class StackOperations(APIOperationBase):
             )
             raise AidbError(msg)
 
-        resolved_thread_id = resolve_thread_id(thread_id)
+        # Use session's current thread ID from stopped event if not explicitly provided
+        # This is critical for remote attach where thread IDs may not start at 1
+        if thread_id is None:
+            resolved_thread_id = await self.session.debug.get_current_thread_id()
+        else:
+            resolved_thread_id = resolve_thread_id(thread_id)
 
         # Delegate to session.debug.callstack() which handles all the DAP logic
         return await self.session.debug.callstack(thread_id=resolved_thread_id)

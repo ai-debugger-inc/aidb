@@ -45,7 +45,7 @@ class AdapterBuildService(BaseService):
         """
         super().__init__(repo_root, command_executor)
 
-    def build_locally(  # noqa: C901
+    def build_locally(
         self,
         languages: list[str],
         verbose: bool = False,
@@ -196,7 +196,7 @@ class AdapterBuildService(BaseService):
             logger.debug("Failed to find ACT containers: %s", str(e))
             return []
 
-    def extract_artifacts_from_containers(self, verbose: bool = False) -> int:  # noqa: C901
+    def extract_artifacts_from_containers(self, verbose: bool = False) -> int:
         """Extract build artifacts from ACT containers to host.
 
         ACT containers don't automatically sync files to the host filesystem,

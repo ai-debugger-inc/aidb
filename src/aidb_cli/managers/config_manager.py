@@ -6,7 +6,7 @@ VersionManager, configuration validation, and settings management.
 
 import json
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from aidb_cli.core.constants import LogLevel
 from aidb_cli.core.project_config import load_merged_config
@@ -14,30 +14,23 @@ from aidb_cli.core.utils import CliOutput
 from aidb_cli.core.yaml import YamlOperationError, safe_read_yaml, safe_write_yaml
 from aidb_common.config import VersionManager
 from aidb_common.constants import Language
+from aidb_common.patterns.singleton import Singleton
 from aidb_common.repo import detect_repo_root
 from aidb_logging import get_cli_logger
 
 logger = get_cli_logger(__name__)
 
 
-class ConfigManager:
+class ConfigManager(Singleton["ConfigManager"]):
     """Centralized singleton manager for all configuration operations.
 
     Consolidates functionality from VersionManager and other config-related operations
     into a single, reusable interface.
+
+    Uses thread-safe Singleton base class for proper singleton behavior.
     """
 
-    _instance: Optional["ConfigManager"] = None
     _initialized: bool = False
-
-    def __new__(
-        cls,
-        repo_root: Path | None = None,  # noqa: ARG004
-    ) -> "ConfigManager":
-        """Create or return the singleton instance."""
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
 
     def __init__(self, repo_root: Path | None = None) -> None:
         if self._initialized:

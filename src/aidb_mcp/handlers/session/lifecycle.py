@@ -8,6 +8,7 @@ from __future__ import annotations
 import contextlib
 from typing import Any
 
+from aidb_common.constants import Language
 from aidb_logging import get_mcp_logger as get_logger
 
 from ...core import (
@@ -49,6 +50,60 @@ from .state_management import (
 from .validation import _validate_and_prepare_session, _validate_target_syntax
 
 logger = get_logger(__name__)
+
+
+def _resolve_source_paths(
+    args: dict[str, Any],
+    language: str,
+    session_id: str,
+) -> list[str]:
+    """Resolve source paths, auto-detecting for Java projects if needed.
+
+    Parameters
+    ----------
+    args : dict
+        Session arguments containing SOURCE_PATHS and WORKSPACE_ROOT
+    language : str
+        Programming language
+    session_id : str
+        Session ID for logging
+
+    Returns
+    -------
+    list[str]
+        Resolved source paths (explicit or auto-detected)
+    """
+    source_paths = args.get(ParamName.SOURCE_PATHS, [])
+    workspace_root = args.get(ParamName.WORKSPACE_ROOT)
+
+    # Auto-detect source paths for Java projects if not explicitly provided
+    if not source_paths and workspace_root and language == Language.JAVA:
+        from aidb.adapters.lang.java.source_detection import (
+            detect_java_source_paths,
+        )
+
+        auto_detected = detect_java_source_paths(workspace_root)
+        if auto_detected:
+            source_paths = auto_detected
+            logger.info(
+                "Auto-detected Java source paths",
+                extra={
+                    "session_id": session_id,
+                    "count": len(auto_detected),
+                    "paths_sample": auto_detected[:3],
+                },
+            )
+
+    if source_paths:
+        logger.debug(
+            "Stored source paths for code context resolution",
+            extra={
+                "session_id": session_id,
+                "source_paths_count": len(source_paths),
+            },
+        )
+
+    return source_paths
 
 
 async def handle_session_start(args: dict[str, Any]) -> dict[str, Any]:
@@ -194,16 +249,9 @@ async def handle_session_start(args: dict[str, Any]) -> dict[str, Any]:
             _store_breakpoints_in_context(session_context, breakpoints_parsed)
 
             # Store source paths for code context resolution (remote debugging)
-            source_paths = args.get(ParamName.SOURCE_PATHS, [])
+            source_paths = _resolve_source_paths(args, language, session_id)
             if source_paths:
                 session_context.source_paths = source_paths
-                logger.debug(
-                    "Stored source paths for code context resolution",
-                    extra={
-                        "session_id": session_id,
-                        "source_paths_count": len(source_paths),
-                    },
-                )
 
             # Store launch params for potential restart
             session_context.launch_params = {

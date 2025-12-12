@@ -84,7 +84,7 @@ class ServiceDependencyService(BaseService):
         self.services: dict[str, ServiceDependency] = {}
         self.compose_file = repo_root / ProjectPaths.TEST_DOCKER_COMPOSE
 
-    def load_services(self, compose_file: Path | None = None) -> None:  # noqa: C901
+    def load_services(self, compose_file: Path | None = None) -> None:
         """Load service definitions from docker-compose.yaml.
 
         Parameters

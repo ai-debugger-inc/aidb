@@ -1,7 +1,6 @@
 """Unit tests for ConfigManager."""
 
-from pathlib import Path
-from unittest.mock import Mock, mock_open, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -15,11 +14,9 @@ class TestConfigManager:
     @pytest.fixture(autouse=True)
     def reset_singleton(self):
         """Reset singleton before each test."""
-        ConfigManager._instance = None
-        ConfigManager._initialized = False
+        ConfigManager.reset()
         yield
-        ConfigManager._instance = None
-        ConfigManager._initialized = False
+        ConfigManager.reset()
 
     @pytest.fixture
     def tmp_config_files(self, tmp_path):

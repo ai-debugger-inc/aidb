@@ -6,6 +6,7 @@ https://www.sphinx-doc.org/en/master/usage/configuration.html
 """
 
 # -- Path setup --------------------------------------------------------------
+import os
 import sys
 
 # Use tomli for Python < 3.11, tomllib for Python >= 3.11
@@ -215,8 +216,6 @@ autoapi_type = "python"
 # Use environment variable to support both local and Docker builds
 # Docker: copies source to /tmp/aidb-src, sets AUTOAPI_SOURCE_ROOT
 # Local: defaults to ../src relative to docs/
-import os
-
 _autoapi_root = os.environ.get("AUTOAPI_SOURCE_ROOT", "../src")
 autoapi_dirs = [
     f"{_autoapi_root}/aidb",

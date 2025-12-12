@@ -19,7 +19,7 @@ All workflows in `.github/workflows/`. Configuration in `versions.json` (single 
 
 - **Triggers**: Called by `release-pr.yaml`, or manual via workflow dispatch
 - **Duration**: ~10-15 min (parallel execution)
-- **Jobs**: MCP tests, AIDB core, Infrastructure (CLI/Logging/Common), Adapter frameworks (Python/JS/Java)
+- **Jobs**: Shared tests, MCP tests, Infrastructure tests, Framework tests (Python/JS/Java)
 
 ### Release (`release-pr.yaml` + `release-publish.yaml`)
 
@@ -122,7 +122,7 @@ PyPI versions are immutable. Increment version and create new release branch.
 
 ```bash
 # Run same commands locally
-./dev-cli test run -s mcp --coverage
+./dev-cli test run -s mcp -c
 ./dev-cli test run -s shared -v
 ```
 

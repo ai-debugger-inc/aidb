@@ -35,7 +35,7 @@ classifiers = [
 ]
 readme = "README.md"
 requires-python = ">=3.10"
-version = "0.0.8"
+version = "0.0.9"
 
 [project.urls]
 Homepage = "https://github.com/ai-debugger-inc/aidb"
@@ -178,6 +178,9 @@ ignore = [
   "N815", # variable in function should be lowercase - DAP/JSON camelCase
 ]
 
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
 [tool.ruff.lint.per-file-ignores]
 "src/tests/**/*.py" = [
   "E501",  # line too long - tests often have long fixture names and data
@@ -194,10 +197,29 @@ ignore = [
 "scripts/**/*.py" = ["E501", "S607", "S603"]  # line too long, safe subprocess calls with docker/git
 ".github/**/*.py" = ["E501"]  # line too long - CI scripts often have long URLs and commands
 "src/aidb/dap/_util/**/*.py" = ["ALL"]  # ignore all rules in generated utility code
+"src/aidb/dap/protocol/**/*.py" = ["ALL"]  # ignore all rules in DAP protocol spec (generated/spec-defined)
+"src/tests/_assets/test_programs/generated/**/*.py" = ["ALL"]  # ignore all rules in generated test programs
 "src/aidb/adapters/base/subprocess_validator.py" = ["S603"]  # safe subprocess calls with hardcoded commands
 "src/aidb_mcp/starters/*.py" = ["S603", "S104"]  # safe subprocess calls, dev server configs
 "docs/conf.py" = ["A001"]  # copyright is required by Sphinx
 "**/__init__.py" = ["F401"]  # unused imports in __init__.py are re-exports
+# DAP client - internal implementation with intentional patterns
+"src/aidb/dap/client/*.py" = ["S110", "E501", "N806"]  # try-except-pass for resilience, long lines in comments, ContinueRequest naming
+# Java adapter - diagnostic code uses best-effort error suppression
+"src/aidb/adapters/lang/java/lsp/jdtls_process_manager.py" = ["S110", "S108"]  # diagnostic best-effort, /dev/shm check
+"src/aidb/adapters/lang/java/lsp/lsp_bridge.py" = ["E501"]  # long warning messages
+# Session ops - debug logging with long messages
+"src/aidb/session/ops/introspection_mixin.py" = ["E501", "S110"]  # debug logging, exception handling
+"src/aidb/session/ops/initialization.py" = ["SIM105"]  # contextlib.suppress not appropriate for async
+"src/aidb/session/ops/orchestration/stepping.py" = ["ARG002"]  # wait_for_stop kept for API compatibility
+# CLI - pre-existing patterns
+"src/aidb_cli/managers/base/service.py" = ["G003"]  # logging pattern with class prefix
+"src/aidb_cli/managers/build/build_manager.py" = ["SIM105", "S110", "ARG002"]  # lazy init, unused force param
+"src/aidb_cli/services/docker/docker_resource_service.py" = ["E501"]  # long docstring line
+"src/aidb_cli/services/test/test_execution_service.py" = ["S607"]  # bash subprocess intentional
+# Common - pre-existing
+"src/aidb_common/config/versions.py" = ["S101"]  # assert for invariant
+"src/aidb_common/patterns/singleton.py" = ["E501"]  # long error message
 
 
 # ============================================================================

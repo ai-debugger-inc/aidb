@@ -374,6 +374,24 @@ class IntrospectionMixin(BaseOperations):
         """
         return await self._variable_ops.get_variables(variables_reference)
 
+    async def get_child_variables(self, variables_reference: int) -> dict:
+        """Get child variables for a given variable reference.
+
+        This is essentially an alias for get_variables() but with a more
+        descriptive name when specifically getting children of a complex variable.
+
+        Parameters
+        ----------
+        variables_reference : int
+            Reference to the parent variable
+
+        Returns
+        -------
+        dict
+            Dictionary of child variables with their details
+        """
+        return await self._variable_ops.get_child_variables(variables_reference)
+
     async def set_variable(
         self,
         variable_ref: int,

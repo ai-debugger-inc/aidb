@@ -23,6 +23,8 @@ class SuiteDefinition:
         Docker profile to use (None for local-only suites)
     description : str
         Suite description
+    coverage_module : str
+        Python module name for coverage reporting (e.g., aidb, aidb_cli)
     """
 
     name: str
@@ -32,6 +34,7 @@ class SuiteDefinition:
     adapters_required: bool
     profile: str | None
     description: str
+    coverage_module: str = "aidb"  # Default to core module
 
 
 class TestSuites:
@@ -56,6 +59,7 @@ class TestSuites:
         adapters_required=False,
         profile=None,
         description="MCP server unit and integration tests",
+        coverage_module="aidb_mcp",
     )
 
     FRAMEWORKS = SuiteDefinition(
@@ -97,6 +101,7 @@ class TestSuites:
         adapters_required=False,
         profile="base",
         description="CLI tool tests",
+        coverage_module="aidb_cli",
     )
 
     COMMON = SuiteDefinition(
@@ -107,6 +112,7 @@ class TestSuites:
         adapters_required=False,
         profile="base",
         description="Common utilities tests",
+        coverage_module="aidb_common",
     )
 
     LOGGING = SuiteDefinition(
@@ -117,6 +123,7 @@ class TestSuites:
         adapters_required=False,
         profile="base",
         description="Logging framework tests",
+        coverage_module="aidb_logging",
     )
 
     CI_CD = SuiteDefinition(
@@ -127,6 +134,7 @@ class TestSuites:
         adapters_required=False,
         profile="base",
         description="CI/CD workflow and script tests",
+        coverage_module="aidb_cli",  # CI/CD tests focus on CLI infrastructure
     )
 
     BASE = SuiteDefinition(

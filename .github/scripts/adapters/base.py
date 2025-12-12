@@ -5,12 +5,10 @@ import platform
 import subprocess
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 
 class BuildError(Exception):
     """Raised when adapter build fails."""
-    pass
 
 
 class AdapterBuilder(ABC):
@@ -44,7 +42,6 @@ class AdapterBuilder(ABC):
     @abstractmethod
     def adapter_name(self) -> str:
         """Return the name of this adapter."""
-        pass
 
     @abstractmethod
     def get_adapter_config(self) -> dict:
@@ -55,7 +52,6 @@ class AdapterBuilder(ABC):
         dict
             Adapter configuration including version, repo, etc.
         """
-        pass
 
     @abstractmethod
     def clone_repository(self) -> Path:
@@ -66,7 +62,6 @@ class AdapterBuilder(ABC):
         Path
             Path to the cloned repository
         """
-        pass
 
     @abstractmethod
     def build(self) -> Path:
@@ -77,7 +72,6 @@ class AdapterBuilder(ABC):
         Path
             Path to the built distribution directory
         """
-        pass
 
     @abstractmethod
     def package(self) -> Path:
@@ -93,7 +87,6 @@ class AdapterBuilder(ABC):
         Path
             Path to the packaged adapter tarball
         """
-        pass
 
     def create_checksum(self, file_path: Path) -> str:
         """Create SHA256 checksum for file.
@@ -109,17 +102,17 @@ class AdapterBuilder(ABC):
             Hex digest of SHA256 checksum
         """
         sha256_hash = hashlib.sha256()
-        with open(file_path, "rb") as f:
+        with file_path.open("rb") as f:
             for chunk in iter(lambda: f.read(4096), b""):
                 sha256_hash.update(chunk)
         return sha256_hash.hexdigest()
 
     def run_command(
         self,
-        cmd: List[str],
-        cwd: Optional[Path] = None,
+        cmd: list[str],
+        cwd: Path | None = None,
         capture_output: bool = False,
-        env: Optional[dict] = None
+        env: dict | None = None,
     ) -> subprocess.CompletedProcess:
         """Run command with error handling.
 
@@ -162,7 +155,7 @@ class AdapterBuilder(ABC):
                 check=True,
                 capture_output=capture_output,
                 text=True,
-                env=env
+                env=env,
             )
             return result
         except subprocess.CalledProcessError as e:
@@ -178,7 +171,7 @@ class AdapterBuilder(ABC):
         self.build_dir.mkdir(exist_ok=True)
         self.dist_dir.mkdir(exist_ok=True)
 
-    def get_platform_info(self) -> Tuple[str, str]:
+    def get_platform_info(self) -> tuple[str, str]:
         """Get current platform and architecture.
 
         Returns
@@ -193,7 +186,7 @@ class AdapterBuilder(ABC):
         platform_map = {
             "darwin": "darwin",
             "linux": "linux",
-            "windows": "windows"
+            "windows": "windows",
         }
 
         # Normalize architecture names
@@ -201,12 +194,12 @@ class AdapterBuilder(ABC):
             "x86_64": "x64",
             "amd64": "x64",
             "arm64": "arm64",
-            "aarch64": "arm64"
+            "aarch64": "arm64",
         }
 
         return platform_map.get(system, system), arch_map.get(machine, machine)
 
-    def build_adapter(self) -> Tuple[Path, str]:
+    def build_adapter(self) -> tuple[Path, str]:
         """Build and package adapter with checksum.
 
         This is the main entry point that orchestrates the build process.
@@ -229,7 +222,7 @@ class AdapterBuilder(ABC):
 
         # Create checksum file
         checksum_path = Path(str(tarball_path) + ".sha256")
-        with open(checksum_path, "w") as f:
+        with checksum_path.open("w") as f:
             f.write(f"{checksum}  {tarball_path.name}\n")
 
         print(f"Built {self.adapter_name} adapter: {tarball_path}")

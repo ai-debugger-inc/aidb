@@ -130,7 +130,7 @@ class DockerBuildService:
     # ----------------------------
     # Test images
     # ----------------------------
-    def build_images(  # noqa: C901
+    def build_images(
         self,
         *,
         profile: str | None = None,

@@ -212,6 +212,83 @@ def not_paused(
     ).to_mcp_response()
 
 
+def is_session_paused(session: Any) -> bool:
+    """Check if session is paused with defensive hasattr checks.
+
+    Safely checks session state with fallbacks for incomplete session objects.
+    Consolidates defensive checking pattern used across MCP handlers.
+
+    Parameters
+    ----------
+    session : Any
+        Session object to check (may be incomplete or None)
+
+    Returns
+    -------
+    bool
+        True if session is paused, False otherwise (including if session is None)
+    """
+    if not session:
+        return False
+
+    # Try direct method first (preferred for complete Session objects)
+    if hasattr(session, "is_paused") and callable(session.is_paused):
+        try:
+            return session.is_paused()
+        except Exception:  # noqa: S110 - Intentional: fall through to secondary check
+            pass
+
+    # Fallback to state.is_paused() for defensive access
+    if hasattr(session, "state") and hasattr(session.state, "is_paused"):
+        try:
+            return session.state.is_paused()
+        except Exception:  # noqa: S110 - Intentional: return False on any error
+            return False
+
+    return False
+
+
+def check_paused_or_error(
+    session: Any,
+    operation: str,
+    suggestion: str = "Set a breakpoint or wait for execution to pause",
+) -> MCPResponse | None:
+    """Check if session is paused and return error response if not.
+
+    Combines defensive session state checking with error response generation.
+    Use this in handlers that require the debugger to be paused.
+
+    Parameters
+    ----------
+    session : Any
+        Session object to check (may be incomplete or None)
+    operation : str
+        The operation that requires paused execution (for error message)
+    suggestion : str, optional
+        Suggestion for how to pause execution
+
+    Returns
+    -------
+    MCPResponse | None
+        Error response if not paused, None if paused (operation can proceed)
+
+    Examples
+    --------
+    >>> error = check_paused_or_error(session, "step")
+    >>> if error:
+    ...     return error
+    >>> # Continue with operation...
+    """
+    if is_session_paused(session):
+        return None
+
+    return not_paused(
+        operation=operation,
+        suggestion=suggestion,
+        session=session if session else None,
+    )
+
+
 def validate_action_enum(
     action: str,
     enum_class: type[Enum],

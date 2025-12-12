@@ -39,7 +39,7 @@ STANDARD_LOG_RECORD_FIELDS = frozenset(
         "session_id",
         "request_id",
         "getMessage",
-    }
+    },
 )
 
 

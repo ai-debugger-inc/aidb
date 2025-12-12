@@ -183,7 +183,7 @@ class AdapterNotFoundError(AidbError):
             Formatted error message
         """
         lines = [
-            f"\n❌ {language.capitalize()} debug adapter not found!",
+            f"\n{language.capitalize()} debug adapter not found!",
             "\nSearched locations:",
         ]
         for location in searched_locations:

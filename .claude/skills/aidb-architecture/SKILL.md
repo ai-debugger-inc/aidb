@@ -81,7 +81,7 @@ ______________________________________________________________________
 │  ├── Transport, RequestHandler, EventProcessor              │
 │  └── MessageRouter, ConnectionManager                       │
 ├─────────────────────────────────────────────────────────────┤
-│  Layer 6: Protocol Layer (aidb/dap/protocol.py)             │
+│  Layer 6: Protocol Layer (aidb/dap/protocol/)               │
 │  └── Fully-typed DAP specification (see dap-protocol-guide) │
 └─────────────────────────────────────────────────────────────┘
 ```

@@ -170,3 +170,8 @@ COMMAND_CHECK_TIMEOUT_S = 2.0  # Version/availability command checks
 # Extension installation timeouts (in seconds)
 EXTENSION_LIST_TIMEOUT_S = 5.0  # List installed extensions
 EXTENSION_INSTALL_TIMEOUT_S = 30.0  # Install extension from marketplace/VSIX
+
+# Launch configuration adapter argument keys
+ADAPTER_ARG_TARGET = "target"
+ADAPTER_ARG_PROGRAM = "program"
+ADAPTER_ARG_ARGS = "args"

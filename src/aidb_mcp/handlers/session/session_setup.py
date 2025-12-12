@@ -214,7 +214,9 @@ async def _create_session_for_mode(
             pid=pid,
             language=language,
             breakpoints=breakpoints_parsed,
+            workspace_root=args.get(ParamName.WORKSPACE_ROOT),
             on_child_created_callback=on_child_created_callback,
+            **additional_kwargs,
         )
     # REMOTE_ATTACH
     return await debug_api.create_session(
@@ -222,7 +224,9 @@ async def _create_session_for_mode(
         port=port,
         language=language,
         breakpoints=breakpoints_parsed,
+        workspace_root=args.get(ParamName.WORKSPACE_ROOT),
         on_child_created_callback=on_child_created_callback,
+        **additional_kwargs,
     )
 
 

@@ -279,7 +279,7 @@ class DockerOrchestrator(BaseOrchestrator):
             lines=lines,
         )
 
-    def start_test_environment(  # noqa: C901
+    def start_test_environment(
         self,
         test_suite: str,
         language: str | None = None,

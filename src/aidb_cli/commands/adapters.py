@@ -194,7 +194,7 @@ def info(ctx: click.Context, language: str) -> None:
 )
 @click.pass_context
 @handle_exceptions
-def download(  # noqa: C901
+def download(
     ctx: click.Context,
     language: tuple[str, ...],
     force: bool,

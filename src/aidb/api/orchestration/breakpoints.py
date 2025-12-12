@@ -517,8 +517,8 @@ class BreakpointOperations(APIOperationBase):
                 variable_reference=variable_reference,
                 name=name,
             )
-            if result and result.data_id:
-                return (result.data_id, None)
+            if result and result.dataId:
+                return (result.dataId, None)
             return (None, result.description if result else "Unknown error")
         except Exception as e:
             return (None, str(e))

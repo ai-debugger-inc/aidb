@@ -926,7 +926,7 @@ Pipenv projects are automatically detected if a `.venv` folder exists in the wor
 :::{note}
 **Python has full debugging support with no significant limitations:**
 
-✅ All hit condition modes supported (`>`, `>=`, `=`, `<`, `<=`, `%`, exact)
+✅ All hit condition modes supported (`>`, `>=`, `==`, `<`, `<=`, `%`, exact)
 ✅ All debugging features fully functional
 ✅ Conditional breakpoints, logpoints, and advanced breakpoint features work perfectly
 ✅ Both launch and attach modes fully supported

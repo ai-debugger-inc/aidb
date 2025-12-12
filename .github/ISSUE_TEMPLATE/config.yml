@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or Discussion
+    url: https://discord.com/invite/UGS92b6KgR
+    about: Ask questions and discuss AI Debugger on our Discord server
+  - name: Documentation
+    url: https://ai-debugger.com
+    about: Check the docs for usage guides and API reference

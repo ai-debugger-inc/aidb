@@ -94,7 +94,7 @@ def main() -> int:
     print()
     print("To fix this:")
     print(
-        f"  1. Copy the template: cp docs/release-notes/template.md docs/release-notes/{version}.md"
+        f"  1. Copy the template: cp docs/release-notes/template.md docs/release-notes/{version}.md",
     )
     print("  2. Update the version number and add release notes content")
     print(f"  3. Stage and commit the file: git add docs/release-notes/{version}.md")

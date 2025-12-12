@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager, contextmanager, suppress
 from pathlib import Path
 from typing import Any, Optional, Union
 
-from aidb.utils.ports import PortRegistry
+from aidb.resources.ports import PortRegistry
 from aidb_logging import get_test_logger
 
 logger = get_test_logger(__name__)

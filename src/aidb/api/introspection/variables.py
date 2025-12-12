@@ -276,7 +276,10 @@ class VariableOperations(APIOperationBase):
         AidbVariablesResponse
             Child variables of the parent variable
         """
-        return await self.session.debug.get_child_variables(variables_reference)
+        variables_dict = await self.session.debug.get_child_variables(
+            variables_reference,
+        )
+        return AidbVariablesResponse(success=True, variables=variables_dict)
 
     @audit_operation(component="api.introspection", operation="resolve_variable")
     async def resolve_variable(

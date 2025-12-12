@@ -74,7 +74,7 @@ def group(ctx: click.Context) -> None:
 )
 @click.pass_context
 @handle_exceptions
-def summary(  # noqa: C901
+def summary(
     ctx: click.Context,
     run_id: str,
     repo: str,
@@ -457,7 +457,7 @@ def _display_flakes_report(
         ctx.exit(0)
 
 
-def _format_flakes_output(  # noqa: C901
+def _format_flakes_output(
     output: "OutputStrategy",
     report: dict,
 ) -> None:

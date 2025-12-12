@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import time
 from typing import Any
 
@@ -218,7 +217,7 @@ def _force_cleanup_registries(session_id: str) -> None:
         )
 
 
-def cleanup_session(  # noqa: C901
+def cleanup_session(
     session_id: str,
     timeout: float | None = None,
     force: bool = False,

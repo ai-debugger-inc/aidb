@@ -30,7 +30,7 @@ def load_versions(versions_file: Path) -> dict:
     if not versions_file.exists():
         raise FileNotFoundError(f"Versions file not found: {versions_file}")
 
-    with open(versions_file) as f:
+    with versions_file.open() as f:
         versions = json.load(f)
 
     # Validate required sections
@@ -38,7 +38,7 @@ def load_versions(versions_file: Path) -> dict:
     for section in required_sections:
         if section not in versions:
             raise ValueError(
-                f"Missing required section '{section}' in {versions_file}"
+                f"Missing required section '{section}' in {versions_file}",
             )
 
     return versions
@@ -47,43 +47,43 @@ def load_versions(versions_file: Path) -> dict:
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
-        description="Build AIDB debug adapters"
+        description="Build AIDB debug adapters",
     )
 
     # Adapter argument (positional)
     parser.add_argument(
         "adapter",
         nargs="?",
-        help=f"Adapter to build ({', '.join(list_adapters())})"
+        help=f"Adapter to build ({', '.join(list_adapters())})",
     )
 
     # Platform and architecture
     parser.add_argument(
         "--platform",
-        help="Target platform (linux, darwin, windows)"
+        help="Target platform (linux, darwin, windows)",
     )
     parser.add_argument(
         "--arch",
-        help="Target architecture (x64, arm64)"
+        help="Target architecture (x64, arm64)",
     )
 
     # Versions file
     parser.add_argument(
         "--versions-file",
         default="versions.json",
-        help="Path to versions configuration file"
+        help="Path to versions configuration file",
     )
 
     # Actions
     parser.add_argument(
         "--list",
         action="store_true",
-        help="List available adapters"
+        help="List available adapters",
     )
     parser.add_argument(
         "--validate-only",
         action="store_true",
-        help="Only validate configuration"
+        help="Only validate configuration",
     )
 
     args = parser.parse_args()
@@ -112,7 +112,7 @@ def main():
         # Require adapter for build
         if not args.adapter:
             parser.error(
-                "adapter argument is required unless using --list or --validate-only"
+                "adapter argument is required unless using --list or --validate-only",
             )
 
         # Get platform/arch
@@ -128,13 +128,13 @@ def main():
             platform_map = {
                 "darwin": "darwin",
                 "linux": "linux",
-                "windows": "windows"
+                "windows": "windows",
             }
             arch_map = {
                 "x86_64": "x64",
                 "amd64": "x64",
                 "arm64": "arm64",
-                "aarch64": "arm64"
+                "aarch64": "arm64",
             }
 
             platform_name = platform_map.get(system, system)
@@ -146,7 +146,7 @@ def main():
         builder = get_builder(args.adapter, versions, platform_name, arch)
         tarball_path, checksum = builder.build_adapter()
 
-        print(f"\nSuccessfully built adapter:")
+        print("\nSuccessfully built adapter:")
         print(f"  File: {tarball_path}")
         print(f"  Checksum: {checksum}")
 

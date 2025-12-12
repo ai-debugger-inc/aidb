@@ -448,7 +448,7 @@ Don't start from scratch:
 
 **Code References**:
 
-- **DAP Protocol:** See `src/aidb/dap/protocol.py` (fully typed)
+- **DAP Protocol:** See `src/aidb/dap/protocol/` (fully typed, types.py + requests.py + responses.py + events.py)
 - **Test Infrastructure:** See `src/tests/_helpers/` and `src/tests/_fixtures/`
 - **Working Examples:** See Flask/Express framework tests
 
