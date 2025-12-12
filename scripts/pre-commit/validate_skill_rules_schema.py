@@ -26,10 +26,10 @@ def validate_skill_rules() -> bool:
         print(f"ERROR: {schema_file} not found")
         return False
 
-    with open(schema_file) as f:
+    with schema_file.open() as f:
         schema = json.load(f)
 
-    with open(rules_file) as f:
+    with rules_file.open() as f:
         rules = json.load(f)
 
     try:

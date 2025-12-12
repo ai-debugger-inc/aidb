@@ -360,7 +360,7 @@ class ExecutionOperations(SessionOperationsMixin):
         response: Response = await self.session.dap.send_request(request)
         response.ensure_success()
 
-    async def start(  # noqa: C901
+    async def start(
         self,
         auto_wait: bool | None = None,
         wait_timeout: float = 5.0,

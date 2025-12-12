@@ -417,7 +417,7 @@ class AuditLogger:
                     # Loop already stopped or closed
                     self._loop.call_soon_threadsafe(self._loop.stop)
 
-    async def shutdown(self) -> None:  # noqa: C901
+    async def shutdown(self) -> None:
         """Shutdown audit logger and flush pending events."""
         if self._shutdown:
             return

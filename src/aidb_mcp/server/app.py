@@ -27,7 +27,6 @@ from mcp.types import (
 from aidb.api.constants import (
     DEFAULT_WAIT_TIMEOUT_S,
     MCP_SERVER_TIMEOUT_S,
-    PROCESS_CLEANUP_TIMEOUT_S,
 )
 from aidb_logging import get_mcp_logger as get_logger
 from aidb_mcp.core.constants import DebugURI, EventType

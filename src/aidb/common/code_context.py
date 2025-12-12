@@ -59,7 +59,7 @@ class CodeContext(Obj):
         self.source_paths = source_paths or []
         self.source_path_resolver = source_path_resolver
 
-    def extract_context(  # noqa: C901
+    def extract_context(
         self,
         file_path: str,
         line: int,

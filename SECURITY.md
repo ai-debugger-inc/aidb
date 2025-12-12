@@ -31,9 +31,9 @@ Please include the following information in your report:
 When we receive a security bug report, we will:
 
 1. Confirm the problem and determine the affected versions
-2. Audit code to find any similar problems
-3. Prepare fixes for all supported versions
-4. Release new versions and publish the advisory
+1. Audit code to find any similar problems
+1. Prepare fixes for all supported versions
+1. Release new versions and publish the advisory
 
 ## Security Best Practices
 

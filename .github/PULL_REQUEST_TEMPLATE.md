@@ -5,7 +5,9 @@ Brief description of the changes in this PR.
 ## Related Issues
 
 Fixes #(issue number)
+
 <!-- or -->
+
 Related to #(issue number)
 
 ## Type of Change

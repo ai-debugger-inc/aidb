@@ -191,7 +191,7 @@ class JDTLSSetupHooks:
             context.result = f"Failed to initialize LSP-DAP bridge: {e}"
             raise
 
-    async def ensure_bridge_initialized(self) -> None:  # noqa: C901
+    async def ensure_bridge_initialized(self) -> None:
         """Ensure the LSP-DAP bridge is initialized.
 
         This method can be called directly (e.g., for remote attach scenarios)

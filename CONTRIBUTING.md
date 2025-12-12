@@ -13,22 +13,24 @@ contributions from the community.
 ## Getting Started
 
 1. Fork the repository
-2. Clone your fork and set up the development environment:
+
+1. Clone your fork and set up the development environment:
 
    ```bash
    bash scripts/install/src/install.sh
    ./dev-cli info
    ```
 
-3. Create a branch for your changes
-4. Make your changes and ensure tests pass:
+1. Create a branch for your changes
+
+1. Make your changes and ensure tests pass:
 
    ```bash
    ./dev-cli test run -s shared
    ./dev-cli dev precommit
    ```
 
-5. Submit a pull request
+1. Submit a pull request
 
 ## Ways to Contribute
 

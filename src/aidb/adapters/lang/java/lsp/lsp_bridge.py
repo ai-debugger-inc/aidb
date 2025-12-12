@@ -6,6 +6,7 @@ components.
 """
 
 import asyncio
+import contextlib
 import hashlib
 import tempfile
 from pathlib import Path
@@ -239,10 +240,8 @@ class JavaLSPDAPBridge(Obj):
             msg = "LSP client not initialized"
             raise AidbError(msg)
         # Remember last workspace folders for potential restart scenarios
-        try:
+        with contextlib.suppress(Exception):
             self._last_workspace_folders = workspace_folders
-        except Exception:
-            pass
         await self.workspace_manager.register_workspace_folders(
             self.lsp_client,
             workspace_folders,
@@ -351,7 +350,8 @@ class JavaLSPDAPBridge(Obj):
                         workspace_folders=self._last_workspace_folders,
                     )
                     if not self.lsp_client:
-                        raise AidbError("LSP client not initialized after restart")
+                        msg = "LSP client not initialized after restart"
+                        raise AidbError(msg)
                     # Retry once after restart
                     result = await self.debug_session_manager.start_debug_session(
                         self.lsp_client,
@@ -455,12 +455,10 @@ class JavaLSPDAPBridge(Obj):
             msg = "LSP client not initialized"
             raise AidbError(msg)
         # Record as last workspace folders for restart logic
-        try:
+        with contextlib.suppress(Exception):
             self._last_workspace_folders = [
                 (project_root, project_name or project_root.name),
             ]
-        except Exception:
-            pass
         await self.workspace_manager.register_project(
             self.lsp_client,
             project_root,

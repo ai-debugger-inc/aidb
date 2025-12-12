@@ -297,7 +297,7 @@ class LSPMessageHandler(Obj):
         if message.id is not None:
             asyncio.create_task(self.protocol._send_response(message.id, result))
 
-    def _handle_notification(self, message: LSPMessage):  # noqa: C901
+    def _handle_notification(self, message: LSPMessage):
         """Handle an incoming notification from the server.
 
         Parameters
@@ -422,7 +422,7 @@ class LSPMessageHandler(Obj):
             if file_uri in self._diagnostics_by_uri:
                 del self._diagnostics_by_uri[file_uri]
 
-    async def wait_for_maven_import_complete(self, timeout: float = 60.0) -> bool:  # noqa: C901
+    async def wait_for_maven_import_complete(self, timeout: float = 60.0) -> bool:
         """Wait until an "Importing Maven project(s)" progress completes.
 
         This uses LSP $/progress notifications if available.

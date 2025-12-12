@@ -33,7 +33,7 @@ class BuildEnvironmentValidator:
         if not self.versions_file.exists():
             raise ValidationError(f"Versions file not found: {self.versions_file}")
 
-        with open(self.versions_file) as f:
+        with self.versions_file.open() as f:
             versions = json.load(f)
 
         return versions
@@ -46,16 +46,16 @@ class BuildEnvironmentValidator:
 
         # In container/act environments, check common system paths directly
         if os.environ.get("ACT") or os.environ.get("GITHUB_ACTIONS"):
-            common_paths = ["/usr/bin", "/usr/local/bin", "/bin"]
+            common_paths = [Path("/usr/bin"), Path("/usr/local/bin"), Path("/bin")]
             for path in common_paths:
-                cmd_path = os.path.join(path, command)
+                cmd_path = path / command
                 # Check if file exists and is executable
-                if os.path.exists(cmd_path):
+                if cmd_path.exists():
                     # For symlinks, check if target exists
-                    if os.path.islink(cmd_path):
+                    if cmd_path.is_symlink():
                         try:
                             # Resolve the symlink
-                            os.stat(cmd_path)
+                            cmd_path.stat()
                             return True
                         except OSError:
                             continue

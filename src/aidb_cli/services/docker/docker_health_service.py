@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
-from aidb_cli.core.constants import CliTimeouts, Icons
+from aidb_cli.core.constants import CliTimeouts
 from aidb_cli.core.paths import DockerConstants
 from aidb_cli.core.utils import CliOutput
 from aidb_cli.managers.base.service import BaseService

@@ -8,7 +8,7 @@ validation.
 from __future__ import annotations
 
 import os
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from aidb_common.constants import SUPPORTED_LANGUAGES
 from aidb_common.env.reader import (
@@ -21,6 +21,9 @@ from aidb_common.env.reader import (
 )
 from aidb_common.patterns import Singleton
 from aidb_logging import get_logger
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = get_logger(__name__)
 

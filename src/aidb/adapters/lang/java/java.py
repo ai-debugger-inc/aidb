@@ -1,6 +1,5 @@
 """Java debug adapter - refactored to use component architecture."""
 
-import asyncio
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -18,13 +17,16 @@ from ...base.hooks import LifecycleHook
 from ...base.target_resolver import TargetResolver
 from .compilation import JavaCompilationManager
 from .config import JavaAdapterConfig
-from .lsp import JavaLSPDAPBridge
 from .target_resolver import JavaTargetResolver
 from .tooling import JavaClasspathBuilder, JavaToolchain
 
 if TYPE_CHECKING:
+    import asyncio
+
     from aidb.adapters.base.source_path_resolver import SourcePathResolver
     from aidb.interfaces import ISession
+
+    from .lsp import JavaLSPDAPBridge
 
 
 class JavaAdapter(DebugAdapter):
@@ -255,7 +257,7 @@ class JavaAdapter(DebugAdapter):
             temp_compile_dir=self._temp_compile_dir,
         )
 
-    async def launch(
+    async def launch(  # noqa: C901
         self,
         target: str,
         port: int | None = None,

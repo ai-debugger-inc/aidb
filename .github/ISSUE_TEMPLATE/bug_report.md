@@ -1,9 +1,9 @@
 ---
 name: Bug Report
 about: Report a bug to help us improve AI Debugger
-title: "[Bug]: "
+title: '[Bug]: '
 labels: bug
-assignees: ""
+assignees: ''
 ---
 
 ## Bug Description
@@ -21,8 +21,8 @@ A clear and concise description of what the bug is.
 ## Steps to Reproduce
 
 1. ...
-2. ...
-3. ...
+1. ...
+1. ...
 
 ## Expected Behavior
 

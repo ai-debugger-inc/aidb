@@ -4,7 +4,6 @@ import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
-from aidb_cli.core.constants import Icons
 from aidb_cli.core.paths import CachePaths
 from aidb_cli.core.utils import CliOutput
 from aidb_cli.managers.base.service import BaseService

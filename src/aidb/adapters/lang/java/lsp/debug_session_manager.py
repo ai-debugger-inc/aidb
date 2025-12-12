@@ -349,7 +349,7 @@ class DebugSessionManager(Obj):
                 return self.dap_port or 0
 
             msg = f"Failed to start debug session after fallback: {result}"
-            raise AidbError(msg)
+            raise AidbError(msg) from e
 
     async def attach_to_remote(
         self,

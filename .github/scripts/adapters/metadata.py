@@ -9,7 +9,6 @@ import json
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
 
 
 @dataclass
@@ -87,7 +86,7 @@ def load_versions_config() -> dict:
     project_root = get_project_root()
     versions_file = project_root / "versions.json"
 
-    with open(versions_file) as f:
+    with versions_file.open() as f:
         return json.load(f)
 
 
@@ -95,7 +94,7 @@ def create_metadata(
     adapter_name: str,
     platform: str,
     arch: str,
-    binary_identifier: Optional[str] = None,
+    binary_identifier: str | None = None,
 ) -> AdapterMetadata:
     """Create adapter metadata from versions.json and runtime info.
 
@@ -147,7 +146,6 @@ def create_metadata(
         try:
             # Import here to avoid circular dependencies and allow use in build scripts
             import sys
-            from pathlib import Path
 
             # Add the project src path to allow imports
             project_root = get_project_root()
@@ -164,7 +162,7 @@ def create_metadata(
 
             if not binary_identifier:
                 raise ValueError(
-                    f"Adapter '{adapter_name}' config has no binary_identifier"
+                    f"Adapter '{adapter_name}' config has no binary_identifier",
                 )
 
         except Exception:
@@ -177,7 +175,7 @@ def create_metadata(
             binary_identifier = default_binaries.get(adapter_name)
             if not binary_identifier:
                 raise ValueError(
-                    f"No binary_identifier provided and cannot infer for adapter '{adapter_name}'"
+                    f"No binary_identifier provided and cannot infer for adapter '{adapter_name}'",
                 )
 
     # Generate build timestamp
@@ -210,7 +208,7 @@ def write_metadata_json(metadata: AdapterMetadata, output_path: Path) -> None:
 
     # Convert dataclass to dict and write as JSON
     metadata_dict = asdict(metadata)
-    with open(output_path, "w") as f:
+    with output_path.open("w") as f:
         json.dump(metadata_dict, f, indent=2)
 
 
@@ -219,7 +217,7 @@ def create_and_write_metadata(
     platform: str,
     arch: str,
     output_directory: Path,
-    binary_identifier: Optional[str] = None,
+    binary_identifier: str | None = None,
 ) -> AdapterMetadata:
     """Convenience function to create and write metadata.json in one step.
 
