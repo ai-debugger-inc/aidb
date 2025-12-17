@@ -138,7 +138,7 @@ async def _build_paused_context(
         thread_id = await service.stack.get_current_thread_id() if service else None
         stack_response = (
             await service.stack.callstack(thread_id=thread_id)
-            if service and thread_id
+            if service and thread_id is not None
             else None
         )
         if not stack_response or not stack_response.frames:

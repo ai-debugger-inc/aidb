@@ -346,6 +346,7 @@ async def _setup_event_bridge(
 def _check_if_paused(
     session_context: Any,
     session: Any,
+    session_manager: Any = None,
 ) -> bool:
     """Check if session is currently paused at a breakpoint.
 
@@ -357,13 +358,21 @@ def _check_if_paused(
         Session context to update with running state
     session : Any
         Debug session instance
+    session_manager : Any, optional
+        Session manager for resolving active session
 
     Returns
     -------
     bool
         True if session is paused at a breakpoint
     """
-    if session and session.is_paused():
+    # Resolve to active session (handles languages with parent/child patterns)
+    active_session = (
+        session_manager.get_active_session() if session_manager else session
+    )
+    check_session = active_session or session
+
+    if check_session and check_session.is_paused():
         logger.debug("Session is paused at breakpoint")
         session_context.is_running = False
         return True

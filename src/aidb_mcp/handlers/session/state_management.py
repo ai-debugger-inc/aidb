@@ -173,8 +173,15 @@ async def _sync_location_from_dap_state(
     if not session:
         return
 
-    # Use the session's public API to get current location
-    current_file, current_line = session.get_current_location()
+    # Resolve to active session (handles languages with parent/child patterns)
+    active_session = session
+    if hasattr(session, "registry") and session.registry:
+        resolved = session.registry.resolve_active_session(session)
+        if resolved:
+            active_session = resolved
+
+    # Use the resolved session's public API to get current location
+    current_file, current_line = active_session.get_current_location()
     if current_file and current_line:
         session_context.current_file = current_file
         session_context.current_line = current_line

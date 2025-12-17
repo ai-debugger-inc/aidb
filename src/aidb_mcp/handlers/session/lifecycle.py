@@ -251,6 +251,7 @@ async def handle_session_start(args: dict[str, Any]) -> dict[str, Any]:
             is_paused = _check_if_paused(
                 session_context=session_context,
                 session=session,
+                session_manager=session_manager,
             )
 
             # Handle event subscriptions

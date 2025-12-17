@@ -48,13 +48,12 @@ def _get_session_execution_state(session: Any) -> tuple[str, bool]:
     if not session or not session.started:
         return ExecutionState.TERMINATED.value, False
 
-    # Resolve to active session (child if exists, like JavaScript child sessions)
-    # This ensures we check the actual debugging session's state, not parent
+    # Resolve to active session (handles languages with parent/child patterns)
     active_session = session
-    if hasattr(session, "child_manager") and session.child_manager:
-        child = session.child_manager.active_child
-        if child:
-            active_session = child
+    if hasattr(session, "registry") and session.registry:
+        resolved = session.registry.resolve_active_session(session)
+        if resolved:
+            active_session = resolved
 
     # Check session status from core layer (authoritative source)
     if active_session and hasattr(active_session, "status"):
