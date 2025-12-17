@@ -13,7 +13,7 @@ Handler Registry (routing)
     ↓
 Tool Handler (business logic)
     ↓
-Debug API (core operations)
+DebugService (core operations)
     ↓
 Response Builder (standardized format)
 ```
@@ -168,7 +168,7 @@ async def handle_your_tool(args: dict[str, Any]) -> dict[str, Any]:
         Tool arguments including:
         - action: Action to perform
         - session_id: Optional session ID
-        - _api: Debug API instance (injected by decorator)
+        - _service: DebugService instance (injected by decorator)
         - _context: Session context (injected by decorator)
         - _session_id: Active session ID (injected by decorator)
 
@@ -179,7 +179,7 @@ async def handle_your_tool(args: dict[str, Any]) -> dict[str, Any]:
     """
     # Extract parameters
     action = args.get(ParamName.ACTION, "default_action")
-    api = args.get("_api")
+    service = args.get("_service")
     context = args.get("_context")
     session_id = args.get("_session_id")
 
@@ -197,8 +197,8 @@ async def handle_your_tool(args: dict[str, Any]) -> dict[str, Any]:
                 error_message="action is required",
             ).to_mcp_response()
 
-        # Business logic
-        result = await api.your_operation(action)
+        # Business logic using DebugService
+        result = await service.your_component.your_operation(action)
 
         # Build response
         return YourResponse(
@@ -253,7 +253,7 @@ Decorators provide cross-cutting functionality for handlers. AIDB provides four 
 
 1. **@with_execution_context** - Captures debugging context (location, state, variables)
 1. **@with_thread_safety** - Ensures thread-safe access to shared resources
-1. **@require_initialized_session** - Validates session exists and injects API
+1. **@require_initialized_session** - Validates session exists and injects service
 1. **@timed** - Tracks operation performance
 
 ### Quick Reference
@@ -266,8 +266,9 @@ Decorators provide cross-cutting functionality for handlers. AIDB provides four 
 @require_initialized_session
 @with_execution_context(track_variables=True)
 async def handle_step(args: dict[str, Any]) -> dict[str, Any]:
-    api = args.get("_api")
-    await api.orchestration.step_over()
+    service = args.get("_service")
+    thread_id = await service.stepping.get_current_thread_id()
+    await service.stepping.step_over(thread_id)
     return StepResponse(...).to_mcp_response()
 
 # Inspection tools (evaluate, locals, stack)
@@ -275,8 +276,8 @@ async def handle_step(args: dict[str, Any]) -> dict[str, Any]:
 @require_initialized_session
 @with_execution_context()
 async def handle_inspect(args: dict[str, Any]) -> dict[str, Any]:
-    api = args.get("_api")
-    result = await api.introspection.evaluate(expr)
+    service = args.get("_service")
+    result = await service.variables.evaluate(expr)
     return InspectResponse(...).to_mcp_response()
 
 # Session management (no active session required)
@@ -289,7 +290,7 @@ async def handle_start_session(args: dict[str, Any]) -> dict[str, Any]:
 **Decorator order matters:**
 
 - Outermost: `@with_thread_safety` (acquire lock first)
-- Middle: `@require_initialized_session` (validate session, inject API)
+- Middle: `@require_initialized_session` (validate session, inject service)
 - Innermost: `@with_execution_context` (capture context around handler)
 
 **For complete reference:** See [handler-decorators-reference.md](handler-decorators-reference.md) for detailed documentation, parameters, examples, and best practices
@@ -300,7 +301,7 @@ async def handle_start_session(args: dict[str, Any]) -> dict[str, Any]:
 1. **Handler Registry** looks up handler by tool name
 1. **Decorator Chain** executes (outer to inner)
 1. **Handler** extracts parameters and validates
-1. **Debug API** performs core debugging operation
+1. **DebugService** performs core debugging operation
 1. **Response Builder** constructs standardized response
 1. **Decorator Chain** adds context/metadata (inner to outer)
 1. **MCP Server** returns response to client
@@ -316,7 +317,7 @@ Handlers receive a dictionary with:
 
 **Injected parameters (by decorators):**
 
-- `_api`: Debug API instance
+- `_service`: DebugService instance (for operations)
 - `_context`: Session context (MCPSessionContext)
 - `_session_id`: Active session ID
 
@@ -329,7 +330,7 @@ target = args.get(ParamName.TARGET)
 expression = args.get(ParamName.EXPRESSION)
 
 # Injected parameters (from decorators)
-api = args.get("_api")
+service = args.get("_service")
 context = args.get("_context")
 session_id = args.get("_session_id")
 ```

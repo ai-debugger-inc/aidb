@@ -8,7 +8,6 @@ from unittest.mock import patch
 
 import pytest
 
-from aidb import DebugAPI
 from aidb.audit.events import AuditEvent, AuditLevel
 from aidb.audit.logger import AuditLogger
 from aidb.audit.middleware import AuditContext, audit_operation

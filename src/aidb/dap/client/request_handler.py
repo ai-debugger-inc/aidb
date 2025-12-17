@@ -7,7 +7,7 @@ numbering, and response correlation.
 import asyncio
 from typing import TYPE_CHECKING, Any, Optional
 
-from aidb.api.constants import DEFAULT_REQUEST_TIMEOUT_S
+from aidb.common.constants import DEFAULT_REQUEST_TIMEOUT_S
 from aidb_common.config import config
 
 if TYPE_CHECKING:

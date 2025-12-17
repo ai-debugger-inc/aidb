@@ -16,6 +16,7 @@ from ...core.constants import ConnectionStatus, DetailLevel, ExecutionState, Par
 from ...core.decorators import mcp_tool
 from ...responses import ContextResponse
 from ...responses.helpers import no_session, session_not_started
+from ...session import get_service, get_session
 from .context_building import (
     _build_breakpoints_context,
     _build_execution_history_context,
@@ -25,17 +26,17 @@ from .context_building import (
 logger = get_logger(__name__)
 
 
-def _get_session_execution_state(debug_api: Any) -> tuple[str, bool]:
+def _get_session_execution_state(session: Any) -> tuple[str, bool]:
     """Get the current execution state of the debug session.
 
-    Uses api.session.status as the authoritative source of truth.
+    Uses session.status as the authoritative source of truth.
     Resolves to active session (child if exists) for languages like JavaScript
     that use parent-child session patterns.
 
     Parameters
     ----------
-    debug_api : Any
-        Debug API instance
+    session : Any
+        Session instance
 
     Returns
     -------
@@ -44,18 +45,16 @@ def _get_session_execution_state(debug_api: Any) -> tuple[str, bool]:
         ExecutionState values (TERMINATED, PAUSED, RUNNING) and is_paused
         indicates whether detailed context should be built
     """
-    if not debug_api or not debug_api.started:
+    if not session or not session.started:
         return ExecutionState.TERMINATED.value, False
 
     # Resolve to active session (child if exists, like JavaScript child sessions)
     # This ensures we check the actual debugging session's state, not parent
-    active_session = (
-        debug_api.get_active_session()
-        if debug_api and hasattr(debug_api, "get_active_session")
-        else debug_api.session
-        if debug_api
-        else None
-    )
+    active_session = session
+    if hasattr(session, "child_manager") and session.child_manager:
+        child = session.child_manager.active_child
+        if child:
+            active_session = child
 
     # Check session status from core layer (authoritative source)
     if active_session and hasattr(active_session, "status"):
@@ -110,8 +109,15 @@ async def handle_context(args: dict[str, Any]) -> dict[str, Any]:
 
     try:
         session_id = args.get("_session_id")
-        debug_api = args.get("_api")
         session_context = args.get("_context")
+
+        # Get session for status/property access
+        session = get_session(session_id) if session_id else None
+
+        # Get service from decorator or session manager (for introspection)
+        service = args.get("_service") or (
+            get_service(session_id) if session_id else None
+        )
 
         include_suggestions = args.get("include_suggestions", True)
         detail_level_str = args.get("detail_level", DetailLevel.DETAILED.value)
@@ -163,7 +169,7 @@ async def handle_context(args: dict[str, Any]) -> dict[str, Any]:
         )
 
         # Get authoritative execution state from core session layer
-        execution_state, is_paused = _get_session_execution_state(debug_api)
+        execution_state, is_paused = _get_session_execution_state(session)
         is_terminated = execution_state == ExecutionState.TERMINATED.value
 
         # Set connection status based on execution state
@@ -182,12 +188,12 @@ async def handle_context(args: dict[str, Any]) -> dict[str, Any]:
             "status": connection_status,
         }
 
-        if debug_api and debug_api.session_info:
+        if session and session.info:
             session_info = {
-                "target": debug_api.session_info.target,
-                "language": debug_api.session_info.language,
-                "pid": getattr(debug_api.session_info, "pid", None),
-                "port": getattr(debug_api.session_info, "port", None),
+                "target": session.info.target,
+                "language": session.info.language,
+                "pid": getattr(session.info, "pid", None),
+                "port": getattr(session.info, "port", None),
             }
             context["session"] = session_info
             logger.debug(
@@ -212,7 +218,7 @@ async def handle_context(args: dict[str, Any]) -> dict[str, Any]:
 
         if is_paused:
             logger.debug("Session is paused, building detailed context")
-            await _build_paused_context(context, debug_api, verbose)
+            await _build_paused_context(context, service, verbose)
         elif is_terminated:
             logger.debug("Session is terminated, skipping detailed context")
         else:

@@ -14,6 +14,7 @@ from aidb.models import (
     StartRequestType,
     StartResponse,
 )
+from aidb.service.execution import ExecutionControl
 
 if TYPE_CHECKING:
     from aidb.dap.client import DAPClient
@@ -259,7 +260,9 @@ class SessionLifecycleMixin:
         AidbError
             If the stop operation fails
         """
-        return await self.debug.stop()
+        # Use ExecutionControl directly instead of session.debug
+        execution = ExecutionControl(cast("Session", self), self.ctx)
+        return await execution.stop()
 
     @audit_operation(component="session.lifecycle", operation="wait_for_stop")
     async def wait_for_stop(self, timeout: float = 5.0) -> None:

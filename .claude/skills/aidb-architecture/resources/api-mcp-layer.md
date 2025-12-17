@@ -1,6 +1,6 @@
-# API & MCP Layers
+# MCP & Service Layers
 
-The top two layers of AIDB: MCP server for AI agents and Python API for developers.
+The top two layers of AIDB: MCP server for AI agents and Service layer for debugging operations.
 
 ## MCP Layer (aidb_mcp/)
 
@@ -14,7 +14,7 @@ Client (AI Agent) → stdio → AidbMCPServer
   ├── _handle_call_tool() → Execute tool, return response
   └── _handle_list_resources() → Return debugging resources
       ↓
-  TOOL_HANDLERS registry → DebugAPI
+  TOOL_HANDLERS registry → DebugService
 ```
 
 ### The 12 Tools
@@ -37,13 +37,29 @@ Client (AI Agent) → stdio → AidbMCPServer
 ### Handler Pattern
 
 ```python
+@mcp_tool()
 async def handle_step(args: dict) -> dict:
-    # 1. Validate init completed
-    # 2. Get session: session_id, debug_api, context = get_or_create_session(args)
+    # 1. Validate init completed (via decorator)
+    # 2. Get injected parameters from decorator:
+    service = args["_service"]      # DebugService instance
+    context = args["_context"]      # MCPSessionContext
+    session_id = args["_session_id"]
     # 3. Validate params
-    # 4. Call DebugAPI: await debug_api.orchestration.step_over()
+    # 4. Call DebugService: await service.stepping.step_over(thread_id)
     # 5. Update context
     # 6. Return Response().to_mcp_response()
+```
+
+### @mcp_tool Decorator Stack
+
+The `@mcp_tool()` decorator provides a standardized wrapper for all handlers:
+
+```
+@timed                    # 1. Performance tracking
+@audit_operation          # 2. Audit logging (persistent trail)
+@with_thread_safety       # 3. Thread safety + session injection
+@with_parameter_validation # 4. Parameter validation (optional)
+@with_execution_context   # 5. Context capture + history recording
 ```
 
 ### Response System
@@ -55,7 +71,7 @@ async def handle_step(args: dict) -> dict:
 ### Session Management
 
 ```
-MCP Session (1) → DebugAPI (1) → aidb.Session (1+)
+MCP Session (1) → DebugService (1) → aidb.Session (1+)
               → MCPSessionContext (1)
 ```
 
@@ -63,66 +79,73 @@ MCP Session (1) → DebugAPI (1) → aidb.Session (1+)
 
 ______________________________________________________________________
 
-## API Layer (aidb/api/)
+## Service Layer (aidb/service/)
 
-**Purpose:** Python API providing `.introspection` and `.orchestration` properties.
+**Purpose:** Stateless service layer providing debugging operations on a Session.
 
 ### Core Components
 
-**DebugAPI** (`api.py`) - Main entry point
+**DebugService** (`debug_service.py`) - Main entry point
 
-- `create_session(target, language, ...)` → Session
-- `.introspection` property → state inspection operations
-- `.orchestration` property → control flow operations
+```python
+class DebugService:
+    """Stateless debugging operations on a Session."""
 
-**SessionManager** (`session_manager.py`) - Lifecycle management
+    def __init__(self, session: Session) -> None:
+        self._session = session
+        self.execution = ExecutionControl(session)
+        self.stepping = SteppingService(session)
+        self.breakpoints = BreakpointManager(session)
+        self.variables = VariableInspector(session)
+        self.stack = StackNavigator(session)
+```
 
-- Thread-safe session count (max 10 concurrent)
-- Creates sessions via SessionBuilder
-
-**SessionBuilder** (`session_builder.py`) - Fluent construction
+**SessionBuilder** (`session/builder.py`) - Fluent construction
 
 - `with_target()`, `with_attach()`, `with_language()`
 - `with_launch_config()` for VS Code launch.json
 - `with_breakpoints()`, `with_timeout()`
 
-### Operations
+**SessionManager** (`session/manager.py`) - Lifecycle management
 
-**Introspection** (read-only):
+- Thread-safe session count (max 10 concurrent)
+- Creates sessions via SessionBuilder
 
-- `locals()`, `globals()`, `evaluate()`
-- `callstack()`, `threads()`, `frames()`, `scopes()`
-- `read_memory()`, `write_memory()`
+### Operations by Namespace
 
-**Orchestration** (control):
+**Execution Control** (`service.execution`):
 
-- `continue_()`, `pause()`, `restart()`, `stop()`
-- `step_into()`, `step_over()`, `step_out()`
-- `breakpoint()`, `remove_breakpoint()`, `clear_breakpoints()`
+- `continue_()`, `pause()`, `restart()`, `terminate()`
+- `get_current_thread_id()`, `get_output()`
 
-### Usage
+**Stepping** (`service.stepping`):
 
-```python
-api = DebugAPI()
-session = await api.create_session(target="app.py", language="python")
-await session.start()
+- `step_into()`, `step_over()`, `step_out()`, `step_back()`
+- `get_current_thread_id()`
 
-locals_vars = await api.introspection.locals()
-await api.orchestration.step_over()
-await api.stop()
-```
+**Breakpoints** (`service.breakpoints`):
+
+- `set()`, `remove()`, `list()`, `clear_all()`
+- `watch()`, `unwatch()` (watchpoints)
+
+**Variables** (`service.variables`):
+
+- `evaluate()`, `set_variable()`, `set_expression()`
+- `locals_()`, `globals_()`, `scopes()`
+
+**Stack** (`service.stack`):
+
+- `callstack()`, `threads()`, `exception()`
+- `get_current_thread_id()`, `get_current_frame_id()`
 
 ### Child Session Resolution
 
-JavaScript uses parent-child sessions. `get_active_session()` returns child if exists:
+JavaScript uses parent-child sessions. Service resolves to active session automatically:
 
 ```python
 @property
 def session(self) -> Session:
-    if self._root_session.child_session_ids:
-        child_id = self._root_session.child_session_ids[0]
-        return self._root_session.registry.get_session(child_id)
-    return self._root_session
+    return resolve_active_session(self._session, self.ctx)
 ```
 
 ______________________________________________________________________
@@ -133,12 +156,20 @@ ______________________________________________________________________
 
 - `aidb_mcp/server/app.py` - AidbMCPServer
 - `aidb_mcp/handlers/registry.py` - TOOL_HANDLERS
+- `aidb_mcp/core/decorators.py` - @mcp_tool decorator
 - `aidb_mcp/responses/base.py` - Response classes
 - `aidb_mcp/session/manager.py` - Session management
 
-**API:**
+**Service:**
 
-- `aidb/api/api.py` - DebugAPI
-- `aidb/api/session_builder.py` - SessionBuilder
-- `aidb/api/introspection/` - State operations
-- `aidb/api/orchestration/` - Control operations
+- `aidb/service/debug_service.py` - DebugService
+- `aidb/service/execution/control.py` - ExecutionControl
+- `aidb/service/execution/stepping.py` - SteppingService
+- `aidb/service/breakpoints/manager.py` - BreakpointManager
+- `aidb/service/variables/inspector.py` - VariableInspector
+- `aidb/service/stack/navigator.py` - StackNavigator
+
+**Session:**
+
+- `aidb/session/builder.py` - SessionBuilder
+- `aidb/session/manager.py` - SessionManager

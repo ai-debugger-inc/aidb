@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 
 from aidb.adapters.lang.java.tooling import JavaBuildSystemDetector
-from aidb.api.constants import (
+from aidb.common.constants import (
     DEFAULT_WAIT_TIMEOUT_S,
     LSP_EXECUTE_COMMAND_TIMEOUT_S,
     LSP_MAVEN_IMPORT_TIMEOUT_S,

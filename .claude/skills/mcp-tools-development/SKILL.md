@@ -57,7 +57,7 @@ Handler Registry (src/aidb_mcp/handlers/registry.py)
     ↓
 Tool Handler (src/aidb_mcp/handlers/{category}/)
     ↓
-Debug API (src/aidb/api/)
+DebugService (src/aidb/service/)
     ↓
 Response Builder (src/aidb_mcp/responses/)
     ↓

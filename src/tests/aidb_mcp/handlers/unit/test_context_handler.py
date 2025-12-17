@@ -1,6 +1,6 @@
 """Unit tests for context handler state synchronization."""
 
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
@@ -16,64 +16,62 @@ from aidb_mcp.session.context import MCPSessionContext
 class TestSessionExecutionState:
     """Test _get_session_execution_state function."""
 
-    def test_returns_terminated_when_no_api(self):
-        """Should return TERMINATED when debug_api is None."""
+    def test_returns_terminated_when_no_session(self):
+        """Should return TERMINATED when session is None."""
         state, is_paused = _get_session_execution_state(None)
         assert state == ExecutionState.TERMINATED.value
         assert is_paused is False
 
     def test_returns_terminated_when_not_started(self):
         """Should return TERMINATED when session not started."""
-        debug_api = Mock()
-        debug_api.started = False
+        session = Mock()
+        session.started = False
 
-        state, is_paused = _get_session_execution_state(debug_api)
+        state, is_paused = _get_session_execution_state(session)
         assert state == ExecutionState.TERMINATED.value
         assert is_paused is False
 
     def test_returns_terminated_when_status_is_terminated(self):
         """Should return TERMINATED when session.status is TERMINATED."""
-        debug_api = Mock()
-        debug_api.started = True
-        debug_api.session = Mock()
-        debug_api.session.status = SessionStatus.TERMINATED
+        session = Mock()
+        session.started = True
+        session.status = SessionStatus.TERMINATED
+        session.child_manager = None  # No child session
 
-        state, is_paused = _get_session_execution_state(debug_api)
+        state, is_paused = _get_session_execution_state(session)
         assert state == ExecutionState.TERMINATED.value
         assert is_paused is False
 
     def test_returns_terminated_when_status_is_error(self):
         """Should return TERMINATED when session.status is ERROR."""
-        debug_api = Mock()
-        debug_api.started = True
-        debug_api.session = Mock()
-        debug_api.session.status = SessionStatus.ERROR
+        session = Mock()
+        session.started = True
+        session.status = SessionStatus.ERROR
+        session.child_manager = None  # No child session
 
-        state, is_paused = _get_session_execution_state(debug_api)
+        state, is_paused = _get_session_execution_state(session)
         assert state == ExecutionState.TERMINATED.value
         assert is_paused is False
 
     def test_returns_paused_when_status_is_paused(self):
         """Should return PAUSED when session.status is PAUSED."""
-        debug_api = Mock()
-        debug_api.started = True
-        debug_api.session = Mock()
-        debug_api.session.status = SessionStatus.PAUSED
-        debug_api.get_active_session.return_value = debug_api.session
+        session = Mock()
+        session.started = True
+        session.status = SessionStatus.PAUSED
+        session.child_manager = None  # No child session
 
-        state, is_paused = _get_session_execution_state(debug_api)
+        state, is_paused = _get_session_execution_state(session)
         assert state == ExecutionState.PAUSED.value
         assert is_paused is True
 
     def test_returns_running_when_status_is_running(self):
         """Should return RUNNING when session.status is RUNNING."""
-        debug_api = Mock()
-        debug_api.started = True
-        debug_api.session = Mock()
-        debug_api.session.status = SessionStatus.RUNNING
-        debug_api.get_active_session.return_value = debug_api.session
+        session = Mock()
+        session.started = True
+        session.status = SessionStatus.RUNNING
+        session.child_manager = None  # No child session
 
-        state, is_paused = _get_session_execution_state(debug_api)
+        state, is_paused = _get_session_execution_state(session)
         assert state == ExecutionState.RUNNING.value
         assert is_paused is False
 
@@ -82,23 +80,28 @@ class TestSessionExecutionState:
 class TestHandleContext:
     """Test handle_context function with state synchronization."""
 
-    async def test_context_returns_terminated_when_session_terminated(self):
+    @patch("aidb_mcp.handlers.context.handler.get_session")
+    async def test_context_returns_terminated_when_session_terminated(
+        self,
+        mock_get_session,
+    ):
         """Should return execution_state=terminated when session terminates."""
-        # Setup mocks
-        debug_api = Mock()
-        debug_api.started = True
-        debug_api.session = Mock()
-        debug_api.session.status = SessionStatus.TERMINATED
-        debug_api.session_info = Mock()
-        debug_api.session_info.target = "test.py"
-        debug_api.session_info.language = "python"
+        # Setup session mock (not DebugService mock)
+        session = Mock()
+        session.started = True
+        session.status = SessionStatus.TERMINATED
+        session.child_manager = None  # No child session
+        session.info = Mock()
+        session.info.target = "test.py"
+        session.info.language = "python"
+
+        mock_get_session.return_value = session
 
         session_context = MCPSessionContext()
         session_context.session_started = True
 
         args = {
             "_session_id": "test-session",
-            "_api": debug_api,
             "_context": session_context,
         }
 
@@ -114,31 +117,25 @@ class TestHandleContext:
         # Check connection status is inactive for terminated sessions
         assert context_data["status"] == ConnectionStatus.INACTIVE.value
 
-    async def test_context_returns_paused_when_session_paused(self):
+    @patch("aidb_mcp.handlers.context.handler.get_session")
+    async def test_context_returns_paused_when_session_paused(self, mock_get_session):
         """Should return execution_state=paused when session is paused."""
-        # Setup mocks
-        debug_api = Mock()
-        debug_api.started = True
-        debug_api.session = Mock()
-        debug_api.session.status = SessionStatus.PAUSED
-        debug_api.session.dap = Mock()
-        debug_api.session.dap.is_stopped = True
-        debug_api.session_info = Mock()
-        debug_api.session_info.target = "test.py"
-        debug_api.session_info.language = "python"
-        debug_api.get_active_session.return_value = debug_api.session
+        # Setup session mock
+        session = Mock()
+        session.started = True
+        session.status = SessionStatus.PAUSED
+        session.child_manager = None  # No child session
+        session.info = Mock()
+        session.info.target = "test.py"
+        session.info.language = "python"
 
-        # Mock introspection for paused state
-        debug_api.introspection = Mock()
-        debug_api.introspection.callstack = AsyncMock()
-        debug_api.introspection.callstack.return_value = Mock(frames=[])
+        mock_get_session.return_value = session
 
         session_context = MCPSessionContext()
         session_context.session_started = True
 
         args = {
             "_session_id": "test-session",
-            "_api": debug_api,
             "_context": session_context,
         }
 
@@ -154,24 +151,25 @@ class TestHandleContext:
         # Check connection status is active for paused sessions
         assert context_data["status"] == ConnectionStatus.ACTIVE.value
 
-    async def test_context_returns_running_when_session_running(self):
+    @patch("aidb_mcp.handlers.context.handler.get_session")
+    async def test_context_returns_running_when_session_running(self, mock_get_session):
         """Should return execution_state=running when session is running."""
-        # Setup mocks
-        debug_api = Mock()
-        debug_api.started = True
-        debug_api.session = Mock()
-        debug_api.session.status = SessionStatus.RUNNING
-        debug_api.session_info = Mock()
-        debug_api.session_info.target = "test.py"
-        debug_api.session_info.language = "python"
-        debug_api.get_active_session.return_value = debug_api.session
+        # Setup session mock
+        session = Mock()
+        session.started = True
+        session.status = SessionStatus.RUNNING
+        session.child_manager = None  # No child session
+        session.info = Mock()
+        session.info.target = "test.py"
+        session.info.language = "python"
+
+        mock_get_session.return_value = session
 
         session_context = MCPSessionContext()
         session_context.session_started = True
 
         args = {
             "_session_id": "test-session",
-            "_api": debug_api,
             "_context": session_context,
         }
 
@@ -187,17 +185,22 @@ class TestHandleContext:
         # Check connection status is active for running sessions
         assert context_data["status"] == ConnectionStatus.ACTIVE.value
 
-    async def test_breakpoints_marked_inactive_when_session_terminated(self):
+    @patch("aidb_mcp.handlers.context.handler.get_session")
+    async def test_breakpoints_marked_inactive_when_session_terminated(
+        self,
+        mock_get_session,
+    ):
         """Should mark breakpoints as inactive when session is terminated."""
-        # Setup mocks
-        debug_api = Mock()
-        debug_api.started = True
-        debug_api.session = Mock()
-        debug_api.session.status = SessionStatus.TERMINATED
-        debug_api.session_info = Mock()
-        debug_api.session_info.target = "test.py"
-        debug_api.session_info.language = "python"
-        debug_api.get_active_session.return_value = debug_api.session
+        # Setup session mock
+        session = Mock()
+        session.started = True
+        session.status = SessionStatus.TERMINATED
+        session.child_manager = None  # No child session
+        session.info = Mock()
+        session.info.target = "test.py"
+        session.info.language = "python"
+
+        mock_get_session.return_value = session
 
         session_context = MCPSessionContext()
         session_context.session_started = True
@@ -208,7 +211,6 @@ class TestHandleContext:
 
         args = {
             "_session_id": "test-session",
-            "_api": debug_api,
             "_context": session_context,
         }
 
@@ -224,17 +226,22 @@ class TestHandleContext:
         assert context_data["breakpoints"]["count"] == 2
         assert len(context_data["breakpoints"]["active"]) == 2
 
-    async def test_breakpoints_marked_active_when_session_running(self):
+    @patch("aidb_mcp.handlers.context.handler.get_session")
+    async def test_breakpoints_marked_active_when_session_running(
+        self,
+        mock_get_session,
+    ):
         """Should mark breakpoints as active when session is running."""
-        # Setup mocks
-        debug_api = Mock()
-        debug_api.started = True
-        debug_api.session = Mock()
-        debug_api.session.status = SessionStatus.RUNNING
-        debug_api.session_info = Mock()
-        debug_api.session_info.target = "test.py"
-        debug_api.session_info.language = "python"
-        debug_api.get_active_session.return_value = debug_api.session
+        # Setup session mock
+        session = Mock()
+        session.started = True
+        session.status = SessionStatus.RUNNING
+        session.child_manager = None  # No child session
+        session.info = Mock()
+        session.info.target = "test.py"
+        session.info.language = "python"
+
+        mock_get_session.return_value = session
 
         session_context = MCPSessionContext()
         session_context.session_started = True
@@ -244,7 +251,6 @@ class TestHandleContext:
 
         args = {
             "_session_id": "test-session",
-            "_api": debug_api,
             "_context": session_context,
         }
 
@@ -259,16 +265,22 @@ class TestHandleContext:
         assert context_data["breakpoints"]["status"] == "active"
         assert context_data["breakpoints"]["count"] == 1
 
-    async def test_state_consistency_across_terminated_session(self):
+    @patch("aidb_mcp.handlers.context.handler.get_session")
+    async def test_state_consistency_across_terminated_session(
+        self,
+        mock_get_session,
+    ):
         """Should have consistent state for terminated session across all fields."""
-        # Setup mocks
-        debug_api = Mock()
-        debug_api.started = True
-        debug_api.session = Mock()
-        debug_api.session.status = SessionStatus.TERMINATED
-        debug_api.session_info = Mock()
-        debug_api.session_info.target = "test.py"
-        debug_api.session_info.language = "python"
+        # Setup session mock
+        session = Mock()
+        session.started = True
+        session.status = SessionStatus.TERMINATED
+        session.child_manager = None  # No child session
+        session.info = Mock()
+        session.info.target = "test.py"
+        session.info.language = "python"
+
+        mock_get_session.return_value = session
 
         session_context = MCPSessionContext()
         session_context.session_started = True
@@ -276,7 +288,6 @@ class TestHandleContext:
 
         args = {
             "_session_id": "test-session",
-            "_api": debug_api,
             "_context": session_context,
         }
 

@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Optional
 
 import psutil
 
-from aidb.api.constants import PROCESS_TERMINATE_TIMEOUT_S, RECEIVE_POLL_TIMEOUT_S
+from aidb.common.constants import PROCESS_TERMINATE_TIMEOUT_S, RECEIVE_POLL_TIMEOUT_S
 from aidb.patterns import Obj
 
 if TYPE_CHECKING:

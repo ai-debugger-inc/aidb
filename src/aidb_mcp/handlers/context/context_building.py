@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 async def _build_frame_data(
     frame: Any,
     index: int,
-    debug_api: Any,
+    service: Any,
     verbose: bool,
 ) -> dict[str, Any]:
     """Build frame data for a stack frame.
@@ -31,8 +31,8 @@ async def _build_frame_data(
         Stack frame object
     index : int
         Frame index
-    debug_api : Any
-        Debug API instance
+    service : Any
+        Debug service instance
     verbose : bool
         Whether to include verbose details
 
@@ -67,9 +67,7 @@ async def _build_frame_data(
     if verbose and frame.id:
         try:
             logger.debug("Retrieving locals for frame %d", index)
-            frame_locals = (
-                await debug_api.introspection.locals(frame.id) if debug_api else None
-            )
+            frame_locals = await service.variables.locals(frame.id) if service else None
             if frame_locals and frame_locals.variables:
                 var_count = len(frame_locals.variables)
 
@@ -119,7 +117,7 @@ async def _build_frame_data(
 
 async def _build_paused_context(
     context: dict[str, Any],
-    debug_api: Any,
+    service: Any,
     verbose: bool,
 ) -> None:
     """Build context when debugger is paused.
@@ -128,8 +126,8 @@ async def _build_paused_context(
     ----------
     context : dict[str, Any]
         Context dictionary to populate
-    debug_api : Any
-        Debug API instance
+    service : Any
+        Debug service instance
     verbose : bool
         Whether to include verbose details
     """
@@ -137,8 +135,11 @@ async def _build_paused_context(
 
     try:
         logger.debug("Retrieving call stack")
+        thread_id = await service.stack.get_current_thread_id() if service else None
         stack_response = (
-            await debug_api.introspection.callstack() if debug_api else None
+            await service.stack.callstack(thread_id=thread_id)
+            if service and thread_id
+            else None
         )
         if not stack_response or not stack_response.frames:
             logger.warning("No stack frames available in paused state")
@@ -186,7 +187,7 @@ async def _build_paused_context(
 
         stack_frames = []
         for i, frame in enumerate(limited_frames):
-            frame_data = await _build_frame_data(frame, i, debug_api, verbose)
+            frame_data = await _build_frame_data(frame, i, service, verbose)
             stack_frames.append(frame_data)
 
         context["stack_frames"] = stack_frames
@@ -196,8 +197,8 @@ async def _build_paused_context(
             try:
                 logger.debug("Retrieving current frame variables")
                 locals_response = (
-                    await debug_api.introspection.locals(current_frame.id)
-                    if debug_api
+                    await service.variables.locals(current_frame.id)
+                    if service
                     else None
                 )
                 if locals_response and locals_response.variables:

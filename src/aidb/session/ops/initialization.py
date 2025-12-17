@@ -5,7 +5,7 @@ import time
 from typing import TYPE_CHECKING, Optional, cast
 
 from aidb.adapters.base.initialize import InitializationOp, InitializationOpType
-from aidb.api.constants import (
+from aidb.common.constants import (
     EVENT_POLL_TIMEOUT_S,
     INIT_REQUEST_TIMEOUT_S,
     LONG_WAIT_S,

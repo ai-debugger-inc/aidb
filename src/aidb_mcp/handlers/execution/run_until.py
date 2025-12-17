@@ -7,6 +7,15 @@ from __future__ import annotations
 
 from typing import Any
 
+from aidb.dap.protocol.bodies import (
+    ContinueArguments,
+    SetBreakpointsArguments,
+)
+from aidb.dap.protocol.requests import (
+    ContinueRequest,
+    SetBreakpointsRequest,
+)
+from aidb.dap.protocol.types import Source, SourceBreakpoint
 from aidb_logging import get_mcp_logger as get_logger
 
 from ...core import ToolName
@@ -15,6 +24,7 @@ from ...core.decorators import mcp_tool
 from ...responses import RunUntilResponse
 from ...responses.errors import InternalError
 from ...responses.helpers import handle_timeout_error, invalid_parameter
+from ...session import get_service, get_session
 
 logger = get_logger(__name__)
 
@@ -57,7 +67,7 @@ async def _parse_location_with_file(
 
 async def _parse_location_line_only(
     location: str,
-    api: Any,
+    service: Any,
 ) -> tuple[str | None, int | None, dict[str, Any] | None]:
     """Parse location with just line number.
 
@@ -65,8 +75,8 @@ async def _parse_location_line_only(
     ----------
     location : str
         Location string with just line number
-    api : Any
-        Debug API instance
+    service : Any
+        Debug service instance
 
     Returns
     -------
@@ -76,7 +86,8 @@ async def _parse_location_line_only(
     try:
         line = int(location)
         # Get current file from stack frame
-        stack = await api.introspection.callstack()
+        thread_id = await service.stack.get_current_thread_id()
+        stack = await service.stack.callstack(thread_id=thread_id)
         if stack and stack.frames and len(stack.frames) > 0:
             current_frame = stack.frames[0]
             if current_frame.source:
@@ -111,7 +122,7 @@ async def _parse_location_line_only(
 
 async def _parse_location(
     location: str,
-    api: Any,
+    service: Any,
 ) -> tuple[str | None, int | None, dict[str, Any] | None]:
     """Parse location parameter.
 
@@ -119,8 +130,8 @@ async def _parse_location(
     ----------
     location : str
         Location parameter
-    api : Any
-        Debug API instance
+    service : Any
+        Debug service instance
 
     Returns
     -------
@@ -132,7 +143,7 @@ async def _parse_location(
         return await _parse_location_with_file(location)
     if location:
         # Just a line number - need current file
-        return await _parse_location_line_only(location, api)
+        return await _parse_location_line_only(location, service)
     return (
         None,
         None,
@@ -147,7 +158,7 @@ async def _parse_location(
 
 async def _check_paused_at_target(
     continue_result: Any,
-    api: Any,
+    service: Any,
     file_path: str,
     line: int,
 ) -> bool:
@@ -157,8 +168,8 @@ async def _check_paused_at_target(
     ----------
     continue_result : Any
         Result from continue operation
-    api : Any
-        Debug API instance
+    service : Any
+        Debug service instance
     file_path : str
         Target file path
     line : int
@@ -178,7 +189,8 @@ async def _check_paused_at_target(
 
     # Check if we're at target location
     try:
-        stack = await api.introspection.callstack()
+        thread_id = await service.stack.get_current_thread_id()
+        stack = await service.stack.callstack(thread_id=thread_id)
         if stack and stack.frames and len(stack.frames) > 0:
             current_frame = stack.frames[0]
             if (
@@ -194,7 +206,7 @@ async def _check_paused_at_target(
 
 
 async def _execute_with_temp_breakpoint(
-    api: Any,
+    service: Any,
     file_path: str,
     line: int,
     condition: str | None = None,
@@ -203,8 +215,8 @@ async def _execute_with_temp_breakpoint(
 
     Parameters
     ----------
-    api : Any
-        Debug API instance
+    service : Any
+        Debug service instance
     file_path : str
         Target file path
     line : int
@@ -217,27 +229,41 @@ async def _execute_with_temp_breakpoint(
     tuple[Any, bool]
         Continue result and whether target was reached
     """
-    # Set temporary breakpoint
-    bp_spec = {"file": file_path, "line": line}
+    # Build DAP breakpoint request
+    source_bp = SourceBreakpoint(line=line)
     if condition:
-        bp_spec["condition"] = condition
+        source_bp.condition = condition
 
-    await api.orchestration.breakpoint(bp_spec)
+    source = Source(path=file_path)
+    bp_args = SetBreakpointsArguments(source=source, breakpoints=[source_bp])
+    bp_request = SetBreakpointsRequest(seq=0, arguments=bp_args)
+
+    await service.breakpoints.set(bp_request)
 
     # Continue execution
-    continue_result = await api.orchestration.continue_()
+    thread_id = await service.execution.get_current_thread_id()
+    continue_request = ContinueRequest(
+        seq=0,
+        arguments=ContinueArguments(threadId=thread_id),
+    )
+    continue_result = await service.execution.continue_(
+        continue_request,
+        wait_for_stop=True,
+    )
 
     # Check if we hit the temporary breakpoint
     paused_at_target = await _check_paused_at_target(
         continue_result,
-        api,
+        service,
         file_path,
         line,
     )
 
-    # Remove the temporary breakpoint (best effort)
+    # Remove the temporary breakpoint (best effort - set empty list for file)
     try:
-        await api.orchestration.clear_breakpoints(source_file=file_path)
+        clear_args = SetBreakpointsArguments(source=source, breakpoints=[])
+        clear_request = SetBreakpointsRequest(seq=0, arguments=clear_args)
+        await service.breakpoints.set(clear_request)
     except Exception as e:
         logger.debug("Failed to clear temporary breakpoint: %s", e)
 
@@ -245,7 +271,7 @@ async def _execute_with_temp_breakpoint(
 
 
 async def _build_run_until_response(
-    api: Any,
+    session: Any,
     context: Any,
     session_id: str,
     file_path: str,
@@ -256,8 +282,8 @@ async def _build_run_until_response(
 
     Parameters
     ----------
-    api : Any
-        Debug API instance
+    session : Any
+        Session instance for status/property access
     context : Any
         Session context
     session_id : str
@@ -279,7 +305,7 @@ async def _build_run_until_response(
     # Determine stop reason for status
     stop_reason = None if paused_at_target else StopReason.COMPLETED
     resp_ctx = await build_response_context(
-        api,
+        session,
         context,
         stop_reason,
         is_paused=paused_at_target,
@@ -309,13 +335,8 @@ async def handle_run_until(args: dict[str, Any]) -> dict[str, Any]:
 
         # Get session components from decorator
         session_id = args.get("_session_id")
-        api = args.get("_api")
-
-        # The decorator guarantees api and location are present
-        if not api:
-            return InternalError(
-                error_message="Debug API not available",
-            ).to_mcp_response()
+        service = args.get("_service")
+        context = args.get("_context")
 
         if location is None:
             return InternalError(
@@ -327,8 +348,19 @@ async def handle_run_until(args: dict[str, Any]) -> dict[str, Any]:
                 error_message="Session ID not available",
             ).to_mcp_response()
 
+        # Get service from decorator or session manager
+        if not service:
+            service = get_service(session_id)
+        if not service:
+            return InternalError(
+                error_message="Debug service not available",
+            ).to_mcp_response()
+
+        # Get session for response building
+        session = get_session(session_id)
+
         # Parse location
-        file_path, line, error = await _parse_location(location, api)
+        file_path, line, error = await _parse_location(location, service)
         if error:
             return error
 
@@ -340,18 +372,15 @@ async def handle_run_until(args: dict[str, Any]) -> dict[str, Any]:
 
         # Execute with temporary breakpoint
         _continue_result, paused_at_target = await _execute_with_temp_breakpoint(
-            api,
+            service,
             file_path,
             line,
             args.get(ParamName.CONDITION),
         )
 
-        # Get context from decorator
-        context = args.get("_context")
-
         # Build and return response
         response = await _build_run_until_response(
-            api,
+            session,
             context,
             session_id,
             file_path,

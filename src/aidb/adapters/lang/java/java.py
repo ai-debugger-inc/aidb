@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
-from aidb.api.constants import (
+from aidb.common.constants import (
     DEFAULT_ADAPTER_HOST,
     DEFAULT_JAVA_DEBUG_PORT,
     DEFAULT_WAIT_TIMEOUT_S,

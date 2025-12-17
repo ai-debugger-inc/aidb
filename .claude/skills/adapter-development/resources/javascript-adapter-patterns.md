@@ -129,7 +129,9 @@ async def initialize_child_dap(
         ),
     ]
 
-    await child_session.debug._execute_initialization_sequence(child_sequence)
+    # InitializationOps is created internally by the session layer
+    # See src/aidb/adapters/lang/javascript/javascript.py:initialize_child_dap()
+    await init_ops._execute_initialization_sequence(child_sequence)
 ```
 
 ## Launch Command Construction

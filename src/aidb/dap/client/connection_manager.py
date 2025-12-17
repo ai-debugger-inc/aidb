@@ -7,7 +7,7 @@ import asyncio
 import time
 from typing import TYPE_CHECKING, Any, Optional
 
-from aidb.api.constants import (
+from aidb.common.constants import (
     CONNECTION_TIMEOUT_S,
     DISCONNECT_TIMEOUT_S,
     EVENT_POLL_TIMEOUT_S,

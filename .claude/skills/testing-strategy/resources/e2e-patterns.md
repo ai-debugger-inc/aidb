@@ -114,9 +114,8 @@ ______________________________________________________________________
 - `src/tests/frameworks/javascript/express/e2e/test_express_debugging.py`
 - `src/tests/frameworks/java/springboot/e2e/test_springboot_debugging.py`
 
-**Core API Tests:**
+**Core Tests:**
 
-- `src/tests/aidb/api/e2e/test_launch_variable_resolution.py`
 - `src/tests/aidb_shared/e2e/test_complex_workflows.py`
 
 ______________________________________________________________________

@@ -176,7 +176,7 @@ def _determine_language(args: dict[str, Any], target: str | None) -> str | None:
 @with_thread_safety(require_session=False)
 async def _validate_and_prepare_session(
     args: dict[str, Any],
-) -> tuple[str, Any, Any, LaunchMode, str | None, list]:
+) -> tuple[str, Any, LaunchMode, str | None, list]:
     """Validate parameters and prepare session.
 
     Returns session components and parsed data.
@@ -197,8 +197,8 @@ async def _validate_and_prepare_session(
     session_id = args.get(ParamName.SESSION_ID, str(uuid.uuid4()))
     language = _determine_language(args, target)
 
-    # Get or create session
-    session_id, debug_api, session_context = get_or_create_session(session_id)
+    # Get or create session context
+    session_id, session_context = get_or_create_session(session_id)
 
     # Parse breakpoints
     breakpoints = args.get(ParamName.BREAKPOINTS, [])
@@ -206,7 +206,6 @@ async def _validate_and_prepare_session(
 
     return (
         session_id,
-        debug_api,
         session_context,
         mode,
         language,

@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 from aidb.adapters.utils.binary_locator import AdapterBinaryLocator
 from aidb.adapters.utils.output_capture import AdapterOutputCapture
 from aidb.adapters.utils.trace_log import AdapterTraceLogManager
-from aidb.api.constants import DEFAULT_ADAPTER_HOST
+from aidb.common.constants import DEFAULT_ADAPTER_HOST
 from aidb.common.context import AidbContext
 from aidb.common.errors import AdapterCapabilityNotSupportedError
 from aidb.dap.protocol.types import Capabilities

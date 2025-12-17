@@ -86,12 +86,12 @@ async def handle_inspect(args: dict[str, Any]) -> dict[str, Any]:
 
         frame_id = args.get(ParamName.FRAME, args.get(ParamName.FRAME_ID))
         session_id = args.get("_session_id")
-        api = args.get("_api")
+        service = args.get("_service")  # Phase 2: DebugService for operations
 
-        # The decorator guarantees api is present
-        if not api:
+        # The decorator guarantees service is present
+        if not service:
             return InternalError(
-                error_message="Debug API not available",
+                error_message="DebugService not available",
             ).to_mcp_response()
 
         if not expression:
@@ -104,7 +104,7 @@ async def handle_inspect(args: dict[str, Any]) -> dict[str, Any]:
                 param_description="Specify an expression or variable to inspect",
             )
 
-        # Map expressions to handlers
+        # Map expressions to handlers (Phase 2: pass service instead of api)
         expression_handlers = {
             "locals()": inspect_locals,
             "__locals__": inspect_locals,
@@ -118,9 +118,9 @@ async def handle_inspect(args: dict[str, Any]) -> dict[str, Any]:
         # Execute appropriate handler or evaluate expression
         handler = expression_handlers.get(expression)
         if handler:
-            data = await handler(api)
+            data = await handler(service)
         else:
-            data = await inspect_expression(api, expression, frame_id)
+            data = await inspect_expression(service, expression, frame_id)
 
         # Return using new response class
         logger.info(

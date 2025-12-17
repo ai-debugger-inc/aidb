@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from aidb.adapters.base.hooks import HookContext
-from aidb.api.constants import (
+from aidb.common.constants import (
     DEFAULT_WAIT_TIMEOUT_S,
     DISCONNECT_TIMEOUT_S,
     LONG_WAIT_S,

@@ -115,23 +115,29 @@ def list_sessions() -> list[dict[str, Any]]:
     """
     with _state_lock:
         sessions: list[dict[str, Any]] = []
-        for sid, api in _DEBUG_SESSIONS.items():
+        for sid, service in _DEBUG_SESSIONS.items():
+            session = service.session if service else None
             session_info = {
                 "session_id": sid,
                 "is_default": sid == _DEFAULT_SESSION_ID,
-                "active": api.started if api else False,
+                "active": session.started if session else False,
             }
 
-            if api and api.session_info:
-                session_info.update(
-                    {
-                        "target": api.session_info.target,
-                        "language": api.session_info.language,
-                        "status": api.session_info.status.name.lower(),
-                        "port": api.session_info.port,
-                        "target_pid": api.session_info.pid,
-                    },
-                )
+            if session:
+                try:
+                    info = session.info
+                    if info:
+                        session_info.update(
+                            {
+                                "target": info.target,
+                                "language": info.language,
+                                "status": info.status.name.lower(),
+                                "port": info.port,
+                                "target_pid": info.pid,
+                            },
+                        )
+                except Exception:
+                    logger.debug("Failed to get session info for %s", sid)
 
             context = _SESSION_CONTEXTS.get(sid)
             if context:

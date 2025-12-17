@@ -30,7 +30,7 @@ config = get_config()
 
 
 def _attempt_graceful_shutdown(
-    api: Any,
+    service: Any,
     session_id: str,
     timeout: float,
     force: bool,
@@ -39,8 +39,8 @@ def _attempt_graceful_shutdown(
 
     Parameters
     ----------
-    api : Any
-        Debug API instance
+    service : DebugService
+        Debug service instance
     session_id : str
         Session ID
     timeout : float
@@ -59,9 +59,11 @@ def _attempt_graceful_shutdown(
 
     while attempts < config.session.max_retry_attempts:
         try:
-            # Try to stop the session
-            api.stop()
-            logger.debug("Session  stopped successfully %s", session_id)
+            # Try to stop the session via the execution control
+            import asyncio
+
+            asyncio.get_event_loop().run_until_complete(service.execution.stop())
+            logger.debug("Session stopped successfully %s", session_id)
             return True
         except Exception as e:
             attempts += 1
@@ -264,19 +266,19 @@ def cleanup_session(
                 logger.debug("[CLEANUP] Session not found: %s", session_id)
                 return False
 
-            api = _DEBUG_SESSIONS[session_id]
+            service = _DEBUG_SESSIONS[session_id]
             context = _SESSION_CONTEXTS.get(session_id)
 
             # Phase 1: Attempt graceful shutdown with timeout
-            if api and api.started:
+            if service and service.session and service.session.started:
                 try:
                     shutdown_success = _attempt_graceful_shutdown(
-                        api,
+                        service,
                         session_id,
                         timeout,
                         force,
                     )
-                    cleanup_state["api_stopped"] = shutdown_success
+                    cleanup_state["session_stopped"] = shutdown_success
                     if not shutdown_success and not force:
                         logger.warning(
                             "Failed to stop session %s gracefully",

@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 from aidb_logging import get_mcp_logger
 
 if TYPE_CHECKING:
-    from aidb import DebugAPI
+    from aidb import DebugService
 
     from .context import MCPSessionContext
 
@@ -131,7 +131,10 @@ class TrackedRLock:
 _state_lock = TrackedRLock("MCP_STATE_LOCK")  # Reentrant lock for nested calls
 
 # Multi-session support
-_DEBUG_SESSIONS: dict[str, DebugAPI] = {}
+# _DEBUG_SESSIONS and _DEBUG_SERVICES now point to the same DebugService instances
+# _DEBUG_SESSIONS kept for backward compatibility with health checks, resources, etc.
+_DEBUG_SESSIONS: dict[str, DebugService] = {}
+_DEBUG_SERVICES: dict[str, DebugService] = {}  # DebugService instances wrapping Session
 _SESSION_CONTEXTS: dict[str, MCPSessionContext] = {}
 _DEFAULT_SESSION_ID: str | None = None  # Track the default session
 

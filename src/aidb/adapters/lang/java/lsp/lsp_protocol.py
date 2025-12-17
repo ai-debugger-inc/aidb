@@ -12,7 +12,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
-from aidb.api.constants import LSP_SHUTDOWN_TIMEOUT_S
+from aidb.common.constants import LSP_SHUTDOWN_TIMEOUT_S
 from aidb.common.errors import AidbError
 from aidb.patterns.base import Obj
 

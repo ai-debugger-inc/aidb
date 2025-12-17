@@ -13,7 +13,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from aidb.api.constants import MEDIUM_SLEEP_S, PROCESS_TERMINATE_TIMEOUT_S
+from aidb.common.constants import MEDIUM_SLEEP_S, PROCESS_TERMINATE_TIMEOUT_S
 from aidb.common.errors import AidbError
 from aidb.patterns.base import Obj
 from aidb.resources.process_tags import ProcessTags, ProcessType

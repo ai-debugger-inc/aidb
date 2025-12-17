@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
-from aidb.api.constants import MEDIUM_SLEEP_S
+from aidb.common.constants import MEDIUM_SLEEP_S
 from aidb_logging import get_mcp_logger as get_logger
 
 from ...session.manager_shared import _state_lock
@@ -21,7 +21,7 @@ from .api import (
 from .manager import NotificationManager
 
 if TYPE_CHECKING:
-    from aidb import DebugAPI
+    from aidb import DebugService
 
 logger = get_logger(__name__)
 
@@ -87,27 +87,27 @@ class DebugEventMonitor:
                 except Exception as e:
                     logger.error("Error checking session %s: %s", session_id, e)
 
-    async def _check_session(self, session_id: str, session_data: DebugAPI) -> None:
+    async def _check_session(self, session_id: str, session_data: DebugService) -> None:
         """Check a single session for events.
 
         Parameters
         ----------
         session_id : str
             Session ID
-        session_data : DebugAPI
-            DebugAPI instance for the session
+        session_data : DebugService
+            DebugService instance for the session
         """
-        api = session_data
+        service = session_data
 
         from ...session.manager import _SESSION_CONTEXTS
 
         context = _SESSION_CONTEXTS.get(session_id)
 
-        if not context or not api:
+        if not context or not service:
             return
 
         try:
-            session = api.session
+            session = service.session
             if not session:
                 return
             status = session.status
@@ -149,17 +149,22 @@ class DebugEventMonitor:
                     self._session_states[session_id]["last_breakpoint"] = location
 
         if hasattr(context, "watches") and context.watches:
-            await self._check_watches(session_id, api, context.watches)
+            await self._check_watches(session_id, service, context.watches)
 
-    async def _check_watches(self, session_id: str, api: Any, watches: set) -> None:
+    async def _check_watches(
+        self,
+        session_id: str,
+        service: Any,
+        watches: set,
+    ) -> None:
         """Check watch expressions for changes.
 
         Parameters
         ----------
         session_id : str
             Session ID
-        api : Any
-            Debug API instance
+        service : DebugService
+            Debug service instance
         watches : set
             Set of watch expressions
         """
@@ -168,7 +173,7 @@ class DebugEventMonitor:
 
         for expression in watches:
             try:
-                result = api.evaluate(expression)
+                result = await service.variables.evaluate(expression)
                 if not result.success:
                     continue
 

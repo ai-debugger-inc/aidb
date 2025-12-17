@@ -11,9 +11,9 @@ Tests for manager_lifecycle.py functions:
 
 from __future__ import annotations
 
-import time
+import asyncio
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -28,9 +28,10 @@ class TestAttemptGracefulShutdown:
 
     def test_attempt_graceful_shutdown_success(
         self,
-        mock_debug_api: MagicMock,
+        mock_debug_service: MagicMock,
     ) -> None:
-        """Test that graceful shutdown succeeds on first try when api.stop() works."""
+        """Test that graceful shutdown succeeds on first try when
+        service.execution.stop() works."""
         from aidb_mcp.session.manager_lifecycle import _attempt_graceful_shutdown
 
         with patch("aidb_mcp.session.manager_lifecycle.config") as mock_config:
@@ -38,42 +39,44 @@ class TestAttemptGracefulShutdown:
             mock_config.session.retry_delay = 0.01
 
             result = _attempt_graceful_shutdown(
-                api=mock_debug_api,
+                service=mock_debug_service,
                 session_id="test-session",
                 timeout=5.0,
                 force=False,
             )
 
             assert result is True
-            mock_debug_api.stop.assert_called_once()
+            mock_debug_service.execution.stop.assert_called_once()
 
     def test_attempt_graceful_shutdown_retry_success(
         self,
-        mock_debug_api: MagicMock,
+        mock_debug_service: MagicMock,
     ) -> None:
         """Test that graceful shutdown succeeds after retry."""
         from aidb_mcp.session.manager_lifecycle import _attempt_graceful_shutdown
 
-        # Fail first, succeed second
-        mock_debug_api.stop.side_effect = [RuntimeError("First fail"), None]
+        # Fail first, succeed second - need to create new AsyncMock with side_effect
+        mock_debug_service.execution.stop = AsyncMock(
+            side_effect=[RuntimeError("First fail"), None]
+        )
 
         with patch("aidb_mcp.session.manager_lifecycle.config") as mock_config:
             mock_config.session.max_retry_attempts = 3
             mock_config.session.retry_delay = 0.01
 
             result = _attempt_graceful_shutdown(
-                api=mock_debug_api,
+                service=mock_debug_service,
                 session_id="test-session",
                 timeout=5.0,
                 force=False,
             )
 
             assert result is True
-            assert mock_debug_api.stop.call_count == 2
+            assert mock_debug_service.execution.stop.call_count == 2
 
     def test_attempt_graceful_shutdown_max_retries_exceeded(
         self,
-        mock_debug_api_stop_fails: MagicMock,
+        mock_debug_service_stop_fails: MagicMock,
     ) -> None:
         """Test that shutdown fails after max retries with force=False."""
         from aidb_mcp.session.manager_lifecycle import _attempt_graceful_shutdown
@@ -83,18 +86,18 @@ class TestAttemptGracefulShutdown:
             mock_config.session.retry_delay = 0.01
 
             result = _attempt_graceful_shutdown(
-                api=mock_debug_api_stop_fails,
+                service=mock_debug_service_stop_fails,
                 session_id="test-session",
                 timeout=10.0,
                 force=False,
             )
 
             assert result is False
-            assert mock_debug_api_stop_fails.stop.call_count == 2
+            assert mock_debug_service_stop_fails.execution.stop.call_count == 2
 
     def test_attempt_graceful_shutdown_max_retries_forced(
         self,
-        mock_debug_api_stop_fails: MagicMock,
+        mock_debug_service_stop_fails: MagicMock,
     ) -> None:
         """Test that shutdown returns True after max retries with force=True."""
         from aidb_mcp.session.manager_lifecycle import _attempt_graceful_shutdown
@@ -104,7 +107,7 @@ class TestAttemptGracefulShutdown:
             mock_config.session.retry_delay = 0.01
 
             result = _attempt_graceful_shutdown(
-                api=mock_debug_api_stop_fails,
+                service=mock_debug_service_stop_fails,
                 session_id="test-session",
                 timeout=10.0,
                 force=True,
@@ -114,25 +117,25 @@ class TestAttemptGracefulShutdown:
 
     def test_attempt_graceful_shutdown_timeout_exceeded(
         self,
-        mock_debug_api: MagicMock,
+        mock_debug_service: MagicMock,
     ) -> None:
         """Test that shutdown fails when timeout is exceeded with force=False."""
         from aidb_mcp.session.manager_lifecycle import _attempt_graceful_shutdown
 
         # Make stop take longer than timeout by sleeping
-        def slow_stop():
-            time.sleep(0.2)
+        async def slow_stop():
+            await asyncio.sleep(0.2)
             msg = "Slow stop failed"
             raise RuntimeError(msg)
 
-        mock_debug_api.stop.side_effect = slow_stop
+        mock_debug_service.execution.stop = AsyncMock(side_effect=slow_stop)
 
         with patch("aidb_mcp.session.manager_lifecycle.config") as mock_config:
             mock_config.session.max_retry_attempts = 10
             mock_config.session.retry_delay = 0.01
 
             result = _attempt_graceful_shutdown(
-                api=mock_debug_api,
+                service=mock_debug_service,
                 session_id="test-session",
                 timeout=0.1,
                 force=False,
@@ -142,25 +145,25 @@ class TestAttemptGracefulShutdown:
 
     def test_attempt_graceful_shutdown_timeout_forced(
         self,
-        mock_debug_api: MagicMock,
+        mock_debug_service: MagicMock,
     ) -> None:
         """Test that shutdown returns True on timeout with force=True."""
         from aidb_mcp.session.manager_lifecycle import _attempt_graceful_shutdown
 
         # Make stop take longer than timeout
-        def slow_stop():
-            time.sleep(0.2)
+        async def slow_stop():
+            await asyncio.sleep(0.2)
             msg = "Slow stop failed"
             raise RuntimeError(msg)
 
-        mock_debug_api.stop.side_effect = slow_stop
+        mock_debug_service.execution.stop = AsyncMock(side_effect=slow_stop)
 
         with patch("aidb_mcp.session.manager_lifecycle.config") as mock_config:
             mock_config.session.max_retry_attempts = 10
             mock_config.session.retry_delay = 0.01
 
             result = _attempt_graceful_shutdown(
-                api=mock_debug_api,
+                service=mock_debug_service,
                 session_id="test-session",
                 timeout=0.1,
                 force=True,
@@ -170,17 +173,19 @@ class TestAttemptGracefulShutdown:
 
     def test_attempt_graceful_shutdown_retry_delay(
         self,
-        mock_debug_api: MagicMock,
+        mock_debug_service: MagicMock,
     ) -> None:
         """Test that retry delay is applied between attempts."""
         from aidb_mcp.session.manager_lifecycle import _attempt_graceful_shutdown
 
-        # Fail twice, then succeed
-        mock_debug_api.stop.side_effect = [
-            RuntimeError("First fail"),
-            RuntimeError("Second fail"),
-            None,
-        ]
+        # Fail twice, then succeed - need to create new AsyncMock
+        mock_debug_service.execution.stop = AsyncMock(
+            side_effect=[
+                RuntimeError("First fail"),
+                RuntimeError("Second fail"),
+                None,
+            ]
+        )
 
         with (
             patch("aidb_mcp.session.manager_lifecycle.config") as mock_config,
@@ -190,7 +195,7 @@ class TestAttemptGracefulShutdown:
             mock_config.session.retry_delay = 0.5
 
             result = _attempt_graceful_shutdown(
-                api=mock_debug_api,
+                service=mock_debug_service,
                 session_id="test-session",
                 timeout=10.0,
                 force=False,
@@ -379,7 +384,7 @@ class TestCleanupSession:
             _SESSION_CONTEXTS,
         )
 
-        session_id, api, _ = populated_session_state
+        session_id, service, _ = populated_session_state
 
         with (
             patch("aidb_mcp.session.manager_lifecycle.config") as mock_config,
@@ -395,7 +400,7 @@ class TestCleanupSession:
         assert result is True
         assert session_id not in _DEBUG_SESSIONS
         assert session_id not in _SESSION_CONTEXTS
-        api.stop.assert_called()
+        service.execution.stop.assert_called()
 
     def test_cleanup_session_graceful_shutdown_fails_without_force(
         self,
@@ -405,8 +410,8 @@ class TestCleanupSession:
         from aidb_mcp.session.manager_lifecycle import cleanup_session
         from aidb_mcp.session.manager_shared import _DEBUG_SESSIONS
 
-        session_id, api, _ = populated_session_state
-        api.stop.side_effect = RuntimeError("Stop failed")
+        session_id, service, _ = populated_session_state
+        service.execution.stop = AsyncMock(side_effect=RuntimeError("Stop failed"))
 
         with patch("aidb_mcp.session.manager_lifecycle.config") as mock_config:
             mock_config.session.default_cleanup_timeout = 0.1
@@ -430,8 +435,8 @@ class TestCleanupSession:
             _SESSION_CONTEXTS,
         )
 
-        session_id, api, _ = populated_session_state
-        api.stop.side_effect = RuntimeError("Stop failed")
+        session_id, service, _ = populated_session_state
+        service.execution.stop = AsyncMock(side_effect=RuntimeError("Stop failed"))
 
         with (
             patch("aidb_mcp.session.manager_lifecycle.config") as mock_config,
@@ -455,7 +460,7 @@ class TestCleanupSession:
         """Test that default_cleanup_timeout is used when timeout is None."""
         from aidb_mcp.session.manager_lifecycle import cleanup_session
 
-        session_id, api, _ = populated_session_state
+        session_id, service, _ = populated_session_state
 
         with (
             patch("aidb_mcp.session.manager_lifecycle.config") as mock_config,
@@ -477,12 +482,13 @@ class TestCleanupSession:
             call_args = mock_shutdown.call_args
             assert call_args.kwargs.get("timeout") == 7.5 or call_args[0][2] == 7.5
 
-    def test_cleanup_session_api_not_started(
+    def test_cleanup_session_service_not_started(
         self,
-        mock_debug_api_not_started: MagicMock,
+        mock_debug_service_not_started: MagicMock,
         mock_mcp_session_context: MagicMock,
     ) -> None:
-        """Test that cleanup skips graceful shutdown if api not started."""
+        """Test that cleanup skips graceful shutdown if service.session.started is
+        False."""
         from aidb_mcp.session.manager_lifecycle import cleanup_session
         from aidb_mcp.session.manager_shared import (
             _DEBUG_SESSIONS,
@@ -490,7 +496,7 @@ class TestCleanupSession:
         )
 
         session_id = "test-not-started"
-        _DEBUG_SESSIONS[session_id] = mock_debug_api_not_started
+        _DEBUG_SESSIONS[session_id] = mock_debug_service_not_started
         _SESSION_CONTEXTS[session_id] = mock_mcp_session_context
 
         with (
@@ -502,8 +508,8 @@ class TestCleanupSession:
             result = cleanup_session(session_id)
 
         assert result is True
-        # stop() should not be called since api.started is False
-        mock_debug_api_not_started.stop.assert_not_called()
+        # stop() should not be called since service.session.started is False
+        mock_debug_service_not_started.execution.stop.assert_not_called()
 
 
 class TestCleanupSessionAsync:

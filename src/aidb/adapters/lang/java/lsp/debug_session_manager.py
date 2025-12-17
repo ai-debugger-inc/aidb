@@ -7,7 +7,7 @@ configuration, attach operations, and DAP port management.
 import json
 from typing import Any
 
-from aidb.api.constants import (
+from aidb.common.constants import (
     DEFAULT_WAIT_TIMEOUT_S,
     INIT_CONFIGURATION_DONE_JAVA_S,
     LSP_EXECUTE_COMMAND_TIMEOUT_S,

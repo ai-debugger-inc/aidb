@@ -9,7 +9,7 @@ import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from aidb.api.constants import (
+from aidb.common.constants import (
     DEFAULT_ADAPTER_HOST,
     INIT_WAIT_FOR_INITIALIZED_S,
     INIT_WAIT_FOR_LAUNCH_RESPONSE_S,
@@ -500,7 +500,7 @@ class JavaScriptAdapter(DebugAdapter):
         issues.
         """
         try:
-            from aidb.api.constants import ORPHAN_SCAN_PRE_LAUNCH_MS
+            from aidb.common.constants import ORPHAN_SCAN_PRE_LAUNCH_MS
             from aidb_common.env import reader
 
             min_age = reader.read_float("AIDB_JS_ORPHAN_MIN_AGE", 5.0) or 5.0
@@ -532,7 +532,7 @@ class JavaScriptAdapter(DebugAdapter):
         and block the next test.
         """
         try:
-            from aidb.api.constants import ORPHAN_SCAN_POST_STOP_MS
+            from aidb.common.constants import ORPHAN_SCAN_POST_STOP_MS
             from aidb_common.env import reader
 
             if reader.read_bool("AIDB_SKIP_POST_STOP_ORPHAN_CLEANUP", False):
@@ -743,7 +743,10 @@ class JavaScriptAdapter(DebugAdapter):
                 self.ctx.debug(f"  Op {i}: {op.type.value}")
 
             # Execute the initialization sequence
-            await child_session.debug._execute_initialization_sequence(child_sequence)
+            from aidb.session.ops.initialization import InitializationMixin
+
+            init_ops = InitializationMixin(session=child_session, ctx=self.ctx)
+            await init_ops._execute_initialization_sequence(child_sequence)
 
             self.ctx.info(
                 f"JavaScript child session {child_session.id} initialized and active",

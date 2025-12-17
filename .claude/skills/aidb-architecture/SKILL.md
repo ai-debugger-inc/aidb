@@ -1,14 +1,14 @@
 ---
 name: aidb-architecture
 description: Comprehensive architectural reference for AIDB core and MCP integration.
-  Covers 6-layer architecture (MCP, API, Session, Adapter, DAP Client, Protocol),
+  Covers 6-layer architecture (MCP, Service, Session, Adapter, DAP Client, Protocol),
   component organization, data flow patterns, and design decisions. Use when explaining
   overall system design or understanding how layers interact.
 version: 1.0.0
 tags:
   - architecture
   - session
-  - api
+  - service
   - dap
   - mcp
   - design-patterns
@@ -60,13 +60,13 @@ ______________________________________________________________________
 │  ├── Handler dispatch, response optimization                │
 │  └── Session management integration                         │
 ├─────────────────────────────────────────────────────────────┤
-│  Layer 2: API Layer (aidb/api/)                             │
-│  ├── DebugAPI - Main entry point                            │
-│  ├── SessionManager, SessionBuilder                         │
-│  └── .introspection / .orchestration operations             │
+│  Layer 2: Service Layer (aidb/service/)                     │
+│  ├── DebugService - Main entry point                        │
+│  ├── SessionManager, SessionBuilder (in aidb/session/)      │
+│  └── .execution / .stepping / .breakpoints / .variables     │
 ├─────────────────────────────────────────────────────────────┤
 │  Layer 3: Session Layer (aidb/session/)                     │
-│  ├── Session - Component delegation hub                     │
+│  ├── Session - Infrastructure hub                           │
 │  ├── SessionState, SessionConnector                         │
 │  ├── SessionRegistry, ResourceManager                       │
 │  └── Parent-child session support (JavaScript)              │
@@ -92,13 +92,13 @@ ______________________________________________________________________
 
 **"I want to understand..."**
 
-| Topic                    | Resource                                                         | Contents                                                                          |
-| ------------------------ | ---------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| **MCP & API Layers**     | [api-mcp-layer.md](resources/api-mcp-layer.md)                   | 12 tools, handler pattern, response system, DebugAPI, introspection/orchestration |
-| **Session Layer**        | [session-layer.md](resources/session-layer.md)                   | Component delegation, SessionState, SessionConnector, parent-child sessions       |
-| **Adapter Layer**        | [adapter-architecture.md](resources/adapter-architecture.md)     | DebugAdapter base, ProcessManager, PortManager, lifecycle hooks, Python/JS/Java   |
-| **DAP Client**           | [dap-client.md](resources/dap-client.md)                         | Single request path, Future-based async, event handling, design decisions         |
-| **Patterns & Resources** | [patterns-and-resources.md](resources/patterns-and-resources.md) | Architectural principles, three-tier cleanup, resource management, data flows     |
+| Topic                    | Resource                                                         | Contents                                                                        |
+| ------------------------ | ---------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| **MCP & Service Layers** | [api-mcp-layer.md](resources/api-mcp-layer.md)                   | 12 tools, handler pattern, response system, DebugService, execution/stepping    |
+| **Session Layer**        | [session-layer.md](resources/session-layer.md)                   | Infrastructure hub, SessionState, SessionConnector, parent-child sessions       |
+| **Adapter Layer**        | [adapter-architecture.md](resources/adapter-architecture.md)     | DebugAdapter base, ProcessManager, PortManager, lifecycle hooks, Python/JS/Java |
+| **DAP Client**           | [dap-client.md](resources/dap-client.md)                         | Single request path, Future-based async, event handling, design decisions       |
+| **Patterns & Resources** | [patterns-and-resources.md](resources/patterns-and-resources.md) | Architectural principles, three-tier cleanup, resource management, data flows   |
 
 ______________________________________________________________________
 
@@ -147,13 +147,13 @@ ______________________________________________________________________
 
 ## Resources
 
-| Resource                                                         | Content                                                                       |
-| ---------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| [api-mcp-layer.md](resources/api-mcp-layer.md)                   | MCP server, 12 tools, handler pattern, API layer, introspection/orchestration |
-| [session-layer.md](resources/session-layer.md)                   | Session architecture, component delegation, state management, parent-child    |
-| [adapter-architecture.md](resources/adapter-architecture.md)     | Adapter base class, components, lifecycle hooks, language-specific patterns   |
-| [dap-client.md](resources/dap-client.md)                         | DAP client design, single request path, Future-based async, events            |
-| [patterns-and-resources.md](resources/patterns-and-resources.md) | Architectural principles, resource management, cleanup, data flows            |
+| Resource                                                         | Content                                                                     |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| [api-mcp-layer.md](resources/api-mcp-layer.md)                   | MCP server, 12 tools, handler pattern, Service layer, execution/stepping    |
+| [session-layer.md](resources/session-layer.md)                   | Session architecture, infrastructure hub, state management, parent-child    |
+| [adapter-architecture.md](resources/adapter-architecture.md)     | Adapter base class, components, lifecycle hooks, language-specific patterns |
+| [dap-client.md](resources/dap-client.md)                         | DAP client design, single request path, Future-based async, events          |
+| [patterns-and-resources.md](resources/patterns-and-resources.md) | Architectural principles, resource management, cleanup, data flows          |
 
 **Documentation:**
 
@@ -164,7 +164,7 @@ ______________________________________________________________________
 
 ## Quick Reference
 
-**6 Layers:** MCP → API → Session → Adapter → DAP Client → Protocol
+**6 Layers:** MCP → Service → Session → Adapter → DAP Client → Protocol
 
 **Key Patterns:** Component delegation, language-agnostic, human-cadence debugging, resource lifecycle, parent-child sessions, single request path
 

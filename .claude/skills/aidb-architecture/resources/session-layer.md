@@ -1,24 +1,27 @@
 # Session Layer Architecture
 
-The session layer (`src/aidb/session/`) is the orchestration hub of AIDB, managing debugging session lifecycle and coordinating language-specific adapters with DAP client connections.
+The session layer (`src/aidb/session/`) is the infrastructure hub of AIDB, managing debugging session lifecycle and coordinating language-specific adapters with DAP client connections.
 
 **Related Skills:** `adapter-development` (adapter integration), `dap-protocol-guide` (DAP client interactions), `testing-strategy` (testing session lifecycle)
 
 ______________________________________________________________________
 
-## Core Principle: Component Delegation
+## Core Principle: Infrastructure Only
 
-**Problem:** Monolithic session classes become unwieldy (1000+ lines).
+**Problem:** Monolithic session classes become unwieldy (1000+ lines) when mixing infrastructure with business logic.
 
-**Solution:** `Session` is a thin orchestration hub that delegates to focused components via properties.
+**Solution:** `Session` is a thin infrastructure layer that delegates:
+
+- **Infrastructure** (connection, state, resources) → Session components
+- **Debugging operations** (step, continue, breakpoints) → Service layer (`src/aidb/service/`)
 
 ```python
 class Session:
     def __init__(self, adapter, config):
         self._state = SessionState()
         self._connector = SessionConnector(self)
-        self._debug_ops = SessionDebugOperations(self)
         self._resources = ResourceManager(config)
+        # NOTE: No debug operations - those are in DebugService
 
     @property
     def state(self) -> SessionState:
@@ -33,11 +36,11 @@ ______________________________________________________________________
 
 ## Components
 
-### Session - Thin Orchestration Hub
+### Session - Infrastructure Hub
 
 **File:** `src/aidb/session/session_core.py`
 
-Coordinates components and provides unified interface. Does NOT implement logic—delegates.
+Coordinates infrastructure components and provides unified interface. Does NOT implement debugging logic.
 
 **Responsibilities:** Initialize components in correct order, expose properties for component access, provide lifecycle methods (`start()`, `cleanup()`), register with SessionRegistry.
 
@@ -75,15 +78,15 @@ Manage DAP client connection lifecycle independently from session creation.
 
 **Stub Events API:** Before DAP connection exists, `session.events.on()` stores handlers in queue. After connection, handlers registered with real DAPClient.
 
-### SessionDebugOperations - Operations via Mixins
+### InitializationMixin - DAP Sequence Handling
 
-**File:** `src/aidb/session/ops/`
+**File:** `src/aidb/session/ops/initialization.py`
 
-Debugging operations through mixin composition:
+Handles the complex DAP initialization sequence:
 
-- **InitializationMixin** (`ops/initialization.py`) - Session start with breakpoints
-- **OrchestrationMixin** (`orchestration_mixin.py`) - Step, continue, pause, terminate → delegates to `ops/orchestration/*.py`
-- **IntrospectionMixin** (`introspection_mixin.py`) - Variables, stack traces → delegates to `ops/introspection/*.py`
+- `InitializationMixin` - DAP sequence: initialize → launch/attach → breakpoints → configurationDone
+
+**Note:** Orchestration and introspection operations have moved to the Service layer (`src/aidb/service/`).
 
 ### SessionRegistry - Global Session Tracking
 
@@ -116,20 +119,19 @@ Components initialize in specific order due to dependencies:
 1. **SessionState** - No dependencies
 1. **ResourceManager** - No dependencies
 1. **SessionConnector** - Needs state for initialization status
-1. **SessionDebugOperations** - Needs state, connector, DAP client
 1. **Adapter assignment** - Session holds adapter reference
 
 ______________________________________________________________________
 
 ## Design Decisions
 
-### Component Delegation Over Monolithic Session
+### Infrastructure vs Operations
 
-Split Session into focused components (State, Connector, Operations, Resources). Benefits: Single Responsibility, Testability, Readability, Composition.
+Session handles infrastructure (connection, state, resources). Debugging operations (step, continue, breakpoints, variables) live in the Service layer. This separation provides:
 
-### Mixin Composition for Operations
-
-Split operations into focused mixins. Each mixin under 200 lines, testable independently.
+- Clear boundaries between infrastructure and business logic
+- Stateless operations that are easier to test
+- Clean MCP integration (handlers use DebugService)
 
 ### Thread-Safe Registries with RLock
 
@@ -149,13 +151,14 @@ ______________________________________________________________________
 
 ### Where to Look
 
-| Task                               | Location                                                                 |
-| ---------------------------------- | ------------------------------------------------------------------------ |
-| Adding a new session status        | `src/aidb/session/state.py` + `src/aidb/models/entities/session.py`      |
-| Debugging connection issues        | `src/aidb/session/connector.py`                                          |
-| Adding a new debugging operation   | `src/aidb/session/ops/{initialization,orchestration,introspection}/*.py` |
-| Fixing resource leaks              | `src/aidb/session/resource.py`                                           |
-| Working with parent-child sessions | `src/aidb/session/child_registry.py`                                     |
+| Task                               | Location                                                            |
+| ---------------------------------- | ------------------------------------------------------------------- |
+| Adding a new session status        | `src/aidb/session/state.py` + `src/aidb/models/entities/session.py` |
+| Debugging connection issues        | `src/aidb/session/connector.py`                                     |
+| Adding a new debugging operation   | `src/aidb/service/{execution,breakpoints,variables,stack}/`         |
+| Fixing resource leaks              | `src/aidb/session/resource.py`                                      |
+| Working with parent-child sessions | `src/aidb/session/child_registry.py`                                |
+| DAP initialization sequence        | `src/aidb/session/ops/initialization.py`                            |
 
 ### Common Mistakes
 
@@ -164,7 +167,7 @@ ______________________________________________________________________
 | Set status directly                    | Status is computed via `get_status()`, not stored             |
 | Create multiple DAP clients            | One per debug adapter instance; child sessions share parent's |
 | Access `session.dap` before connection | SessionConnector raises exception                             |
-| Implement logic in Session class       | Session delegates to components                               |
+| Implement debug logic in Session       | Session is infrastructure; use DebugService for operations    |
 | Skip adapter resource registration     | Cleanup can't release unregistered resources                  |
 
 ### Debugging Tips

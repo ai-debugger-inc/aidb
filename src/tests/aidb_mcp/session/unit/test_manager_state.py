@@ -284,17 +284,17 @@ class TestListSessions:
         """Test that list_sessions returns single session info."""
         from aidb_mcp.session.manager_state import list_sessions
 
-        session_id, api, context = populated_session_state
+        session_id, service, context = populated_session_state
 
-        # Set up mock data
-        api.started = True
-        api.session_info = MagicMock()
-        api.session_info.target = "/path/to/script.py"
-        api.session_info.language = "python"
-        api.session_info.status = MagicMock()
-        api.session_info.status.name = "RUNNING"
-        api.session_info.port = 5678
-        api.session_info.pid = 12345
+        # Set up mock data for DebugService structure
+        service.session.started = True
+        service.session.info = MagicMock()
+        service.session.info.target = "/path/to/script.py"
+        service.session.info.language = "python"
+        service.session.info.status = MagicMock()
+        service.session.info.status.name = "RUNNING"
+        service.session.info.port = 5678
+        service.session.info.pid = 12345
         context.breakpoints_set = [1, 2, 3]
 
         result = list_sessions()
@@ -341,20 +341,21 @@ class TestListSessions:
         assert default_sessions[0]["session_id"] == "test-session-000"
 
     def test_list_sessions_handles_no_session_info(self) -> None:
-        """Test that list_sessions handles sessions without session_info."""
+        """Test that list_sessions handles sessions without session info."""
         from aidb_mcp.session.manager_shared import (
             _DEBUG_SESSIONS,
             _SESSION_CONTEXTS,
         )
         from aidb_mcp.session.manager_state import list_sessions
 
-        api = MagicMock()
-        api.started = True
-        api.session_info = None
+        service = MagicMock()
+        service.session = MagicMock()
+        service.session.started = True
+        service.session.info = None
         ctx = MagicMock()
         ctx.breakpoints_set = []
 
-        _DEBUG_SESSIONS["no-info-session"] = api
+        _DEBUG_SESSIONS["no-info-session"] = service
         _SESSION_CONTEXTS["no-info-session"] = ctx
 
         result = list_sessions()
@@ -371,11 +372,12 @@ class TestListSessions:
         from aidb_mcp.session.manager_shared import _DEBUG_SESSIONS
         from aidb_mcp.session.manager_state import list_sessions
 
-        api = MagicMock()
-        api.started = False
-        api.session_info = None
+        service = MagicMock()
+        service.session = MagicMock()
+        service.session.started = False
+        service.session.info = None
 
-        _DEBUG_SESSIONS["no-context-session"] = api
+        _DEBUG_SESSIONS["no-context-session"] = service
         # Don't add to _SESSION_CONTEXTS
 
         result = list_sessions()

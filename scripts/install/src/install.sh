@@ -192,12 +192,12 @@ echo ""
 echo "Example Python usage:"
 echo -e "\033[1;35m"
 echo 'import asyncio
-from aidb.api.api import DebugAPI
+from aidb import SessionManager, DebugService
 from aidb.models.entities.breakpoint import BreakpointSpec
 
 async def debug_example():
-    api = DebugAPI()
-    session = await api.create_session(
+    manager = SessionManager()
+    session = manager.create_session(
         language="python",
         target="./main.py",
         breakpoints=[
@@ -205,7 +205,8 @@ async def debug_example():
         ]
     )
     await session.start()
-    # Use api.orchestration and api.introspection for debugging
+    service = DebugService(session)
+    # Use service.execution.* and service.variables.* for debugging
     await session.stop()
 
 # Run the debug session

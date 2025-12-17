@@ -89,11 +89,10 @@ def _read_session_resource(resource_id: str, uri: str) -> ResourceContents:
 
     if context.session_started and api:
         try:
-            if api.session_info:
-                content["status"] = to_jsonable(api.session_info.status)
-
-            if hasattr(api, "session_info") and api.session_info:
-                content["session_info"] = to_jsonable(api.session_info)
+            session_info = api.session.info if api.session else None
+            if session_info:
+                content["status"] = to_jsonable(session_info.status)
+                content["session_info"] = to_jsonable(session_info)
         except Exception:
             content["status"] = "error retrieving status"
 
@@ -221,7 +220,11 @@ def _read_watch_resource(resource_id: str, uri: str) -> ResourceContents:
 
     if context.session_started and api:
         try:
-            result = api.introspection.evaluate(expression)
+            import asyncio
+
+            result = asyncio.get_event_loop().run_until_complete(
+                api.variables.evaluate(expression),
+            )
             if result.success:
                 content["value"] = result.value
                 content["type"] = result.type

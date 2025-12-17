@@ -11,7 +11,7 @@ from aidb.adapters.base.config import (
 )
 from aidb.adapters.base.initialize import InitializationOp, InitializationOpType
 from aidb.adapters.base.launch import BaseLaunchConfig, LaunchConfigFactory
-from aidb.api.constants import (
+from aidb.common.constants import (
     DEFAULT_JAVA_DEBUG_PORT,
     INIT_CONFIGURATION_DONE_JAVA_S,
     INIT_WAIT_FOR_INITIALIZED_JAVA_S,

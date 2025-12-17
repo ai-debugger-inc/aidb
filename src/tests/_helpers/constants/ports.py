@@ -2,7 +2,7 @@
 
 from enum import IntEnum
 
-from aidb.api.constants import (
+from aidb.common.constants import (
     DEFAULT_JAVA_DEBUG_PORT,
     DEFAULT_NODE_DEBUG_PORT,
     DEFAULT_PYTHON_DEBUG_PORT,

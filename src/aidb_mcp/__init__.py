@@ -1,6 +1,6 @@
 """AIDB MCP Server Package.
 
-Model Context Protocol (MCP) server exposing AI Debugger (aidb) DebugAPI methods
+Model Context Protocol (MCP) server exposing AI Debugger (aidb) debugging capabilities
 to AI assistants through high-level, intent-based debugging tools.
 
 Run via: python -m aidb_mcp

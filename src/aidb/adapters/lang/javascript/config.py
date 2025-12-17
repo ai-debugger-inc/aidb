@@ -7,7 +7,7 @@ from typing import Any
 from aidb.adapters.base.config import AdapterCapabilities, AdapterConfig
 from aidb.adapters.base.initialize import InitializationOp, InitializationOpType
 from aidb.adapters.base.launch import BaseLaunchConfig, LaunchConfigFactory
-from aidb.api.constants import (
+from aidb.common.constants import (
     DEFAULT_NODE_DEBUG_PORT,
     INIT_WAIT_FOR_INITIALIZED_S,
     INIT_WAIT_FOR_LAUNCH_RESPONSE_S,

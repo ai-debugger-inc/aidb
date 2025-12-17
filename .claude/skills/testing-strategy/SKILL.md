@@ -235,8 +235,7 @@ _fixtures/unit/
 ├── dap/               # Transport, events, receiver mocks
 ├── session/           # Registry, lifecycle, state, child_manager mocks
 ├── adapter/           # Port, process, launch_orchestrator mocks
-├── mcp/               # DebugAPI, MCPSessionContext mocks
-├── api/               # Session, launch_config, breakpoint mocks
+├── mcp/               # DebugService, MCPSessionContext mocks
 ├── conftest.py        # Master fixture re-exports
 ├── context.py         # mock_ctx, null_ctx, tmp_storage
 └── assertions.py      # UnitAssertions class

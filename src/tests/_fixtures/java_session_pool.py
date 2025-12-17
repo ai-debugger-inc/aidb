@@ -25,6 +25,7 @@ from typing import Any
 
 import pytest
 
+from aidb.service import DebugService
 from aidb.session import Session
 
 
@@ -244,10 +245,13 @@ class JavaSessionPool:
             # Raise error to trigger session destruction in return_session()
             msg = "Session is terminated and cannot be reused"
             raise RuntimeError(msg)
+        # Create service for session operations
+        service = DebugService(session)
+
         # 1. Clear all breakpoints
         try:
             bp_start = time.time()
-            await session.debug.clear_breakpoints(clear_all=True)
+            await service.breakpoints.clear_all()
             bp_time = time.time() - bp_start
             if self._ctx:
                 self._ctx.info(f"  clear_breakpoints: {bp_time:.2f}s")
@@ -260,9 +264,9 @@ class JavaSessionPool:
         try:
             stop_start = time.time()
             if session.status != SessionStatus.TERMINATED:
-                # Use the low-level stop that doesn't destroy the session
+                # Use the low-level terminate that doesn't destroy the session
                 with contextlib.suppress(Exception):
-                    await session.debug.stop()
+                    await service.execution.terminate()
             stop_time = time.time() - stop_start
             if self._ctx:
                 self._ctx.info(f"  stop debuggee: {stop_time:.2f}s")

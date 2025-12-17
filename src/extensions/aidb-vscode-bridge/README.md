@@ -20,11 +20,11 @@ When using aidb, the extension will be automatically detected and installed when
 needed:
 
 ```python
-from aidbimport DebugAPI
+from aidb import SessionManager
 
-api = DebugAPI()
-# Extension installation will be prompted if needed
-api.start_from_launch_json(config_name="Debug Python")
+manager = SessionManager()
+# Use launch configuration (extension installation will be prompted if needed)
+session = manager.create_session(launch_config_name="Debug Python")
 ```
 
 ### Manual Installation

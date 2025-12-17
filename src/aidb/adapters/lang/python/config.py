@@ -7,7 +7,7 @@ from typing import Any
 from aidb.adapters.base.config import AdapterCapabilities, AdapterConfig
 from aidb.adapters.base.initialize import InitializationOp, InitializationOpType
 from aidb.adapters.base.launch import BaseLaunchConfig
-from aidb.api.constants import DEFAULT_PYTHON_DEBUG_PORT, INIT_WAIT_FOR_INITIALIZED_S
+from aidb.common.constants import DEFAULT_PYTHON_DEBUG_PORT, INIT_WAIT_FOR_INITIALIZED_S
 from aidb.common.errors import ConfigurationError
 from aidb.models.entities.breakpoint import HitConditionMode
 from aidb_common.constants import Language

@@ -28,7 +28,7 @@ graph TB
 
     subgraph AIDB ["AIDB Stack"]
         MCP[MCP Layer<br/>aidb_mcp]
-        API[API Layer<br/>aidb/api]
+        Service[Service Layer<br/>aidb/service]
         Session[Session Layer<br/>aidb/session]
         Adapters[Adapter Layer<br/>aidb/adapters]
         DAPClient[DAP Client<br/>aidb/dap/client]
@@ -41,9 +41,9 @@ graph TB
     end
 
     Agent -->|MCP Protocol| MCP
-    PythonClient -->|Direct Import| API
-    MCP --> API
-    API --> Session
+    PythonClient -->|Direct Import| Service
+    MCP --> Service
+    Service --> Session
     Session --> Adapters
     Adapters --> DAPClient
     DAPClient --> Protocol
@@ -55,7 +55,7 @@ graph TB
     classDef extStyle fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
 
     class Agent,PythonClient clientStyle
-    class MCP,API,Session,Adapters,DAPClient,Protocol aidbStyle
+    class MCP,Service,Session,Adapters,DAPClient,Protocol aidbStyle
     class Backends,Targets extStyle
 ```
 
@@ -68,12 +68,14 @@ graph TB
    - `get_all_mcp_tools()` (`tools/definitions.py`): Tool definitions function
    - Domain-based handlers: `handlers/` organized by functionality
 
-2. **API Layer** (`aidb/api/`): High-level Python API for debugging operations
+2. **Service Layer** (`aidb/service/`): High-level Python API for debugging operations
 
-   - `DebugAPI` (`api.py`): Main entry point with `.introspection` and `.orchestration`
-   - `SessionManager` (`session_manager.py`): Manages session lifecycle
-   - `SessionBuilder` (`session_builder.py`): Constructs sessions with configuration
-   - `SessionValidator` (`session_builder.py`): Validates session configuration
+   - `DebugService` (`debug_service.py`): Main entry point aggregating all services
+   - `ExecutionControl` (`execution/control.py`): Continue, pause, restart, stop operations
+   - `SteppingService` (`execution/stepping.py`): Step into/over/out/back operations
+   - `BreakpointService` (`breakpoints/manager.py`): Breakpoint management
+   - `VariableService` (`variables/inspector.py`): Variable inspection and modification
+   - `StackService` (`stack/navigator.py`): Call stack and thread navigation
 
 3. **Session Layer** (`aidb/session/`): Core session orchestration and state management
 
@@ -124,8 +126,8 @@ graph TB
 **Data Flow Example (Setting a Breakpoint):**
 
 1. AI Agent → MCP Server: `call_tool("debug_set_breakpoint")`
-1. MCP Handler → DebugAPI: `api.orchestration.set_breakpoint()`
-1. DebugAPI → Session: `session.set_breakpoint()`
+1. MCP Handler → DebugService: `service.breakpoints.set()`
+1. DebugService → Session: `session.dap.send_request(SetBreakpointsRequest)`
 1. Session → Adapter: `adapter.verify_breakpoint_location()`
 1. Adapter → DAPClient: `dap_client.send_request(SetBreakpointsRequest)`
 1. DAPClient → Transport: Serialize and send over TCP socket
@@ -160,8 +162,8 @@ Key packages (code roots under `src/`):
 | Package | Purpose |
 |---------|---------|
 | `src/aidb/` | Core library: DAP protocol, session orchestration, language adapters |
-| `src/aidb/api/` | High-level Python API |
-| `src/aidb/session/` | Session management and state |
+| `src/aidb/service/` | High-level Python API (DebugService, ExecutionControl, etc.) |
+| `src/aidb/session/` | Session management, state, and lifecycle |
 | `src/aidb/adapters/` | Language-specific adapters (Python, JavaScript, Java) |
 | `src/aidb/dap/` | DAP protocol client implementation |
 | `src/aidb_mcp/` | MCP server exposing debugging tools |

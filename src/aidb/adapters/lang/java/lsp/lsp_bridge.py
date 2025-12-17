@@ -12,7 +12,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from aidb.api.constants import (
+from aidb.common.constants import (
     LSP_HEALTH_CHECK_TIMEOUT_S,
     LSP_MAVEN_IMPORT_TIMEOUT_S,
     LSP_PROJECT_IMPORT_TIMEOUT_S,

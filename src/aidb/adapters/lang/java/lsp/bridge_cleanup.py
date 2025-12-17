@@ -8,7 +8,7 @@ synchronously.
 
 import asyncio
 
-from aidb.api.constants import POLL_SLEEP_INTERVAL_S, PROCESS_TERMINATE_TIMEOUT_S
+from aidb.common.constants import POLL_SLEEP_INTERVAL_S, PROCESS_TERMINATE_TIMEOUT_S
 
 
 async def terminate_bridge_process_safe(proc, ctx) -> None:

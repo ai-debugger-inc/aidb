@@ -22,7 +22,6 @@ from aidb_common.path import normalize_path
 
 from .capabilities import CapabilityChecker
 from .connector import SessionConnector
-from .ops import SessionDebugOperations
 from .registry import SessionRegistry
 from .resource import ResourceManager
 from .session_breakpoints import SessionBreakpointsMixin
@@ -49,7 +48,6 @@ class Session(
     - SessionState: Status and error management
     - SessionConnector: DAP connection management
     - CapabilityChecker: Capability checking
-    - SessionDebugOperations: Debug operations
     - ResourceManager: Resource management
     - Mixins: Lifecycle, breakpoints, relationships
     """
@@ -168,7 +166,6 @@ class Session(
 
         # These components access session attributes, so initialize after core
         # attributes are set
-        self.debug = SessionDebugOperations(session=self, ctx=self.ctx)
         self.resource = ResourceManager(session=self, ctx=self.ctx)
         self.capability_checker = CapabilityChecker(self)
 

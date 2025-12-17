@@ -239,11 +239,17 @@ class AttachInitializer(Obj):
             await session._setup_breakpoint_event_subscription()
 
         # Execute the adapter-specific initialization sequence
+        from aidb.session.ops.initialization import InitializationMixin
+
         sequence = session.adapter.config.get_initialization_sequence()
-        await session._execute_initialization_sequence(sequence)
+        init_ops = InitializationMixin(session=session, ctx=self.ctx)
+        await init_ops._execute_initialization_sequence(sequence)
 
         # Call post-initialization operations (e.g., set initial breakpoints)
-        result = await session.debug.start(
+        from aidb.service.execution import ExecutionControl
+
+        exec_control = ExecutionControl(session, self.ctx)
+        result = await exec_control.start(
             auto_wait=auto_wait,
             wait_timeout=wait_timeout,
         )

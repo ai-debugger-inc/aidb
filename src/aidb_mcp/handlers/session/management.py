@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from aidb.common.capabilities import DAPCapability
 from aidb.session.state import SessionStatus
 from aidb_logging import get_mcp_logger as get_logger
 
@@ -27,12 +28,12 @@ from ...responses.session import (
     SessionStopResponse,
 )
 from ...session import (
-    get_or_create_session,
     get_session_id_from_args,
     list_sessions,
 )
 from ...session.manager_core import (
-    get_session_api,
+    get_service,
+    get_session,
 )
 from ...session.manager_core import (
     get_session_id as get_session_context,
@@ -45,38 +46,42 @@ logger = get_logger(__name__)
 
 
 @timed
-async def _get_session_state(api) -> tuple[str, bool, bool]:
+async def _get_session_state(session) -> tuple[str, bool, bool]:
     """Get session language, terminated and paused state.
 
-    Returns (language, terminated, paused).
+    Parameters
+    ----------
+    session : Session | None
+        Session instance
+
+    Returns
+    -------
+    tuple[str, bool, bool]
+        (language, terminated, paused)
     """
     language = DefaultValue.UNKNOWN
     terminated = False
     paused = False
 
-    if not api:
+    if not session:
         return language, True, False
 
-    if not api.started:
+    if not session.started:
         return language, True, False
 
-    # Check for termination through session status
-    if hasattr(api, "session") and api.session:
-        language = getattr(api.session, "language", DefaultValue.UNKNOWN)
+    # Get language from session
+    language = getattr(session, "language", DefaultValue.UNKNOWN)
 
-        # Get the actual session status
-        if hasattr(api.session, "status"):
-            status = api.session.status
-            if status:
-                if status == SessionStatus.TERMINATED:
-                    terminated = True
-                elif status == SessionStatus.PAUSED:
-                    paused = True
-                elif status == SessionStatus.ERROR:
-                    terminated = True
-    else:
-        # No session available - assume terminated
-        terminated = True
+    # Get the actual session status
+    if hasattr(session, "status"):
+        status = session.status
+        if status:
+            if status == SessionStatus.TERMINATED:
+                terminated = True
+            elif status == SessionStatus.PAUSED:
+                paused = True
+            elif status == SessionStatus.ERROR:
+                terminated = True
 
     return language, terminated, paused
 
@@ -112,12 +117,12 @@ async def _handle_session_status(args: dict[str, Any]) -> dict[str, Any]:
             terminated=True,
         ).to_mcp_response()
 
-    # Get the session API using public interface
-    api = get_session_api(session_id)
-    if api is None:
+    # Get the session using public interface
+    session = get_session(session_id)
+    if session is None:
         return no_session(operation="status")
 
-    language, terminated, paused = await _get_session_state(api)
+    language, terminated, paused = await _get_session_state(session)
 
     # Get additional context information using public interface
     context = get_session_context(session_id)
@@ -143,7 +148,7 @@ async def _handle_session_status(args: dict[str, Any]) -> dict[str, Any]:
 
     return SessionStatusResponse(
         session_id=session_id,
-        started=api.started if api else False,
+        started=session.started if session else False,
         paused=paused,
         terminated=terminated,
         language=language if language != DefaultValue.UNKNOWN else None,
@@ -168,18 +173,13 @@ async def _handle_session_stop(args: dict[str, Any]) -> dict[str, Any]:
     if not session_id:
         return no_session(operation="stop")
 
-    # Get the actual session object using get_or_create_session
-    _, api, _ = get_or_create_session(session_id)
+    # Get the session using public interface
+    session = get_session(session_id)
 
     # Check if session is already terminated
     # Even if terminated, we still need to call stop() to run cleanup hooks
-    if (
-        api
-        and hasattr(api, "session")
-        and api.session
-        and hasattr(api.session, "status")
-    ):
-        status = api.session.status
+    if session and hasattr(session, "status"):
+        status = session.status
         if status and status == SessionStatus.TERMINATED:
             logger.debug(
                 "Session already terminated, but still calling stop for cleanup",
@@ -188,11 +188,11 @@ async def _handle_session_stop(args: dict[str, Any]) -> dict[str, Any]:
 
     # Call stop() to ensure adapter cleanup hooks run (DAP disconnect, etc.)
     # This is critical for pooled resources like JDT LS bridges
-    if api and hasattr(api, "stop"):
-        await api.stop()
+    if session and hasattr(session, "stop"):
+        await session.stop()
 
     # Clean up session from MCP registries to prevent orphaned receivers
-    # This removes the session from _DEBUG_SESSIONS and _SESSION_CONTEXTS,
+    # This removes the session from _DEBUG_SERVICES and _SESSION_CONTEXTS,
     # ensuring all resources (including background receivers) are released
     await cleanup_session_async(session_id, force=True)
 
@@ -203,7 +203,8 @@ async def _handle_session_stop(args: dict[str, Any]) -> dict[str, Any]:
 
 
 async def _try_native_restart(
-    api: Any,
+    session: Any,
+    service: Any,
     session_id: str,
     keep_breakpoints: bool,
 ) -> dict[str, Any] | None:
@@ -212,16 +213,15 @@ async def _try_native_restart(
     Returns response dict if successful, None to fall back to emulated restart.
     """
     if not (
-        api
-        and api.session
-        and hasattr(api.session, "has_capability")
-        and api.session.has_capability("supportsRestartRequest")
+        session
+        and hasattr(session, "has_capability")
+        and session.has_capability(DAPCapability.RESTART)
     ):
         return None
 
     try:
         logger.info("Using native restart", extra={"session_id": session_id})
-        await api.restart()
+        await service.execution.restart()
 
         from ...responses.session import SessionRestartResponse
 
@@ -272,7 +272,7 @@ def _convert_breakpoints_for_restart(
 
 
 async def _emulated_restart(
-    api: Any,
+    session: Any,
     session_id: str,
     session_context: Any,
     keep_breakpoints: bool,
@@ -297,8 +297,8 @@ async def _emulated_restart(
         )
 
     # Stop current session
-    if api and hasattr(api, "stop"):
-        await api.stop()
+    if session and hasattr(session, "stop"):
+        await session.stop()
 
     # Merge breakpoints if keeping them
     if keep_breakpoints and current_breakpoints:
@@ -337,9 +337,10 @@ async def _handle_session_restart(args: dict[str, Any]) -> dict[str, Any]:
     if not session_id:
         return no_session(operation="restart")
 
-    # Get the session API using public interface
-    api = get_session_api(session_id)
-    if api is None:
+    # Get session and service using public interfaces
+    session = get_session(session_id)
+    service = get_service(session_id)
+    if session is None:
         return no_session(operation="restart")
 
     # Get session context using public interface
@@ -353,12 +354,22 @@ async def _handle_session_restart(args: dict[str, Any]) -> dict[str, Any]:
     keep_breakpoints = args.get(ParamName.KEEP_BREAKPOINTS, True)
 
     # Try native restart first
-    native_result = await _try_native_restart(api, session_id, keep_breakpoints)
+    native_result = await _try_native_restart(
+        session,
+        service,
+        session_id,
+        keep_breakpoints,
+    )
     if native_result:
         return native_result
 
     # Fall back to emulated restart
-    return await _emulated_restart(api, session_id, session_context, keep_breakpoints)
+    return await _emulated_restart(
+        session,
+        session_id,
+        session_context,
+        keep_breakpoints,
+    )
 
 
 @mcp_tool(require_session=False, include_after=False, record_history=False)

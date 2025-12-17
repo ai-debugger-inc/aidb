@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from aidb.api.constants import EVENT_QUEUE_POLL_TIMEOUT_S, THREAD_JOIN_TIMEOUT_S
+from aidb.common.constants import EVENT_QUEUE_POLL_TIMEOUT_S, THREAD_JOIN_TIMEOUT_S
 from aidb.patterns.base import Obj
 
 from .lsp_protocol import LSPMessage, LSPProtocol

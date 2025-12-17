@@ -81,7 +81,10 @@ class LaunchInitializer(Obj):
             await self.execute_initialization_sequence(sequence)
 
             # Call post-initialization operations (e.g., set initial breakpoints)
-            result = await session.debug.start(
+            from aidb.service.execution import ExecutionControl
+
+            exec_control = ExecutionControl(session, self.ctx)
+            result = await exec_control.start(
                 auto_wait=auto_wait,
                 wait_timeout=wait_timeout,
             )

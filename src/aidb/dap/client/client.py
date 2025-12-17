@@ -3,7 +3,7 @@
 import asyncio
 from typing import TYPE_CHECKING, Any, Literal, Optional
 
-from aidb.api.constants import (
+from aidb.common.constants import (
     CONNECTION_TIMEOUT_S,
     DEFAULT_ADAPTER_HOST,
     DEFAULT_PYTHON_DEBUG_PORT,

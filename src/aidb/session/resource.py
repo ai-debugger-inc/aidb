@@ -4,8 +4,8 @@ import asyncio
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, Optional
 
-from aidb.api.constants import DEFAULT_REQUEST_TIMEOUT_S
 from aidb.common import acquire_lock
+from aidb.common.constants import DEFAULT_REQUEST_TIMEOUT_S
 from aidb.patterns import Obj
 from aidb_common.constants import Language
 

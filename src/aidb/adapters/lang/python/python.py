@@ -8,7 +8,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, Any
 
-from aidb.api.constants import DEFAULT_ADAPTER_HOST
+from aidb.common.constants import DEFAULT_ADAPTER_HOST
 from aidb_common.config import config as env_config
 from aidb_common.constants import Language
 from aidb_common.path import get_aidb_adapters_dir
@@ -600,7 +600,7 @@ class PythonAdapter(DebugAdapter):
         issues.
         """
         try:
-            from aidb.api.constants import ORPHAN_SCAN_PRE_LAUNCH_MS
+            from aidb.common.constants import ORPHAN_SCAN_PRE_LAUNCH_MS
             from aidb_common.env import reader
 
             min_age = reader.read_float("AIDB_PYTHON_ORPHAN_MIN_AGE", 5.0) or 5.0
@@ -631,7 +631,7 @@ class PythonAdapter(DebugAdapter):
         instances from previous sessions that could block the next launch.
         """
         try:
-            from aidb.api.constants import ORPHAN_SCAN_POST_STOP_MS
+            from aidb.common.constants import ORPHAN_SCAN_POST_STOP_MS
             from aidb_common.env import reader
 
             if reader.read_bool("AIDB_SKIP_POST_STOP_ORPHAN_CLEANUP", False):

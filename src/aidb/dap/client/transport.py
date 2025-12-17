@@ -5,7 +5,7 @@ import json
 import time
 from typing import TYPE_CHECKING, Any, Optional
 
-from aidb.api.constants import RECEIVE_POLL_TIMEOUT_S
+from aidb.common.constants import RECEIVE_POLL_TIMEOUT_S
 from aidb.common.errors import DebugConnectionError
 from aidb.dap.protocol.base import ProtocolMessage
 from aidb.patterns import Obj

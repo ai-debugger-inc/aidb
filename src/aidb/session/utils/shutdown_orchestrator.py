@@ -73,12 +73,15 @@ class SessionShutdownOrchestrator(Obj):
     async def stop_debug_session(self) -> None:
         """Stop the debug session if currently running.
 
-        Checks the session status and calls debug.stop() if running. Errors are logged
-        but not propagated.
+        Checks the session status and calls ExecutionControl.stop() if running. Errors
+        are logged but not propagated.
         """
         if self.session.status == SessionStatus.RUNNING:
             try:
-                await self.session.debug.stop()
+                from aidb.service.execution import ExecutionControl
+
+                exec_control = ExecutionControl(self.session, self.ctx)
+                await exec_control.stop()
             except Exception as e:
                 self.ctx.debug(f"Error stopping session during destroy: {e}")
 

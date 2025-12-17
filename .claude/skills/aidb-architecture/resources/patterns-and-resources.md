@@ -14,7 +14,8 @@ ______________________________________________________________________
 
 **Examples:**
 
-- `Session` → `SessionState`, `SessionConnector`, `SessionDebugOperations`
+- `Session` → `SessionState`, `SessionConnector`, `ResourceManager`
+- `DebugService` → `ExecutionControl`, `SteppingService`, `BreakpointManager`, `VariableInspector`, `StackNavigator`
 - `DebugAdapter` → `ProcessManager`, `PortManager`, `LaunchOrchestrator`
 - `DAPClient` → `Transport`, `RequestHandler`, `EventProcessor`
 

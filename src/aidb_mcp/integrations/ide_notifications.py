@@ -10,7 +10,7 @@ from typing import Any
 
 from aidb.integrations.ide_detector import IDEDetector, IDEType
 
-from aidb.api.constants import (
+from aidb.common.constants import (
     DEFAULT_ADAPTER_HOST,
     DEFAULT_VSCODE_BRIDGE_PORT,
     RECEIVE_POLL_TIMEOUT_S,

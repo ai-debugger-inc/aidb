@@ -109,12 +109,12 @@ from tests._fixtures.unit.mcp.config import (
     mock_session_config_fast,
     patch_mcp_config,
 )
-from tests._fixtures.unit.mcp.debug_api import (
-    mock_debug_api,
-    mock_debug_api_no_session_info,
-    mock_debug_api_not_started,
-    mock_debug_api_reconnect_fails,
-    mock_debug_api_stop_fails,
+from tests._fixtures.unit.mcp.debug_service import (
+    mock_debug_service,
+    mock_debug_service_no_session_info,
+    mock_debug_service_not_started,
+    mock_debug_service_reconnect_fails,
+    mock_debug_service_stop_fails,
 )
 from tests._fixtures.unit.mcp.session_context import (
     mock_mcp_session_context,
@@ -260,12 +260,12 @@ __all__ = [
     "mock_config_mapper_functional",
     "MockConfigurationMapper",
     "TrackingConfigurationMapper",
-    # MCP Debug API
-    "mock_debug_api",
-    "mock_debug_api_not_started",
-    "mock_debug_api_no_session_info",
-    "mock_debug_api_stop_fails",
-    "mock_debug_api_reconnect_fails",
+    # MCP Debug Service
+    "mock_debug_service",
+    "mock_debug_service_not_started",
+    "mock_debug_service_no_session_info",
+    "mock_debug_service_stop_fails",
+    "mock_debug_service_reconnect_fails",
     # MCP Session Context
     "mock_mcp_session_context",
     "mock_mcp_session_context_not_started",

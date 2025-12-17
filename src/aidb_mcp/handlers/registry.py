@@ -65,13 +65,8 @@ async def _cleanup_cancelled_tool(name: str, args: dict[str, Any]) -> None:
             )
 
             try:
-                _, api, context = get_or_create_session(session_id)
-                if (
-                    api
-                    and hasattr(api, "session")
-                    and hasattr(api.session, "state")
-                    and hasattr(context, "is_running")
-                ):
+                _, context = get_or_create_session(session_id)
+                if context and hasattr(context, "is_running"):
                     context.is_running = False
                     # Don't terminate the session, just ensure it's in a clean state
             except Exception as cleanup_err:
