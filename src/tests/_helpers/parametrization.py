@@ -16,10 +16,13 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 
 def parametrize_interfaces(func: F) -> F:
-    """Parametrize test to run for both MCP and API interfaces.
+    """Parametrize test to run with MCP interface.
 
-    This decorator automatically applies pytest.mark.parametrize with both
-    "mcp" and "api" interface types, using indirect=True for fixture injection.
+    This decorator applies pytest.mark.parametrize with the MCP interface type,
+    using indirect=True for fixture injection.
+
+    Note: The API interface was removed as part of the service layer refactor.
+    All tests now run through MCP, which is the public interface for AI agents.
 
     Parameters
     ----------
@@ -35,12 +38,12 @@ def parametrize_interfaces(func: F) -> F:
     --------
     >>> @parametrize_interfaces
     >>> async def test_something(debug_interface):
-    >>>     # Runs twice: once with MCP, once with API
+    >>>     # Runs with MCP interface
     >>>     pass
     """
     return pytest.mark.parametrize(
         "debug_interface",
-        ["mcp", "api"],
+        ["mcp"],
         indirect=True,
     )(func)
 

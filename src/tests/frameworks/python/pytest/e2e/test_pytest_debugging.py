@@ -107,49 +107,6 @@ class TestPytestDebugging(FrameworkDebugTestBase):
 
         await debug_interface.stop_session()
 
-    @pytest.mark.asyncio
-    async def test_dual_launch_equivalence(self, pytest_suite: Path):
-        """Verify that API and launch.json produce equivalent behavior.
-
-        This test ensures that both launch methods result in the same
-        debugging capabilities and session state.
-
-        Parameters
-        ----------
-        pytest_suite : Path
-            Path to pytest test suite
-        """
-        from tests._helpers.debug_interface.api_interface import APIInterface
-
-        test_file = pytest_suite / "test_sample.py"
-
-        api_interface = APIInterface(language="python")
-        await api_interface.initialize()
-
-        api_session = await api_interface.start_session(
-            program="pytest",
-            module=True,
-            args=[str(test_file), "-v"],
-            cwd=str(pytest_suite),
-        )
-
-        from aidb.adapters.base.vslaunch import LaunchConfigurationManager
-
-        manager = LaunchConfigurationManager(workspace_root=pytest_suite)
-        config = manager.get_configuration(name="pytest: Debug Single Test")
-
-        vscode_session = await self.launch_from_config(
-            api_interface,
-            config,
-            workspace_root=pytest_suite,
-        )
-
-        assert api_session["status"] == vscode_session["status"]
-        assert api_session["session_id"] is not None
-        assert vscode_session["session_id"] is not None
-
-        await api_interface.stop_session()
-
     @parametrize_interfaces
     @pytest.mark.asyncio
     async def test_pytest_test_debugging(

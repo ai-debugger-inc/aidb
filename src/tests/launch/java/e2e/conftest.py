@@ -1,7 +1,6 @@
 """Pytest configuration and fixtures for Java E2E launch tests."""
 
 import os
-import subprocess
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
@@ -30,22 +29,12 @@ async def debug_interface(
     DebugInterface
         Debug interface configured for Java
     """
-    from tests._fixtures.base import DebugInterfaceType
-    from tests._helpers.debug_interface import APIInterface, MCPInterface
+    from tests._helpers.debug_interface import MCPInterface
 
     # Enable Java auto-compilation for E2E tests
     os.environ["AIDB_JAVA_AUTO_COMPILE"] = "true"
 
-    interface_type = getattr(request, "param", DebugInterfaceType.API.value)
-
-    if interface_type == DebugInterfaceType.MCP.value:
-        interface = MCPInterface(language="java")
-    elif interface_type == DebugInterfaceType.API.value:
-        interface = APIInterface(language="java")
-    else:
-        valid = [t.value for t in DebugInterfaceType]
-        msg = f"Unknown interface type: {interface_type}. Use {valid}"
-        raise ValueError(msg)
+    interface = MCPInterface(language="java")
 
     await interface.initialize(
         language="java",

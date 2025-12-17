@@ -105,56 +105,6 @@ class TestFlaskDebugging(FrameworkDebugTestBase):
 
         await debug_interface.stop_session()
 
-    @pytest.mark.asyncio
-    async def test_dual_launch_equivalence(self, flask_app: Path):
-        """Verify that API and launch.json produce equivalent behavior.
-
-        This test ensures that both launch methods result in the same
-        debugging capabilities and session state.
-
-        Parameters
-        ----------
-        flask_app : Path
-            Path to Flask test application
-        """
-        from tests._helpers.debug_interface.api_interface import APIInterface
-
-        app_py = flask_app / "app.py"
-
-        # Test 1: API launch
-        api_interface = APIInterface(language="python")
-        await api_interface.initialize()
-
-        api_session = await api_interface.start_session(
-            program=str(app_py),
-            cwd=str(flask_app),
-        )
-
-        # Stop first session before starting second to avoid resource conflicts
-        await api_interface.stop_session()
-
-        # Test 2: VS Code config launch (fresh interface to avoid state pollution)
-        from aidb.adapters.base.vslaunch import LaunchConfigurationManager
-
-        vscode_interface = APIInterface(language="python")
-        await vscode_interface.initialize()
-
-        manager = LaunchConfigurationManager(workspace_root=flask_app)
-        config = manager.get_configuration(name="Flask: Debug View")
-
-        vscode_session = await self.launch_from_config(
-            vscode_interface,
-            config,
-            workspace_root=flask_app,
-        )
-
-        # Compare results
-        assert api_session["status"] == vscode_session["status"]
-        assert api_session["session_id"] is not None
-        assert vscode_session["session_id"] is not None
-
-        await vscode_interface.stop_session()
-
     @parametrize_interfaces
     @pytest.mark.asyncio
     async def test_flask_route_debugging(

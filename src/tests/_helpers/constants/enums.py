@@ -4,10 +4,13 @@ from enum import Enum
 
 
 class DebugInterfaceType(str, Enum):
-    """Types of debug interfaces for testing."""
+    """Types of debug interfaces for testing.
+
+    Note: The API interface was removed as part of the service layer refactor.
+    All tests now run through MCP, which is the public interface for AI agents.
+    """
 
     MCP = "mcp"
-    API = "api"
 
 
 class LogLevel(Enum):

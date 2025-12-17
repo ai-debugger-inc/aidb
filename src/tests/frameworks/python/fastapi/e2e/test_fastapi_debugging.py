@@ -107,56 +107,6 @@ class TestFastAPIDebugging(FrameworkDebugTestBase):
 
         await debug_interface.stop_session()
 
-    @pytest.mark.asyncio
-    async def test_dual_launch_equivalence(self, fastapi_app: Path):
-        """Verify that API and launch.json produce equivalent behavior.
-
-        This test ensures that both launch methods result in the same
-        debugging capabilities and session state.
-
-        Parameters
-        ----------
-        fastapi_app : Path
-            Path to FastAPI test application
-        """
-        from tests._helpers.debug_interface.api_interface import APIInterface
-
-        app_py = fastapi_app / "app.py"
-
-        # Test 1: API launch
-        api_interface = APIInterface(language="python")
-        await api_interface.initialize()
-
-        api_session = await api_interface.start_session(
-            program=str(app_py),
-            cwd=str(fastapi_app),
-        )
-
-        # Stop first session before starting second to avoid resource conflicts
-        await api_interface.stop_session()
-
-        # Test 2: VS Code config launch (fresh interface to avoid state pollution)
-        from aidb.adapters.base.vslaunch import LaunchConfigurationManager
-
-        vscode_interface = APIInterface(language="python")
-        await vscode_interface.initialize()
-
-        manager = LaunchConfigurationManager(workspace_root=fastapi_app)
-        config = manager.get_configuration(name="FastAPI: Debug View")
-
-        vscode_session = await self.launch_from_config(
-            vscode_interface,
-            config,
-            workspace_root=fastapi_app,
-        )
-
-        # Compare results
-        assert api_session["status"] == vscode_session["status"]
-        assert api_session["session_id"] is not None
-        assert vscode_session["session_id"] is not None
-
-        await vscode_interface.stop_session()
-
     @parametrize_interfaces
     @pytest.mark.asyncio
     async def test_fastapi_async_route_debugging(

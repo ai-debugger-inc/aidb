@@ -106,48 +106,6 @@ class TestJUnitDebugging(FrameworkDebugTestBase):
 
         await debug_interface.stop_session()
 
-    @pytest.mark.asyncio
-    async def test_dual_launch_equivalence(self, junit_suite: Path):
-        """Verify that API and launch.json produce equivalent behavior.
-
-        This test ensures that both launch methods result in the same
-        debugging capabilities and session state.
-
-        Parameters
-        ----------
-        junit_suite : Path
-            Path to JUnit test suite
-        """
-        from tests._helpers.debug_interface.api_interface import APIInterface
-
-        api_interface = APIInterface(language="java")
-        await api_interface.initialize()
-
-        api_session = await api_interface.start_session(
-            program="org.junit.platform.console.ConsoleLauncher",
-            main_class="org.junit.platform.console.ConsoleLauncher",
-            project_name="junit-tests",
-            args=["--select-package", "com.example.test", "--fail-if-no-tests"],
-            cwd=str(junit_suite),
-        )
-
-        from aidb.adapters.base.vslaunch import LaunchConfigurationManager
-
-        manager = LaunchConfigurationManager(workspace_root=junit_suite)
-        config = manager.get_configuration(name="JUnit: Debug Single Test")
-
-        vscode_session = await self.launch_from_config(
-            api_interface,
-            config,
-            workspace_root=junit_suite,
-        )
-
-        assert api_session["status"] == vscode_session["status"]
-        assert api_session["session_id"] is not None
-        assert vscode_session["session_id"] is not None
-
-        await api_interface.stop_session()
-
     @parametrize_interfaces
     @pytest.mark.asyncio
     async def test_junit_test_debugging(

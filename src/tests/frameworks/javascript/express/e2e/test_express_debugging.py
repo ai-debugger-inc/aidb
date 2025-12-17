@@ -102,47 +102,6 @@ class TestExpressDebugging(FrameworkDebugTestBase):
 
         await debug_interface.stop_session()
 
-    @pytest.mark.asyncio
-    async def test_dual_launch_equivalence(self, express_app: Path):
-        """Verify that API and launch.json produce equivalent behavior.
-
-        This test ensures that both launch methods result in the same
-        debugging capabilities and session state.
-
-        Parameters
-        ----------
-        express_app : Path
-            Path to Express test application
-        """
-        from tests._helpers.debug_interface.api_interface import APIInterface
-
-        server_js = express_app / "server.js"
-
-        api_interface = APIInterface(language="javascript")
-        await api_interface.initialize()
-
-        api_session = await api_interface.start_session(
-            program=str(server_js),
-            cwd=str(express_app),
-        )
-
-        from aidb.adapters.base.vslaunch import LaunchConfigurationManager
-
-        manager = LaunchConfigurationManager(workspace_root=express_app)
-        config = manager.get_configuration(name="Express: Debug Routes")
-
-        vscode_session = await self.launch_from_config(
-            api_interface,
-            config,
-            workspace_root=express_app,
-        )
-
-        assert api_session["status"] == vscode_session["status"]
-        assert api_session["session_id"] is not None
-        assert vscode_session["session_id"] is not None
-
-        await api_interface.stop_session()
-
     @parametrize_interfaces
     @pytest.mark.asyncio
     async def test_express_route_debugging(

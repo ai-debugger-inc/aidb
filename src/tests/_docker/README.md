@@ -44,7 +44,7 @@ docker compose --profile core up
 
 ### Shared Integration Tests (DebugInterface)
 
-Tests the **zero-duplication testing pattern** where a single test runs against both MCP and API interfaces:
+Tests the **DebugInterface abstraction** which provides a unified interface for debugging through MCP:
 
 ```bash
 ./dev-cli test shared
@@ -52,17 +52,16 @@ Tests the **zero-duplication testing pattern** where a single test runs against 
 
 **What it tests:**
 
-- DebugInterface abstraction (APIInterface + MCPInterface)
+- DebugInterface abstraction (MCPInterface)
 - Session lifecycle operations
 - Breakpoint operations
 - Execution control
-- Tests run **twice**: once with MCP, once with API
 
 **Test file:** `src/tests/aidb_shared/integration/test_basic_debugging.py`
 
 ### Generated Program E2E Tests
 
-Tests using the **45 generated deterministic test programs** across all languages:
+Tests using the **generated deterministic test programs** across all languages:
 
 ```bash
 ./dev-cli test generated
@@ -70,10 +69,10 @@ Tests using the **45 generated deterministic test programs** across all language
 
 **What it tests:**
 
-- 6 scenarios × 3 languages × 2 interfaces = **36 test variations**
+- 6 scenarios × 3 languages = **18 test variations**
 - Scenarios: basic_variables, basic_for_loop, simple_function, basic_while_loop, conditionals, basic_exception
 - Languages: Python, JavaScript, Java
-- Interfaces: MCP and API
+- Interface: MCP
 
 **Test file:** `src/tests/aidb_shared/e2e/test_generated_programs.py`
 
@@ -264,14 +263,13 @@ else:
     base = Path(__file__).parent.parent / "_assets/..."
 ```
 
-### Zero-Duplication Pattern (via DebugInterface)
+### DebugInterface Abstraction
 
-Write once, test both MCP and API:
+Tests use the DebugInterface abstraction for consistent debugging operations through MCP:
 
 ```python
-@pytest.mark.parametrize("debug_interface", ["mcp", "api"], indirect=True)
+@pytest.mark.parametrize("debug_interface", ["mcp"], indirect=True)
 async def test_breakpoint(debug_interface):
-    # This test runs TWICE: once with MCP, once with API!
     await debug_interface.start_session(program="test.py")
     bp = await debug_interface.set_breakpoint(file="test.py", line=5)
     assert bp["line"] == 5

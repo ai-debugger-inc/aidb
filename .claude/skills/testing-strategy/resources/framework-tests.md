@@ -8,9 +8,9 @@ ______________________________________________________________________
 
 **Do test:**
 
-- AIDB can launch the framework
+- AIDB can launch the framework via MCP
 - AIDB can debug the framework code
-- Both API and VS Code launch work
+- VS Code launch.json configurations work
 
 **Don't test:**
 
@@ -20,7 +20,7 @@ ______________________________________________________________________
 
 ______________________________________________________________________
 
-## Required Pattern: Dual-Launch
+## Required Pattern
 
 All framework tests MUST inherit from `FrameworkDebugTestBase` and implement:
 
@@ -32,18 +32,15 @@ class TestMyFramework(FrameworkDebugTestBase):
 
     @abstractmethod
     async def test_launch_via_api(self, debug_interface, *args):
-        """Test direct API launch."""
+        """Test direct launch via MCP interface."""
 
     @abstractmethod
     async def test_launch_via_vscode_config(self, debug_interface, *args):
-        """Test VS Code launch.json."""
-
-    @abstractmethod
-    async def test_dual_launch_equivalence(self, *args):
-        """Verify both methods work identically."""
+        """Test VS Code launch.json configurations."""
 ```
 
-**Why?** Ensures we never ship a framework integration that only works through one entry point.
+Note: The dual-launch equivalence test was removed as part of the service layer
+refactor. All tests now run through MCP, which is the public interface for AI agents.
 
 ______________________________________________________________________
 
