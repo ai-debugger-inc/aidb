@@ -5,13 +5,14 @@ including message serialization, request/response correlation, and connection li
 """
 
 import asyncio
+import contextlib
 import json
 import os
 import time
 from dataclasses import dataclass
 from typing import Any
 
-from aidb.api.constants import LSP_SHUTDOWN_TIMEOUT_S
+from aidb.common.constants import LSP_SHUTDOWN_TIMEOUT_S
 from aidb.common.errors import AidbError
 from aidb.patterns.base import Obj
 
@@ -311,10 +312,8 @@ class LSPProtocol(Obj):
                 loop.call_soon_threadsafe(event.set)
             except Exception:
                 # Fallback in case loop is already closed
-                try:
+                with contextlib.suppress(Exception):
                     self._pending_requests[message.id][0].set()
-                except Exception:
-                    pass
 
     async def reset_state(self):
         """Reset protocol state for new sessions.

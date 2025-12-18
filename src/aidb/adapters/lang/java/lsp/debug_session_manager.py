@@ -7,7 +7,7 @@ configuration, attach operations, and DAP port management.
 import json
 from typing import Any
 
-from aidb.api.constants import (
+from aidb.common.constants import (
     DEFAULT_WAIT_TIMEOUT_S,
     INIT_CONFIGURATION_DONE_JAVA_S,
     LSP_EXECUTE_COMMAND_TIMEOUT_S,
@@ -349,7 +349,7 @@ class DebugSessionManager(Obj):
                 return self.dap_port or 0
 
             msg = f"Failed to start debug session after fallback: {result}"
-            raise AidbError(msg)
+            raise AidbError(msg) from e
 
     async def attach_to_remote(
         self,
@@ -386,6 +386,9 @@ class DebugSessionManager(Obj):
         """
         self.ctx.info(f"Requesting attach session to {host}:{port}")
 
+        # Trigger java-debug plugin initialization before startDebugSession
+        await self._ensure_java_debug_ready(lsp_client)
+
         # Build attach configuration
         default_project = JavaAdapterConfig.DEFAULT_PROJECT_NAME
         attach_config = {
@@ -396,6 +399,8 @@ class DebugSessionManager(Obj):
             "timeout": timeout,
             "projectName": project_name or default_project,
         }
+
+        self.ctx.debug(f"Attach configuration: {json.dumps(attach_config, indent=2)}")
 
         # Request DAP port from java-debug plugin for attach
         try:

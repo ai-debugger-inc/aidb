@@ -51,16 +51,14 @@ def get_session_resources() -> list[Resource]:
                 "target": getattr(context, "target", None),
             }
 
-            if (
-                context.session_started
-                and api
-                and hasattr(api, "session_info")
-                and api.session_info
-            ):
-                metadata["status"] = to_jsonable(api.session_info.status)
-                metadata["pid"] = (
-                    api.session_info.pid if hasattr(api.session_info, "pid") else None
-                )
+            if context.session_started and api and api.session:
+                try:
+                    session_info = api.session.info
+                    if session_info:
+                        metadata["status"] = to_jsonable(session_info.status)
+                        metadata["pid"] = getattr(session_info, "pid", None)
+                except Exception:
+                    logger.debug("Failed to get session info for %s", session_id)
 
             target_name = metadata.get("target", "unknown target")
             resources.append(
@@ -193,7 +191,11 @@ def get_watch_resources(session_id: str | None = None) -> list[Resource]:
 
                     if context.session_started and api:
                         try:
-                            result = api.introspection.evaluate(watch_expr)
+                            import asyncio
+
+                            result = asyncio.get_event_loop().run_until_complete(
+                                api.variables.evaluate(watch_expr),
+                            )
                             if result.success:
                                 metadata["current_value"] = result.value
                                 metadata["type"] = result.type

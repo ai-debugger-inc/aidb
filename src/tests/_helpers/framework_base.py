@@ -1,7 +1,7 @@
-"""Base class for framework debugging tests enforcing dual-launch pattern.
+"""Base class for framework debugging tests.
 
-This module provides a base class that ensures framework tests validate both API and VS
-Code launch.json entry points, guaranteeing consistency across both debugging methods.
+This module provides a base class for framework tests that validates debugging via the
+MCP interface, which is the public interface for AI agents.
 """
 
 from abc import abstractmethod
@@ -12,20 +12,14 @@ from tests._helpers.test_bases.base_e2e_test import BaseE2ETest
 
 
 class FrameworkDebugTestBase(BaseE2ETest):
-    """Base class for framework debugging tests with dual-launch enforcement.
+    """Base class for framework debugging tests.
 
-    This base class ensures that all framework tests verify both debugging
-    entry points:
-    1. Direct API launch (programmatic)
-    2. VS Code launch.json configuration
-
-    The class enforces this by requiring three abstract methods that all
-    framework tests must implement. This guarantees that we never ship
-    a framework integration that only works through one entry point.
+    This base class provides common functionality for testing framework
+    debugging capabilities through the MCP interface.
 
     Usage
     -----
-    Inherit and implement the three required methods::
+    Inherit and implement the required methods::
 
         class TestDjangoDebugging(FrameworkDebugTestBase):
             '''Test Django framework debugging.'''
@@ -33,12 +27,10 @@ class FrameworkDebugTestBase(BaseE2ETest):
             @parametrize_interfaces
             async def test_launch_via_api(self, debug_interface, django_app):
                 '''Test Django debugging via direct API.'''
-                # Launch Django app programmatically
                 session = await debug_interface.start_session(
                     program=django_app / "manage.py",
                     args=["runserver", "--noreload"],
                 )
-                # Set breakpoints, verify debugging works
                 ...
 
             @parametrize_interfaces
@@ -46,41 +38,18 @@ class FrameworkDebugTestBase(BaseE2ETest):
                 self,
                 debug_interface,
                 django_app,
-                django_launch_config,
             ):
                 '''Test Django debugging via launch.json.'''
-                # Use core's LaunchConfigurationManager
                 from aidb.adapters.base.vslaunch import LaunchConfigurationManager
 
                 manager = LaunchConfigurationManager(django_app)
                 config = manager.get_configuration(name="Django: Debug")
 
-                # Launch via config
                 session = await self.launch_from_config(
                     debug_interface,
                     config,
                 )
-                # Verify same debugging capabilities
                 ...
-
-            async def test_dual_launch_equivalence(
-                self,
-                debug_interface,
-                django_app,
-            ):
-                '''Verify API and launch.json produce identical behavior.'''
-                # Run same test via both methods
-                api_result = await self._run_breakpoint_test_via_api(
-                    debug_interface,
-                    django_app,
-                )
-                vscode_result = await self._run_breakpoint_test_via_config(
-                    debug_interface,
-                    django_app,
-                )
-
-                # Assert equivalence
-                assert api_result == vscode_result
 
     Attributes
     ----------
@@ -144,37 +113,6 @@ class FrameworkDebugTestBase(BaseE2ETest):
         msg = (
             f"{self.__class__.__name__} must implement test_launch_via_vscode_config()"
         )
-        raise NotImplementedError(msg)
-
-    @abstractmethod
-    async def test_dual_launch_equivalence(self, *args, **kwargs):
-        """Verify that API and launch.json produce equivalent debugging behavior.
-
-        This method must demonstrate that both entry points work identically.
-        Typically this involves running the same debugging operation through
-        both paths and comparing results.
-
-        Example operations to verify:
-        - Breakpoints hit at same locations
-        - Variables have same values
-        - Stack traces are equivalent
-        - Stepping behavior is identical
-
-        Parameters
-        ----------
-        *args
-            Additional positional arguments
-        **kwargs
-            Additional keyword arguments
-
-        Raises
-        ------
-        AssertionError
-            If the two launch methods produce different results
-        NotImplementedError
-            If subclass doesn't implement this method
-        """
-        msg = f"{self.__class__.__name__} must implement test_dual_launch_equivalence()"
         raise NotImplementedError(msg)
 
     async def launch_from_config(

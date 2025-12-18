@@ -13,7 +13,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from aidb.api.constants import MEDIUM_SLEEP_S, PROCESS_TERMINATE_TIMEOUT_S
+from aidb.common.constants import MEDIUM_SLEEP_S, PROCESS_TERMINATE_TIMEOUT_S
 from aidb.common.errors import AidbError
 from aidb.patterns.base import Obj
 from aidb.resources.process_tags import ProcessTags, ProcessType
@@ -97,18 +97,20 @@ class JDTLSProcessManager(Obj):
 
                 uname = platform.uname()
                 nofile = resource.getrlimit(resource.RLIMIT_NOFILE)
-                self.ctx.info(
-                    f"[DIAG] Kernel={uname.system} {uname.release} | Machine={uname.machine} | NOFILE={nofile}",
+                diag_info = (
+                    f"[DIAG] Kernel={uname.system} {uname.release} | "
+                    f"Machine={uname.machine} | NOFILE={nofile}"
                 )
+                self.ctx.info(diag_info)
                 # cgroups v2 (unified) paths
-                cg_root = "/sys/fs/cgroup"
-                mem_max = os.path.join(cg_root, "memory.max")
-                cpu_max = os.path.join(cg_root, "cpu.max")
+                cg_root = Path("/sys/fs/cgroup")
+                mem_max = cg_root / "memory.max"
+                cpu_max = cg_root / "cpu.max"
                 for p in (mem_max, cpu_max):
                     try:
-                        with open(p, encoding="utf-8") as fh:  # noqa: ASYNC230
+                        with p.open(encoding="utf-8") as fh:  # noqa: ASYNC230
                             val = fh.read().strip()
-                        self.ctx.info(f"[DIAG] cgroup {os.path.basename(p)}={val}")
+                        self.ctx.info(f"[DIAG] cgroup {p.name}={val}")
                     except Exception:
                         pass
                 # Shared memory size

@@ -317,7 +317,7 @@ session_start(
 :::{note}
 **Supported hit condition operators:**
 
-- `5` or `=5`: Break on exactly the 5th hit
+- `5` or `==5`: Break on exactly the 5th hit
 - `>5`: Break after more than 5 hits
 - `>=5`: Break on 5th hit and beyond
 - `<5`: Break before 5th hit

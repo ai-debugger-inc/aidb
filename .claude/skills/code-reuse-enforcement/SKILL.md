@@ -69,7 +69,7 @@ await asyncio.sleep(0.1)
 timeout = 5.0
 
 # ✅ GOOD
-from aidb.api.constants import EVENT_POLL_TIMEOUT_S, CONNECTION_TIMEOUT_S
+from aidb.common.constants import EVENT_POLL_TIMEOUT_S, CONNECTION_TIMEOUT_S
 
 await asyncio.sleep(EVENT_POLL_TIMEOUT_S)
 timeout = CONNECTION_TIMEOUT_S
@@ -111,7 +111,7 @@ ______________________________________________________________________
 | ------------------------------ | ---------------------------------- |
 | `aidb_common/constants.py`     | Language enum, paths, domains      |
 | `aidb/dap/client/constants.py` | DAP events, commands, stop reasons |
-| `aidb/api/constants.py`        | Timeouts (seconds), defaults       |
+| `aidb/common/constants.py`     | Timeouts (seconds), defaults       |
 | `aidb_mcp/core/constants.py`   | MCP tool names, actions            |
 | `aidb_cli/core/constants.py`   | Icons, exit codes, Docker          |
 | `tests/_helpers/constants.py`  | Test ports, timeouts, patterns     |

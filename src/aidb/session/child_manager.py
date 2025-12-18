@@ -245,12 +245,6 @@ class ChildSessionManager(Obj):
             # Default behavior for adapters without special handling
             self._handle_default_child(child, parent, config)
 
-        # Initialize the child session's debug operations This uses the
-        # refactored SessionDebugOperations from ops/
-        from aidb.session.ops import SessionDebugOperations
-
-        child.debug = SessionDebugOperations(session=child, ctx=self.ctx)
-
         # Perform child-specific DAP initialization
         await self._initialize_child_dap(child, start_request_type, config)
 

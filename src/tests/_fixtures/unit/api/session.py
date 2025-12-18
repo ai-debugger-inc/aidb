@@ -42,7 +42,7 @@ def mock_session_manager(mock_ctx: MagicMock) -> MagicMock:
     MagicMock
         Mock session manager with spec matching SessionManager
     """
-    from aidb.api.session_manager import SessionManager
+    from aidb.session import SessionManager
 
     manager = MagicMock(spec=SessionManager)
     manager.ctx = mock_ctx

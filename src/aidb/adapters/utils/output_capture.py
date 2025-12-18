@@ -4,8 +4,8 @@ import asyncio
 import collections
 from typing import TYPE_CHECKING, Any, Optional
 
-from aidb.api.constants import EVENT_QUEUE_POLL_TIMEOUT_S
 from aidb.common import acquire_lock
+from aidb.common.constants import EVENT_QUEUE_POLL_TIMEOUT_S
 from aidb.patterns import Obj
 
 if TYPE_CHECKING:

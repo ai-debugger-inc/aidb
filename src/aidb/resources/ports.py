@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Optional
 
 import psutil
 
-from aidb.api.constants import (
+from aidb.common.constants import (
     DEFAULT_ADAPTER_HOST,
     PORT_FALLBACK_RANGE_SIZE,
     SHORT_SLEEP_S,

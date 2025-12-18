@@ -5,7 +5,6 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING
 
-from aidb import DebugAPI
 from aidb_logging import (
     get_mcp_logger as get_logger,
 )
@@ -14,10 +13,13 @@ from aidb_logging import (
 )
 
 if TYPE_CHECKING:
+    from aidb import DebugService
+    from aidb.session import Session
+
     from .context import MCPSessionContext
 
 from .manager_shared import (
-    _DEBUG_SESSIONS,
+    _DEBUG_SERVICES,
     _DEFAULT_SESSION_ID,
     _SESSION_CONTEXTS,
     _state_lock,
@@ -28,8 +30,8 @@ logger = get_logger(__name__)
 
 def get_or_create_session(
     session_id: str | None = None,
-) -> tuple[str, DebugAPI, MCPSessionContext]:
-    """Get existing session or create new one.
+) -> tuple[str, MCPSessionContext]:
+    """Get existing session context or create new one.
 
     Parameters
     ----------
@@ -38,8 +40,8 @@ def get_or_create_session(
 
     Returns
     -------
-    Tuple[str, DebugAPI, MCPSessionContext]
-        Session ID, Debug API instance, and session context
+    tuple[str, MCPSessionContext]
+        Session ID and session context
     """
     global _DEFAULT_SESSION_ID
 
@@ -50,9 +52,8 @@ def get_or_create_session(
                 _DEFAULT_SESSION_ID = str(uuid.uuid4())  # Use full UUID for consistency
             session_id = _DEFAULT_SESSION_ID
 
-        # Get or create session
-        if session_id not in _DEBUG_SESSIONS:
-            _DEBUG_SESSIONS[session_id] = DebugAPI()
+        # Get or create session context
+        if session_id not in _SESSION_CONTEXTS:
             # Import here to avoid circular dependency
             from .context import MCPSessionContext
 
@@ -68,26 +69,7 @@ def get_or_create_session(
             set_session_id(session_id)
             logger.debug("Switched to existing session: %s", session_id)
 
-        return session_id, _DEBUG_SESSIONS[session_id], _SESSION_CONTEXTS[session_id]
-
-
-def get_session_api(session_id: str | None = None) -> DebugAPI | None:
-    """Get API for a specific session.
-
-    Parameters
-    ----------
-    session_id : str, optional
-        Session ID. If None, uses default session.
-
-    Returns
-    -------
-    Optional[DebugAPI]
-        Debug API instance or None if not found
-    """
-    with _state_lock:
-        if session_id is None:
-            session_id = _DEFAULT_SESSION_ID
-        return _DEBUG_SESSIONS.get(session_id) if session_id else None
+        return session_id, _SESSION_CONTEXTS[session_id]
 
 
 def get_session_id(
@@ -109,3 +91,72 @@ def get_session_id(
         if session_id is None:
             session_id = _DEFAULT_SESSION_ID
         return _SESSION_CONTEXTS.get(session_id) if session_id else None
+
+
+def set_service(session_id: str, service: DebugService) -> None:
+    """Store DebugService for a session.
+
+    Parameters
+    ----------
+    session_id : str
+        Session ID to associate with the service
+    service : DebugService
+        DebugService instance to store
+    """
+    with _state_lock:
+        _DEBUG_SERVICES[session_id] = service
+        logger.debug("Stored DebugService for session: %s", session_id)
+
+
+def get_service(session_id: str | None = None) -> DebugService | None:
+    """Get DebugService for a specific session.
+
+    Parameters
+    ----------
+    session_id : str, optional
+        Session ID. If None, uses default session.
+
+    Returns
+    -------
+    Optional[DebugService]
+        DebugService instance or None if not found
+    """
+    with _state_lock:
+        if session_id is None:
+            session_id = _DEFAULT_SESSION_ID
+        return _DEBUG_SERVICES.get(session_id) if session_id else None
+
+
+def clear_service(session_id: str) -> None:
+    """Remove DebugService for a session.
+
+    Parameters
+    ----------
+    session_id : str
+        Session ID to clear
+    """
+    with _state_lock:
+        if session_id in _DEBUG_SERVICES:
+            del _DEBUG_SERVICES[session_id]
+            logger.debug("Cleared DebugService for session: %s", session_id)
+
+
+def get_session(session_id: str | None = None) -> Session | None:
+    """Get Session for a specific session ID.
+
+    This is a convenience function that returns the underlying Session
+    from the DebugService. Use this for accessing session properties
+    like status, started, info, etc.
+
+    Parameters
+    ----------
+    session_id : str, optional
+        Session ID. If None, uses default session.
+
+    Returns
+    -------
+    Session | None
+        Session instance or None if not found
+    """
+    service = get_service(session_id)
+    return service.session if service else None

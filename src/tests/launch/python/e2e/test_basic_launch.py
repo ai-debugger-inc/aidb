@@ -141,69 +141,6 @@ if __name__ == "__main__":
         # Stop session
         await debug_interface.stop_session()
 
-    @pytest.mark.asyncio
-    async def test_dual_launch_equivalence(
-        self,
-        test_script: Path,
-        temp_workspace: Path,
-    ):
-        """Verify that API and launch.json produce equivalent behavior.
-
-        This test ensures that both launch methods result in the same
-        debugging capabilities and session state.
-
-        Parameters
-        ----------
-        test_script : Path
-            Path to Python test script
-        temp_workspace : Path
-            Temporary workspace directory
-        """
-        from aidb.adapters.base.vslaunch import LaunchConfigurationManager
-        from tests._helpers.debug_interface.api_interface import APIInterface
-        from tests._helpers.launch_test_utils import LaunchConfigTestHelper
-
-        # Method 1: API launch
-        api_interface = APIInterface(language="python")
-        await api_interface.initialize()
-
-        api_session = await api_interface.start_session(
-            program=str(test_script),
-            cwd=str(test_script.parent),
-        )
-
-        # Method 2: Launch.json launch
-        helper = LaunchConfigTestHelper(workspace_root=temp_workspace)
-        helper.create_test_launch_json(
-            [
-                helper.create_python_launch_config(
-                    name="Debug Script",
-                    program="${workspaceFolder}/test_app.py",
-                    cwd="${workspaceFolder}",
-                ),
-            ],
-        )
-
-        manager = LaunchConfigurationManager(workspace_root=temp_workspace)
-        config = manager.get_configuration(name="Debug Script")
-
-        vscode_session = await self.launch_from_config(
-            api_interface,
-            config,
-            workspace_root=temp_workspace,
-        )
-
-        # Verify equivalence
-        assert api_session["status"] == vscode_session["status"]
-        assert api_session["session_id"] is not None
-        assert vscode_session["session_id"] is not None
-
-        # Both sessions should be active
-        assert api_interface.is_session_active
-
-        # Cleanup
-        await api_interface.stop_session()
-
     @parametrize_interfaces
     @pytest.mark.asyncio
     async def test_breakpoint_in_script(

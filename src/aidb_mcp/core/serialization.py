@@ -1,7 +1,7 @@
 """Serialization utilities for MCP server.
 
-All DebugAPI responses (dataclasses or custom response models) are converted into JSON-
-safe primitives here, without modifying DebugAPI itself.
+All DebugService responses (dataclasses or custom response models) are converted into
+JSON-safe primitives here.
 """
 
 from __future__ import annotations

@@ -8,7 +8,7 @@ validation.
 from __future__ import annotations
 
 import os
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from aidb_common.constants import SUPPORTED_LANGUAGES
 from aidb_common.env.reader import (
@@ -21,6 +21,9 @@ from aidb_common.env.reader import (
 )
 from aidb_common.patterns import Singleton
 from aidb_logging import get_logger
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = get_logger(__name__)
 
@@ -576,19 +579,6 @@ class ConfigManager(Singleton["ConfigManager"]):
         """
         return read_bool("AIDB_MCP_VERBOSE", False)
 
-    def is_mcp_compact(self) -> bool:
-        """Check if MCP compact mode is enabled.
-
-        DEPRECATED: Use is_mcp_verbose() instead.
-        Compact mode is now the default.
-
-        Returns
-        -------
-        bool
-            True if NOT in verbose mode (default: True)
-        """
-        return not self.is_mcp_verbose()
-
     def get_mcp_max_stack_frames(self) -> int:
         """Get maximum stack frames to include in responses.
 
@@ -618,6 +608,16 @@ class ConfigManager(Singleton["ConfigManager"]):
             Context lines (default: 3)
         """
         return int(read_str("AIDB_MCP_CODE_CONTEXT_LINES", "3"))
+
+    def get_mcp_max_threads(self) -> int:
+        """Get maximum threads to include in responses.
+
+        Returns
+        -------
+        int
+            Maximum threads (default: 10)
+        """
+        return int(read_str("AIDB_MCP_MAX_THREADS", "10"))
 
     def get_mcp_response_token_limit(self) -> int:
         """Get hard token limit for responses.

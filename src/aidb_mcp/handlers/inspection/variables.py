@@ -16,6 +16,7 @@ from ...responses import VariableGetResponse, VariableSetResponse
 from ...responses.errors import InternalError, UnsupportedOperationError
 from ...responses.helpers import (
     internal_error,
+    is_session_paused,
     missing_parameter,
     not_paused,
 )
@@ -24,42 +25,35 @@ from ...tools.actions import normalize_action
 logger = get_logger(__name__)
 
 
-def _check_paused_state(api, context) -> dict[str, Any] | None:
+def _check_paused_state(service, context) -> dict[str, Any] | None:
     """Check if debugger is paused.
 
-    Returns error response if not paused, None otherwise.
+    Returns error response if not paused, None otherwise. Uses shared
+    is_session_paused() utility with context fallback.
     """
-    # Check actual session state from the API
-    if api and hasattr(api, "session"):
-        session = api.session
-        if hasattr(session, "state") and hasattr(session.state, "is_paused"):
-            if not session.state.is_paused():
-                return not_paused(
-                    operation="variable operation",
-                    suggestion=("Set a breakpoint or wait for execution to pause"),
-                    session=session,
-                )
-        else:
-            # Fallback to context check if state API not available
-            if not context.at_breakpoint and not (context.error_info):
-                return not_paused(
-                    operation="variable operation",
-                    suggestion=("Set a breakpoint or wait for execution to pause"),
-                    session=session,
-                )
-    else:
-        # No API available, use context check
-        if not context.at_breakpoint and not (context.error_info):
+    # Phase 2: use service.session
+    session = service.session if service else None
+
+    # Primary check: use shared utility for defensive session state checking
+    if session:
+        if not is_session_paused(session):
             return not_paused(
                 operation="variable operation",
                 suggestion="Set a breakpoint or wait for execution to pause",
-                # No session available in this case
+                session=session,
+            )
+    else:
+        # No service/session available - fallback to context check
+        if not context.at_breakpoint and not context.error_info:
+            return not_paused(
+                operation="variable operation",
+                suggestion="Set a breakpoint or wait for execution to pause",
             )
     return None
 
 
 async def _handle_get_variable(
-    api,
+    service,
     session_id: str | None,
     args: dict[str, Any],
 ) -> dict[str, Any]:
@@ -88,7 +82,8 @@ async def _handle_get_variable(
             "frame_id": frame_param,
         },
     )
-    eval_result = await api.introspection.evaluate(expression, frame_id=frame_param)
+    # Phase 2: use service.variables.evaluate()
+    eval_result = await service.variables.evaluate(expression, frame_id=frame_param)
 
     # Extract only the needed fields from EvaluationResult
     # Avoid nesting the entire object which creates result.result structure
@@ -102,7 +97,7 @@ async def _handle_get_variable(
 
 
 async def _handle_set_variable(
-    api,
+    service,
     session_id: str | None,
     args: dict[str, Any],
 ) -> dict[str, Any]:
@@ -139,7 +134,8 @@ async def _handle_set_variable(
             "frame_id": args.get(ParamName.FRAME),
         },
     )
-    await api.introspection.set_variable(
+    # Phase 2: use service.variables.set_variable_by_name()
+    await service.variables.set_variable_by_name(
         name=name,
         value=str(value),
         frame_id=args.get(ParamName.FRAME),
@@ -154,7 +150,7 @@ async def _handle_set_variable(
 
 
 async def _handle_patch_variable(
-    _api,
+    _service,
     _session_id: str | None,
     _args: dict[str, Any],
 ) -> dict[str, Any]:
@@ -187,15 +183,15 @@ async def handle_variable(args: dict[str, Any]) -> dict[str, Any]:
         },
     )
 
-    # Get session components from decorator
+    # Get session components from decorator (Phase 2: includes _service)
     session_id = args.get("_session_id")
-    api = args.get("_api")
+    service = args.get("_service")  # Phase 2: DebugService for operations
     context = args.get("_context")
 
     # The decorator guarantees these are present
-    if not api or not context:
+    if not service or not context:
         return InternalError(
-            error_message="Debug API or context not available",
+            error_message="DebugService or context not available",
         ).to_mcp_response()
 
     action_handlers = {
@@ -204,13 +200,14 @@ async def handle_variable(args: dict[str, Any]) -> dict[str, Any]:
         VariableAction.PATCH: _handle_patch_variable,
     }
 
+    # Phase 2: handler_args now includes (service, session_id)
     handler, error, handler_args = dispatch_action(
         args,
         VariableAction,
         action_handlers,
         default_action=VariableAction.GET,
         tool_name=ToolName.VARIABLE,
-        handler_args=(api, session_id),
+        handler_args=(service, session_id),
         normalize=True,
     )
 
@@ -220,10 +217,10 @@ async def handle_variable(args: dict[str, Any]) -> dict[str, Any]:
             exception="No handler found",
         )
 
-    # Check paused state for GET and SET actions
+    # Check paused state for GET and SET actions (Phase 2: using service)
     action_str = normalize_action(raw_action, "variable")
     if action_str in [VariableAction.GET.value, VariableAction.SET.value]:
-        pause_error = _check_paused_state(api, context)
+        pause_error = _check_paused_state(service, context)
         if pause_error:
             return pause_error
 

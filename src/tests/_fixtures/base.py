@@ -51,10 +51,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from aidb import DebugAPI
-from aidb.api.session_manager import SessionManager
 from aidb.common.context import AidbContext
 from aidb.resources.ports import PortRegistry
+from aidb.session import SessionManager
 from aidb_common.io import is_event_loop_error
 from aidb_logging import get_test_logger
 from tests._fixtures.logging_fixtures import (
@@ -118,9 +117,9 @@ async def debug_session(temp_workspace: Path) -> AsyncGenerator[dict[str, Any], 
     Yields
     ------
     Dict[str, Any]
-        Session information including ID and API instance
+        Session information including ID and session manager
     """
-    api = DebugAPI()
+    session_manager = SessionManager()
     session_id = f"test_session_{time.time()}"
 
     # Create a simple test file
@@ -141,7 +140,7 @@ if __name__ == "__main__":
 
     session_info = {
         "id": session_id,
-        "api": api,
+        "session_manager": session_manager,
         "workspace": temp_workspace,
         "test_file": test_file,
         "active": False,
@@ -150,12 +149,9 @@ if __name__ == "__main__":
     yield session_info
 
     # Cleanup: Stop session if active
-    if session_info.get("active"):
+    if session_info.get("active") and session_info.get("session"):
         with contextlib.suppress(Exception):
-            # Note: DebugAPI doesn't have stop_session method, this is placeholder
-            # Real cleanup would depend on actual API design
-            # Session might already be stopped
-            pass
+            await session_info["session"].stop()
 
 
 @pytest.fixture
@@ -602,10 +598,7 @@ async def debug_interface(
     request,
     temp_workspace: Path,
 ) -> AsyncGenerator["DebugInterface", None]:
-    """Provide a parametrized debug interface for testing both MCP and API.
-
-    This fixture can be parametrized to test the same logic against both
-    the MCP and API entry points, enabling zero-duplication testing.
+    """Provide an MCP debug interface for testing.
 
     Scope: function - Each test gets fresh interface to avoid state leakage.
 
@@ -619,25 +612,17 @@ async def debug_interface(
     Yields
     ------
     DebugInterface
-        Either MCPInterface or APIInterface based on parametrization
+        MCPInterface instance
 
     Examples
     --------
-    Parametrize a test to run against both interfaces:
+    Use the interface in tests:
 
-    >>> @pytest.mark.parametrize("debug_interface", ["mcp", "api"], indirect=True)
     >>> async def test_breakpoint(debug_interface):
     >>>     await debug_interface.initialize(language="python")
-    >>>     # Test runs twice: once with MCP, once with API
+    >>>     # Test runs with MCP interface
     """
-    from tests._helpers.debug_interface import APIInterface, MCPInterface
-
-    # Get interface type from parametrization
-    interface_type = getattr(
-        request,
-        "param",
-        DebugInterfaceType.API.value,
-    )  # Default to API if not parametrized
+    from tests._helpers.debug_interface import MCPInterface
 
     # Get language with priority:
     # 1. From 'language' fixture (explicit parametrization)
@@ -659,32 +644,8 @@ async def debug_interface(
         language_marker = request.node.get_closest_marker("language")
         language = language_marker.args[0] if language_marker else "python"
 
-    # Session pooling for Java is DISABLED to eliminate conflicts with JDT LS pooling
-    # Each test creates a fresh Session object that uses the pooled JDT LS bridge.
-    # This provides clean DAP lifecycle while keeping the 60%+ performance benefit
-    # from JDT LS pooling.
-    #
-    # Rationale: Session pooling tries to reuse Session objects, which causes state
-    # conflicts when calling start_debug_session() multiple times on the same bridge.
-    # The java-debug plugin expects each debug session to have its own DAP connection
-    # lifecycle (start → debug → disconnect → destroy). Session pooling violates this
-    # by attempting to reuse connections, leading to timeouts.
-    #
-    # Performance impact: Minimal - session object creation is ~50-100ms vs 8-9s for
-    # JDT LS startup. JDT LS pooling provides the real performance win.
-    session_pool = None
-    # NOTE: Session pooling remains disabled for Java even if the fixture exists.
-    # Other languages (Python, JavaScript) can still use session pooling if desired.
-
-    # Create appropriate interface
-    if interface_type == DebugInterfaceType.MCP.value:
-        interface = MCPInterface(language=language)
-    elif interface_type == DebugInterfaceType.API.value:
-        interface = APIInterface(language=language, session_pool=session_pool)
-    else:
-        valid = [t.value for t in DebugInterfaceType]
-        msg = f"Unknown interface type: {interface_type}. Use {valid}"
-        raise ValueError(msg)
+    # Create MCP interface
+    interface = MCPInterface(language=language)
 
     # Initialize the interface
     await interface.initialize(language=language, workspace_root=str(temp_workspace))
@@ -759,16 +720,16 @@ def debug_interface_factory(
     Create multiple concurrent sessions:
 
     >>> async def test_concurrent_sessions(debug_interface_factory, language):
-    >>>     session1 = await debug_interface_factory("MCPInterface", language)
-    >>>     session2 = await debug_interface_factory("APIInterface", language)
+    >>>     session1 = await debug_interface_factory("mcp", language)
+    >>>     session2 = await debug_interface_factory("mcp", language)
     >>>     # Both sessions are already initialized
     """
-    from tests._helpers.debug_interface import APIInterface, MCPInterface
+    from tests._helpers.debug_interface import MCPInterface
 
     created_interfaces = []
 
     async def _create_interface(
-        interface_type: str,
+        interface_type: str = "mcp",
         language: str | None = None,
     ):
         """Create and initialize a debug interface instance.
@@ -776,14 +737,14 @@ def debug_interface_factory(
         Parameters
         ----------
         interface_type : str
-            Type of interface ("MCPInterface", "APIInterface", "mcp", or "api")
+            Type of interface ("MCPInterface" or "mcp")
         language : str, optional
             Programming language (auto-detected from test if not provided)
 
         Returns
         -------
         DebugInterface
-            Initialized MCPInterface or APIInterface instance
+            Initialized MCPInterface instance
         """
         # Auto-detect language from test if not provided
         if language is None:
@@ -797,10 +758,8 @@ def debug_interface_factory(
         interface_type_lower = interface_type.lower()
         if "mcp" in interface_type_lower:
             interface = MCPInterface(language=language)
-        elif "api" in interface_type_lower:
-            interface = APIInterface(language=language)
         else:
-            valid = ["MCPInterface", "APIInterface", "mcp", "api"]
+            valid = ["MCPInterface", "mcp"]
             msg = f"Unknown interface type: {interface_type}. Use {valid}"
             raise ValueError(msg)
 

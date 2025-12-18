@@ -20,7 +20,7 @@ from typing import (
 if TYPE_CHECKING:
     from aidb.interfaces.context import IContext
 
-from aidb.api.constants import DEFAULT_WAIT_TIMEOUT_S, EVENT_QUEUE_POLL_TIMEOUT_S
+from aidb.common.constants import DEFAULT_WAIT_TIMEOUT_S, EVENT_QUEUE_POLL_TIMEOUT_S
 from aidb.common.errors import AidbError
 from aidb.dap.protocol.base import Event
 from aidb.patterns import Obj

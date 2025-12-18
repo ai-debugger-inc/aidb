@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 
 from aidb.adapters.base.adapter import CompilationStatus
-from aidb.api.constants import JAVA_COMPILATION_TIMEOUT_S
+from aidb.common.constants import JAVA_COMPILATION_TIMEOUT_S
 from aidb.common.errors import AidbError, CompilationError
 from aidb.patterns.base import Obj
 from aidb_common.config import config

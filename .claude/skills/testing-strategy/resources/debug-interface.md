@@ -1,6 +1,6 @@
 # DebugInterface Abstraction
 
-The cornerstone of AIDB's testing strategy - a unified API that works with both MCP tools and the direct API.
+A unified test interface for debugging operations through the MCP layer.
 
 **Location:** `src/tests/_helpers/debug_interface/`
 
@@ -8,20 +8,22 @@ ______________________________________________________________________
 
 ## Why This Matters
 
-**Problem:** Two entry points (MCP Tools, Direct API) would require duplicate test suites.
+**Problem:** Tests need a consistent interface for debugging operations.
 
-**Solution:** One test validates both entry points automatically via `@parametrize_interfaces`.
+**Solution:** `MCPInterface` provides a test-friendly wrapper around MCP tools with `@parametrize_interfaces`.
 
 ```
 Test Code (uses DebugInterface)
        │
-   ┌───┴───┐
-   ▼       ▼
-APIInterface  MCPInterface
-   │          │
-   ▼          ▼
-aidb API    aidb_mcp
+       ▼
+  MCPInterface
+       │
+       ▼
+    aidb_mcp → DebugService → Session
 ```
+
+Note: The direct API interface was removed as part of the service layer refactor.
+All tests now run through MCP, which is the public interface for AI agents.
 
 ______________________________________________________________________
 
@@ -31,10 +33,10 @@ ______________________________________________________________________
 from tests._helpers.parametrization import parametrize_interfaces
 
 class TestBreakpoints(BaseE2ETest):
-    @parametrize_interfaces  # Runs twice: MCP and API
+    @parametrize_interfaces  # Runs with MCP interface
     @pytest.mark.asyncio
     async def test_set_breakpoint(self, debug_interface, simple_program):
-        """Works with BOTH MCP and API."""
+        """Test breakpoint via MCP interface."""
         await debug_interface.start_session(program=simple_program)
         bp = await debug_interface.set_breakpoint(file=simple_program, line=5)
         self.verify_bp.verify_breakpoint_verified(bp)
@@ -119,6 +121,12 @@ ______________________________________________________________________
 - Validating launch.json configurations
 - Testing real-world application patterns
 
+**Use Launch Tests when:**
+
+- Testing basic script/application launching
+- Validating VS Code launch.json parsing
+- Testing language-specific launch configurations
+
 ______________________________________________________________________
 
 ## Assertion Helpers
@@ -144,6 +152,5 @@ ______________________________________________________________________
 ## Implementation Files
 
 - **Base interface:** `src/tests/_helpers/debug_interface/base.py`
-- **API implementation:** `src/tests/_helpers/debug_interface/api_interface.py`
 - **MCP implementation:** `src/tests/_helpers/debug_interface/mcp_interface.py`
 - **Parametrization:** `src/tests/_helpers/parametrization.py`

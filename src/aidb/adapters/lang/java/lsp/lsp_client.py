@@ -41,6 +41,20 @@ class LSPClient(Obj):
         self.protocol = LSPProtocol(process, ctx=ctx)
         self.message_handler = LSPMessageHandler(self.protocol, ctx=ctx)
 
+    def is_pooled(self) -> bool:
+        """Check if this LSP client is managed by a pooled bridge.
+
+        The _is_pooled flag is propagated from JavaLSPDAPBridge when it is
+        allocated from a pool. This method provides a consistent API for
+        checking pool status.
+
+        Returns
+        -------
+        bool
+            True if this client's parent bridge is pooled, False otherwise.
+        """
+        return getattr(self, "_is_pooled", False)
+
     async def start(self):
         """Start the LSP client (starts message handler loop)."""
         await self.message_handler.start()

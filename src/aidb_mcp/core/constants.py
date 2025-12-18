@@ -35,10 +35,6 @@ class ToolName:
     RUN_UNTIL = "run_until"
     INIT = "init"
     ADAPTER = "adapter"
-    # Deprecated - will be removed in future version
-    DOWNLOAD_ADAPTER = "download_adapter"
-    DOWNLOAD_ALL_ADAPTERS = "download_all_adapters"
-    LIST_INSTALLED_ADAPTERS = "list_installed_adapters"
 
 
 class ResponseStatus:

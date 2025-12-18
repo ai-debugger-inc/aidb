@@ -57,10 +57,25 @@ ______________________________________________________________________
 
 ## Why AI Debugger?
 
-### Standalone & Zero Dependencies
+### Standalone & Zero Heavy Dependencies
 
 No VS Code required. No heavyweight IDEs. Just install with pip and you're
-debugging—works on macOS, Linux, and Windows (WSL supported).
+debugging––works on macOS, Linux, and Windows (WSL supported).
+
+The core Python dependencies are lightweight and minimal:
+
+```toml
+dependencies = [
+  "aiofiles",
+  "mcp",
+  "psutil"
+]
+```
+
+Debug adapters are built during the release pipeline and are published as
+release artifacts. Once the `ai-debugger-inc` package is installed, your agent
+will use the `download` tool to fetch the appropriate adapter binaries
+automatically on first run.
 
 ### Multi-Language from Day One
 
@@ -74,9 +89,8 @@ integrate with proven, open-source debug adapters:
 
 - **Python**: [debugpy](https://github.com/microsoft/debugpy) (Microsoft)
 - **JavaScript/TypeScript**:
-  [js-debug](https://github.com/microsoft/vscode-js-debug) (Microsoft)
-- **Java**: [vscode-java-debug](https://github.com/microsoft/vscode-java-debug)
-  (Microsoft)
+  [vscode-js-debug](https://github.com/microsoft/vscode-js-debug) (Microsoft)
+- **Java**: [java-debug](https://github.com/microsoft/java-debug) (Microsoft)
 
 This means you get reliable, well-maintained debugging that "just works" with
 established patterns developers already trust.
@@ -118,7 +132,7 @@ ______________________________________________________________________
                             MCP Protocol
 ┌──────────────────────────────────────────────────────────────────┐
 │                      AI Debugger MCP Server                      │
-│          Agent-Optimized Tools (init, step, inspect, etc.)       │
+│         Agent-Optimized Tools (init, step, inspect, etc.)        │
 └────────────────────────────────┬─────────────────────────────────┘
                                  │
                                  ▼
@@ -126,13 +140,13 @@ ______________________________________________________________________
 ┌──────────────────────────────────────────────────────────────────┐
 │                     Debug Adapter Protocol                       │
 │              Language-Agnostic Debugging Interface               │
-└───────────┬────────────────────┬────────────────────┬────────────┘
+└───────────┬────────────────────┼────────────────────┬────────────┘
             │                    │                    │
             ▼                    ▼                    ▼
-       ┌──────────┐         ┌──────────┐         ┌──────────┐
-       │  debugpy │         │ js-debug │         │   java   │
-       │ (Python) │         │ (JS/TS)  │         │   debug  │
-       └────┬─────┘         └────┬─────┘         └────┬─────┘
+    ┌───────────────┐   ┌─────────────────┐   ┌───────────────┐
+    │    debugpy    │   │ vscode-js-debug │   │   java-debug  │
+    │    (Python)   │   │     (JS/TS)     │   │     (Java)    │
+    └───────┬───────┘   └────────┬────────┘   └───────┬───────┘
             │                    │                    │
             ▼                    ▼                    ▼
        Your Python          Your Node.js          Your Java
@@ -153,12 +167,12 @@ ______________________________________________________________________
 
 ## Supported Languages
 
-| Language          | Python       | JavaScript/TypeScript | Java         |
-| ----------------- | ------------ | --------------------- | ------------ |
-| **Status**        | ✅ Available | ✅ Available          | ✅ Available |
-| **Versions**      | 3.10+        | Node 18+              | JDK 17+      |
-| **Platforms**     | All          | All                   | All          |
-| **Debug Adapter** | debugpy      | vscode-js-debug       | java-debug   |
+| Language          | Python      | JavaScript/TypeScript | Java        |
+| ----------------- | ----------- | --------------------- | ----------- |
+| **Status**        | ✔ Available | ✔ Available           | ✔ Available |
+| **Versions**      | 3.10+       | Node 18+              | JDK 17+     |
+| **Platforms**     | All         | All                   | All         |
+| **Debug Adapter** | debugpy     | vscode-js-debug       | java-debug  |
 
 **Platforms**: macOS, Linux, Windows (x64, arm64)
 
@@ -243,17 +257,19 @@ AIDB is built with a comprehensive CI/CD pipeline:
 
 - **Thorough E2E Testing**: Multi-language, multi-framework integration tests
 - **Automated Releases**: Reliable version management and publishing
-- **Continuous Quality**: Every commit is validated across Python, JavaScript,
-  and Java
+- **Continuous Quality**: The test suite is run nightly and on all release PRs
 
 We catch issues early and ship features confidently, ensuring the debugging
 experience you depend on stays reliable.
+
+Our entire CI/CD release pipeline executes start to finish in under 15
+minutes––a target we plan to maintain.
 
 ______________________________________________________________________
 
 ## Our Vision
 
-**Becoming the debugging standard in the AI space.**
+**Becoming the debugging standard in the MCP tools space.**
 
 As AI agents become more capable, they need debugging tools designed for their
 workflows—not adapted from human-centric IDEs. AIDB provides a unified,
@@ -261,6 +277,17 @@ language-agnostic approach to debug any program with any AI agent through the
 proven MCP standard.
 
 We're building the future of AI-assisted debugging, one DAP adapter at a time.
+
+______________________________________________________________________
+
+## Contributing
+
+We welcome contributions! See our [Contributing Guide](CONTRIBUTING.md) to get
+started.
+
+- **[Contributing Guide](CONTRIBUTING.md)** - How to contribute
+- **[Code of Conduct](CODE_OF_CONDUCT.md)** - Community standards
+- **[Security Policy](SECURITY.md)** - Reporting vulnerabilities
 
 ______________________________________________________________________
 

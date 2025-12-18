@@ -13,13 +13,13 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from aidb.api.constants import (
+from aidb.common import AidbContext
+from aidb.common.constants import (
     COMMAND_CHECK_TIMEOUT_S,
     DEFAULT_VSCODE_BRIDGE_PORT,
     EXTENSION_INSTALL_TIMEOUT_S,
     EXTENSION_LIST_TIMEOUT_S,
 )
-from aidb.common import AidbContext
 from aidb.common.errors import ConfigurationError, DebugConnectionError
 from aidb.patterns.base import Obj
 from aidb_common.env import reader

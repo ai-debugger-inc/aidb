@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from aidb.api.constants import (
+from aidb.common.constants import (
     SYNTAX_VALIDATION_EXTENDED_TIMEOUT_S,
     SYNTAX_VALIDATION_TIMEOUT_S,
 )

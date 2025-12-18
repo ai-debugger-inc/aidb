@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from aidb.dap.protocol.bodies import ContinueArguments
+from aidb.dap.protocol.requests import ContinueRequest
 from aidb_logging import get_mcp_logger as get_logger
 
 from ...core import ExecutionAction, ToolName
@@ -17,6 +19,7 @@ from ...core.exceptions import ErrorCode
 from ...responses import ExecuteResponse
 from ...responses.errors import ErrorResponse, InternalError
 from ...responses.helpers import handle_timeout_error, invalid_parameter
+from ...session import get_session
 
 logger = get_logger(__name__)
 
@@ -105,7 +108,7 @@ def _determine_wait_for_stop(
 
 async def _execute_action(
     action: ExecutionAction,
-    api: Any,
+    service: Any,
     wait_for_stop: bool,
     session_id: str,
 ) -> Any:
@@ -115,8 +118,8 @@ async def _execute_action(
     ----------
     action : ExecutionAction
         Action to execute
-    api : Any
-        Debug API
+    service : Any
+        DebugService instance (Phase 2)
     wait_for_stop : bool
         Whether to wait for stop
     session_id : str
@@ -132,6 +135,9 @@ async def _execute_action(
     Exception
         If execution fails
     """
+    # Get current thread_id for continue request
+    thread_id = await service.execution.get_current_thread_id()
+
     if action == ExecutionAction.RUN:
         # Restart execution from beginning
         logger.debug(
@@ -139,8 +145,16 @@ async def _execute_action(
             extra={"action": ExecutionAction.RUN.name, "session_id": session_id},
         )
         try:
-            await api.orchestration.restart()
-            return await api.orchestration.continue_(wait_for_stop=wait_for_stop)
+            await service.execution.restart()
+            # Create ContinueRequest for service (Phase 2)
+            request = ContinueRequest(
+                seq=0,
+                arguments=ContinueArguments(threadId=thread_id),
+            )
+            return await service.execution.continue_(
+                request,
+                wait_for_stop=wait_for_stop,
+            )
         except Exception as restart_error:
             error_msg = str(restart_error).lower()
             if "not supported" in error_msg or "unsupported" in error_msg:
@@ -154,16 +168,25 @@ async def _execute_action(
                 raise ValueError(ErrorMessage.RESTART_NOT_SUPPORTED) from restart_error
             raise  # Re-raise if it's not a "not supported" error
     else:
-        # Continue from current position
+        # Continue from current position (Phase 2: using service)
         logger.debug(
             "Continuing execution from current position",
             extra={
                 "action": ExecutionAction.CONTINUE.name,
                 "session_id": session_id,
                 "wait_for_stop": wait_for_stop,
+                "thread_id": thread_id,
             },
         )
-        return await api.orchestration.continue_(wait_for_stop=wait_for_stop)
+        # Create ContinueRequest for service (Phase 2)
+        request = ContinueRequest(
+            seq=0,
+            arguments=ContinueArguments(threadId=thread_id),
+        )
+        return await service.execution.continue_(
+            request,
+            wait_for_stop=wait_for_stop,
+        )
 
 
 def _extract_execution_state(result: Any, context: Any) -> dict[str, Any]:
@@ -241,7 +264,8 @@ def _extract_execution_state(result: Any, context: Any) -> dict[str, Any]:
 async def _build_execution_response(
     action: ExecutionAction,
     session_id: str,
-    api: Any,
+    session: Any,
+    service: Any,
     context: Any,
     state: dict[str, Any],
     collect_output: bool = True,
@@ -254,8 +278,10 @@ async def _build_execution_response(
         The action performed
     session_id : str
         Session identifier
-    api : Any
-        Debug API instance
+    session : Any
+        Session instance for status/property access
+    service : Any
+        DebugService instance (Phase 2)
     context : Any
         Session context
     state : dict
@@ -271,17 +297,17 @@ async def _build_execution_response(
     from ...core.context_utils import build_response_context
 
     resp_ctx = await build_response_context(
-        api,
+        session,
         context,
         state["stop_reason"],
         is_paused=state["stopped"],
     )
 
-    # Collect program output (logpoints, stdout, stderr)
+    # Collect program output using service (Phase 2)
     program_output = None
-    if collect_output and api:
+    if collect_output and service:
         try:
-            output_entries = await api.introspection.get_output(clear=True)
+            output_entries = service.execution.get_output(clear=True)
             if output_entries:
                 # Filter to relevant categories
                 program_output = [
@@ -370,13 +396,13 @@ async def handle_execution(args: dict[str, Any]) -> dict[str, Any]:
 
         # Get session components from decorator
         session_id = args.get("_session_id")
-        api = args.get("_api")
+        service = args.get("_service")
         context = args.get("_context")
 
-        # The decorator guarantees api and session_id are present
-        if not api:
+        # The decorator guarantees service and session_id are present
+        if not service:
             return InternalError(
-                error_message="Debug API not available",
+                error_message="DebugService not available",
             ).to_mcp_response()
 
         if session_id is None:
@@ -387,9 +413,9 @@ async def handle_execution(args: dict[str, Any]) -> dict[str, Any]:
         # Determine wait_for_stop
         wait_for_stop = _determine_wait_for_stop(args, context, session_id)
 
-        # Execute the action
+        # Execute the action using service (Phase 2)
         try:
-            result = await _execute_action(action, api, wait_for_stop, session_id)
+            result = await _execute_action(action, service, wait_for_stop, session_id)
         except ValueError as e:
             if str(e) == ErrorMessage.RESTART_NOT_SUPPORTED:
                 return ErrorResponse(
@@ -407,11 +433,15 @@ async def handle_execution(args: dict[str, Any]) -> dict[str, Any]:
         # Get collect_output parameter (defaults to True)
         collect_output = args.get(ParamName.COLLECT_OUTPUT, True)
 
+        # Get session for response building
+        session = get_session(session_id)
+
         # Build and return response
         response = await _build_execution_response(
             action,
             session_id,
-            api,
+            session,
+            service,
             context,
             state,
             collect_output=collect_output,
@@ -442,11 +472,18 @@ async def handle_execution(args: dict[str, Any]) -> dict[str, Any]:
             ).to_mcp_response()
 
         # Try to add execution state if we have context
-        if "context" in locals() and context and "api" in locals() and api:
-            execution_state = build_error_execution_state(
-                api,
-                context,
-                include_error_context=True,
+        has_context = "context" in locals() and context
+        has_session = "session_id" in locals() and session_id
+        if has_context and has_session:
+            session = get_session(session_id)
+            execution_state = (
+                build_error_execution_state(
+                    session,
+                    context,
+                    include_error_context=True,
+                )
+                if session
+                else None
             )
             if execution_state:
                 error_response["data"]["execution_state"] = execution_state

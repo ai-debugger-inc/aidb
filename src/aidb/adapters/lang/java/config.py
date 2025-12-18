@@ -4,10 +4,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from aidb.adapters.base.config import AdapterCapabilities, AdapterConfig
+from aidb.adapters.base.config import (
+    AdapterCapabilities,
+    AdapterConfig,
+    StartRequestType,
+)
 from aidb.adapters.base.initialize import InitializationOp, InitializationOpType
 from aidb.adapters.base.launch import BaseLaunchConfig, LaunchConfigFactory
-from aidb.api.constants import (
+from aidb.common.constants import (
     DEFAULT_JAVA_DEBUG_PORT,
     INIT_CONFIGURATION_DONE_JAVA_S,
     INIT_WAIT_FOR_INITIALIZED_JAVA_S,
@@ -136,13 +140,27 @@ class JavaAdapterConfig(AdapterConfig):
         -------
         List[InitializationOp]
             The Java-specific initialization sequence with plugin readiness
-            polling
+            polling. Uses ATTACH for remote_attach mode, LAUNCH otherwise.
         """
+        # Determine whether to use launch or attach based on dap_start_request_type
+        is_attach = self.dap_start_request_type == StartRequestType.ATTACH
+
+        # Choose appropriate operation types
+        if is_attach:
+            connect_op = InitializationOpType.ATTACH
+        else:
+            connect_op = InitializationOpType.LAUNCH
+        wait_op = (
+            InitializationOpType.WAIT_FOR_ATTACH_RESPONSE
+            if is_attach
+            else InitializationOpType.WAIT_FOR_LAUNCH_RESPONSE
+        )
+
         return [
             InitializationOp(InitializationOpType.INITIALIZE),
-            # Send launch without waiting to avoid blocking on adapter-side delays.
+            # Send launch/attach without waiting to avoid blocking delays.
             InitializationOp(
-                InitializationOpType.LAUNCH,
+                connect_op,
                 wait_for_response=False,
             ),
             # Require initialized event before proceeding to breakpoints.
@@ -150,9 +168,9 @@ class JavaAdapterConfig(AdapterConfig):
                 InitializationOpType.WAIT_FOR_INITIALIZED,
                 timeout=INIT_WAIT_FOR_INITIALIZED_JAVA_S,
             ),
-            # Also require the deferred launch response before breakpoint/config.
+            # Also require the deferred launch/attach response before breakpoint/config.
             InitializationOp(
-                InitializationOpType.WAIT_FOR_LAUNCH_RESPONSE,
+                wait_op,
                 timeout=INIT_WAIT_FOR_INITIALIZED_JAVA_S,
             ),
             InitializationOp(

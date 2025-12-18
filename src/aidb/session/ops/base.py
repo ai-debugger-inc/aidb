@@ -1,17 +1,23 @@
 """Base operations class with shared state and utilities."""
 
-import asyncio
-from typing import TYPE_CHECKING, Literal, Optional, cast
+from typing import TYPE_CHECKING, Literal, Optional
 
-from aidb.api.constants import SHORT_SLEEP_S, STACK_TRACE_TIMEOUT_S
-from aidb.common.errors import DebugTimeoutError
-from aidb.dap.protocol.bodies import StackTraceArguments
-from aidb.dap.protocol.requests import StackTraceRequest, ThreadsRequest
+from aidb.common.dap_utilities import (
+    get_current_frame_id as _get_current_frame_id,
+)
+from aidb.common.dap_utilities import (
+    get_current_thread_id as _get_current_thread_id,
+)
+from aidb.common.dap_utilities import (
+    resolve_active_session,
+)
+from aidb.common.dap_utilities import (
+    wait_for_stop_or_terminate as _wait_for_stop_or_terminate,
+)
 from aidb.patterns import Obj
 
 if TYPE_CHECKING:
     from aidb.dap.protocol.base import Response
-    from aidb.dap.protocol.responses import StackTraceResponse, ThreadsResponse
     from aidb.interfaces import IContext
     from aidb.session import Session
 
@@ -55,35 +61,7 @@ class BaseOperations(Obj):
         Session
             The active session (child if exists, otherwise parent)
         """
-        # If this is already a child, return as-is
-        if self._session.is_child:
-            return self._session
-
-        # For adapters requiring child sessions, always use child when it exists
-        # The child is THE active session - no conditional logic
-        if (
-            hasattr(self._session, "adapter")
-            and self._session.adapter
-            and hasattr(self._session.adapter, "requires_child_session_wait")
-            and self._session.adapter.requires_child_session_wait
-            and self._session.child_session_ids
-        ):
-            # Resolve to first child (JavaScript only has one)
-            child_id = self._session.child_session_ids[0]
-            child = self._session.registry.get_session(child_id)
-
-            if child:
-                self.ctx.debug(
-                    f"Resolved operation session {self._session.id} → child {child.id}",
-                )
-                return child
-
-            # Child ID registered but session not found - shouldn't happen
-            self.ctx.warning(
-                f"Child session {child_id} registered but not found in registry",
-            )
-
-        return self._session
+        return resolve_active_session(self._session, self.ctx)
 
     async def _execute_initialization_sequence(self, sequence) -> None:
         """Execute the DAP initialization sequence.
@@ -97,132 +75,41 @@ class BaseOperations(Obj):
     async def get_current_thread_id(self) -> int:
         """Get the current active thread ID.
 
+        This method delegates to the shared utility and caches the result.
+
         Returns
         -------
         int
             The active thread ID
-
-        Raises
-        ------
-        ValueError
-            If no active thread can be found
         """
-        # First, check if the DAP client has a current thread ID from a stopped event
-        if hasattr(self.session.dap, "_event_processor") and hasattr(
-            self.session.dap._event_processor,
-            "_state",
-        ):
-            dap_thread_id = self.session.dap._event_processor._state.current_thread_id
-            if dap_thread_id is not None:
-                self.ctx.debug(
-                    f"Using thread ID {dap_thread_id} from "
-                    f"DAP client state (stopped event)",
-                )
-                self._current_thread_id = dap_thread_id
-                return dap_thread_id
+        # Delegate to shared utility
+        thread_id = await _get_current_thread_id(self.session, self.ctx)
 
-        # Try to get threads to find an active one
-        try:
-            self.ctx.debug("Attempting to get current threads...")
-            request = ThreadsRequest(seq=0)
-            response: Response = await self.session.dap.send_request(request)
-            threads_response = cast("ThreadsResponse", response)
-            threads_response.ensure_success()
-
-            if threads_response.body and threads_response.body.threads:
-                thread_count = len(threads_response.body.threads)
-                self.ctx.debug(f"Found {thread_count} threads")
-                # Return the first available thread (most likely the main
-                # thread)
-                first_thread = threads_response.body.threads[0]
-                self.ctx.debug(
-                    f"Using thread ID {first_thread.id} (name: {first_thread.name})",
-                )
-                self._current_thread_id = first_thread.id
-                return first_thread.id
-            self.ctx.warning("Threads response had no body or no threads")
-
-        except Exception as e:
-            self.ctx.warning(f"Failed to get threads: {type(e).__name__}: {e}")
-
-        # Fallback to cached value or default
-        if self._current_thread_id is not None:
-            self.ctx.debug(f"Using cached thread ID {self._current_thread_id}")
-            return self._current_thread_id
-
-        # Last resort: return 1 (common default for main thread)
-        self.ctx.warning(
-            "Using fallback thread ID 1 - thread tracking may be unreliable",
-        )
-        return 1
+        # Cache the result for BaseOperations (stateful layer)
+        self._current_thread_id = thread_id
+        return thread_id
 
     async def get_current_frame_id(self, thread_id: int | None = None) -> int:
         """Get the current active frame ID for a thread.
 
+        This method delegates to the shared utility and caches the result.
+
         Parameters
         ----------
         thread_id : int, optional
-            AidbThread ID to get frame for. If None, uses current thread.
+            Thread ID to get frame for. If None, uses current thread.
 
         Returns
         -------
         int
             The active frame ID (top of stack)
-
-        Raises
-        ------
-        ValueError
-            If no active frame can be found
         """
-        if thread_id is None:
-            thread_id = await self.get_current_thread_id()
+        # Delegate to shared utility
+        frame_id = await _get_current_frame_id(self.session, self.ctx, thread_id)
 
-        try:
-            self.ctx.debug(f"Attempting to get stack trace for thread {thread_id}...")
-            request = StackTraceRequest(
-                seq=0,
-                arguments=StackTraceArguments(threadId=thread_id),
-            )
-
-            # Add explicit timeout to prevent infinite waits (especially Java pooled)
-            response: Response = await self.session.dap.send_request(
-                request,
-                timeout=STACK_TRACE_TIMEOUT_S,
-            )
-            stack_response = cast("StackTraceResponse", response)
-            stack_response.ensure_success()
-
-            if stack_response.body and stack_response.body.stackFrames:
-                frame_count = len(stack_response.body.stackFrames)
-                self.ctx.debug(
-                    f"Found {frame_count} stack frames for thread {thread_id}",
-                )
-                # Return the top frame (index 0)
-                top_frame = stack_response.body.stackFrames[0]
-                self.ctx.debug(
-                    f"Using frame ID {top_frame.id} "
-                    f"(name: {top_frame.name}, line: {top_frame.line})",
-                )
-                self._current_frame_id = top_frame.id
-                return top_frame.id
-            self.ctx.warning(
-                f"Stack trace response for thread {thread_id} had no body or no frames",
-            )
-
-        except Exception as e:
-            self.ctx.warning(
-                f"Failed to get stack trace for thread "
-                f"{thread_id}: {type(e).__name__}: {e}",
-            )
-
-        # Fallback to cached value or default
-        if self._current_frame_id is not None:
-            self.ctx.debug(f"Using cached frame ID {self._current_frame_id}")
-            return self._current_frame_id
-
-        # Last resort: return 0 (common default for top frame)
-        self.ctx.warning("Using fallback frame ID 0 - frame tracking may be unreliable")
-        return 0
+        # Cache the result for BaseOperations (stateful layer)
+        self._current_frame_id = frame_id
+        return frame_id
 
     async def _wait_for_stop_or_terminate(
         self,
@@ -248,21 +135,7 @@ class BaseOperations(Obj):
         DebugTimeoutError
             If timeout occurs
         """
-        # Use subscription-based waiting
-        if not hasattr(self.session.events, "wait_for_stopped_or_terminated_async"):
-            await asyncio.sleep(SHORT_SLEEP_S)
-            return "stopped"
-
-        # Await the result directly
-        result = await self.session.events.wait_for_stopped_or_terminated_async(
-            timeout=self.session.dap.DEFAULT_WAIT_TIMEOUT,
-        )
-
-        if result == "timeout":
-            msg = f"Timeout waiting for stop after {operation_name}"
-            raise DebugTimeoutError(msg)
-
-        return cast("Literal['stopped', 'terminated', 'timeout']", result)
+        return await _wait_for_stop_or_terminate(self.session, self.ctx, operation_name)
 
 
 # Alias for compatibility with orchestration submodules

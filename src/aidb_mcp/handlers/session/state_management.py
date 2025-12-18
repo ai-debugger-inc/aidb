@@ -13,6 +13,9 @@ from aidb_logging import get_mcp_logger as get_logger
 from ...core.performance import timed
 
 if TYPE_CHECKING:
+    from aidb import DebugService
+    from aidb.session import Session
+
     from ...core.types import BreakpointSpec
 
 logger = get_logger(__name__)
@@ -99,33 +102,33 @@ def _store_breakpoints_in_context(
 
 
 async def _fetch_location_from_stack(
-    debug_api: Any,
+    service: DebugService,
     session_context: Any,
     session_id: str,
 ) -> None:
     """Actively fetch current location from stack trace.
 
-    Uses the proper API layer methods instead of constructing DAP requests directly.
+    Uses the DebugService layer for stack introspection.
 
     Parameters
     ----------
-    debug_api : Any
-        Debug API instance
+    service : DebugService
+        Debug service instance
     session_context : Any
         Session context to update
     session_id : str
         Session identifier
     """
     try:
-        # Get threads using the introspection API
-        threads_response = await debug_api.introspection.threads()
+        # Get threads using the service layer
+        threads_response = await service.stack.threads()
         if not threads_response.success or not threads_response.threads:
             return
 
         thread_id = threads_response.threads[0].id
 
-        # Get stack trace using the introspection API
-        callstack_response = await debug_api.introspection.callstack(thread_id)
+        # Get stack trace using the service layer
+        callstack_response = await service.stack.callstack(thread_id)
         if not callstack_response.success or not callstack_response.frames:
             return
 
@@ -149,7 +152,8 @@ async def _fetch_location_from_stack(
 
 
 async def _sync_location_from_dap_state(
-    debug_api: Any,
+    session: Session,
+    service: DebugService,
     session_context: Any,
     session_id: str,
 ) -> None:
@@ -157,18 +161,27 @@ async def _sync_location_from_dap_state(
 
     Parameters
     ----------
-    debug_api : Any
-        Debug API instance
+    session : Session
+        Debug session instance
+    service : DebugService
+        Debug service instance
     session_context : Any
         Session context to update
     session_id : str
         Session identifier
     """
-    if not debug_api.session:
+    if not session:
         return
 
-    # Use the session's public API to get current location
-    current_file, current_line = debug_api.session.get_current_location()
+    # Resolve to active session (handles languages with parent/child patterns)
+    active_session = session
+    if hasattr(session, "registry") and session.registry:
+        resolved = session.registry.resolve_active_session(session)
+        if resolved:
+            active_session = resolved
+
+    # Use the resolved session's public API to get current location
+    current_file, current_line = active_session.get_current_location()
     if current_file and current_line:
         session_context.current_file = current_file
         session_context.current_line = current_line
@@ -182,12 +195,13 @@ async def _sync_location_from_dap_state(
         )
     else:
         # DAP state doesn't have location yet, actively fetch it
-        await _fetch_location_from_stack(debug_api, session_context, session_id)
+        await _fetch_location_from_stack(service, session_context, session_id)
 
 
 @timed
 async def _prepare_code_context_and_location(
-    debug_api: Any,
+    session: Session,
+    service: DebugService,
     session_context: Any,
     session_id: str,
     is_paused: bool,
@@ -196,8 +210,10 @@ async def _prepare_code_context_and_location(
 
     Parameters
     ----------
-    debug_api : Any
-        Debug API instance
+    session : Session
+        Debug session instance
+    service : DebugService
+        Debug service instance
     session_context : Any
         Session context
     session_id : str
@@ -214,18 +230,18 @@ async def _prepare_code_context_and_location(
         return None, None
 
     # Sync location from DAP state to MCP context
-    await _sync_location_from_dap_state(debug_api, session_context, session_id)
+    await _sync_location_from_dap_state(session, service, session_context, session_id)
 
     # Get location from context
     location = None
     if session_context.current_file:
         location = f"{session_context.current_file}:{session_context.current_line}"
 
-    # Get code snapshot
+    # Get code snapshot using session
     from ...core.context_utils import get_code_snapshot_if_paused
 
     code_context = await get_code_snapshot_if_paused(
-        debug_api,
+        session,
         session_context,
     )
 

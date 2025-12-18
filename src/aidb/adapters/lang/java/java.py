@@ -1,10 +1,9 @@
 """Java debug adapter - refactored to use component architecture."""
 
-import asyncio
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
-from aidb.api.constants import (
+from aidb.common.constants import (
     DEFAULT_ADAPTER_HOST,
     DEFAULT_JAVA_DEBUG_PORT,
     DEFAULT_WAIT_TIMEOUT_S,
@@ -18,13 +17,16 @@ from ...base.hooks import LifecycleHook
 from ...base.target_resolver import TargetResolver
 from .compilation import JavaCompilationManager
 from .config import JavaAdapterConfig
-from .lsp import JavaLSPDAPBridge
 from .target_resolver import JavaTargetResolver
-from .tooling import JavaClasspathBuilder, JavaToolchain
+from .tooling import JavaBuildSystemDetector, JavaClasspathBuilder, JavaToolchain
 
 if TYPE_CHECKING:
+    import asyncio
+
     from aidb.adapters.base.source_path_resolver import SourcePathResolver
     from aidb.interfaces import ISession
+
+    from .lsp import JavaLSPDAPBridge
 
 
 class JavaAdapter(DebugAdapter):
@@ -255,7 +257,7 @@ class JavaAdapter(DebugAdapter):
             temp_compile_dir=self._temp_compile_dir,
         )
 
-    async def launch(
+    async def launch(  # noqa: C901
         self,
         target: str,
         port: int | None = None,
@@ -289,9 +291,6 @@ class JavaAdapter(DebugAdapter):
         Tuple[asyncio.subprocess.Process, int]
             The debug adapter process and the port it's listening on
         """
-        import asyncio
-        import sys
-
         # Store original source file before compilation
         original_source = target if target.endswith(".java") else None
 
@@ -328,39 +327,15 @@ class JavaAdapter(DebugAdapter):
 
         # Start LSP-DAP bridge and get the actual DAP port
         try:
-            # Detect workspace folders (Maven/Gradle) before starting bridge.
-            # This ensures proper JDT LS initialization via workspaceFolders.
-            def _find_build_root(start: Path) -> Path | None:
-                cur = start
-                if cur.is_file():
-                    cur = cur.parent
-                for p in [cur] + list(cur.parents):
-                    if (
-                        (p / "pom.xml").exists()
-                        or (p / "build.gradle").exists()
-                        or (p / "build.gradle.kts").exists()
-                    ):
-                        return p
-                return None
+            # Detect build root (Maven/Gradle) using fallback chain
+            build_root = JavaBuildSystemDetector.detect_build_root_with_fallbacks(
+                workspace_root,
+                cwd,
+                target,
+            )
 
-            workspace_folders = None
-            # Primary: workspace_root (most specific, from launch.json)
-            build_root: Path | None = None
-            if workspace_root:
-                wr_path = Path(workspace_root)
-                if wr_path.exists():
-                    build_root = _find_build_root(wr_path)
-            # Secondary: cwd (current working directory)
-            if not build_root and cwd:
-                cwd_path = Path(cwd)
-                if cwd_path.exists():
-                    build_root = _find_build_root(cwd_path)
-            # Tertiary: target path (walk up)
-            if not build_root and target:
-                t_path = Path(target)
-                if t_path.exists():
-                    build_root = _find_build_root(t_path)
-
+            # Build workspace folders for JDT LS initialization
+            workspace_folders: list[tuple[Path, str]] | None = None
             if build_root:
                 project_name = self.config.projectName or build_root.name
                 workspace_folders = [(build_root, project_name)]
@@ -376,41 +351,14 @@ class JavaAdapter(DebugAdapter):
             if project_root:
                 self.ctx.debug(f"Resolved project root: {project_root}")
 
-            # Check if bridge is already running (from pool or previous start)
-            # Pooled bridges have process != None and should not be restarted
-            if self._lsp_dap_bridge.process is None:
-                # Try production per-project pool
-                # (test pool already tried in initialize_bridge hook)
-                pool_used = await self._try_production_pool(
-                    build_root=build_root,
-                    project_root=project_root,
-                    workspace_root=workspace_root,
-                    cwd=cwd,
-                    workspace_folders=workspace_folders,
-                )
-
-                if not pool_used:
-                    # Start JDT LS with java-debug plugin (standalone)
-                    self.ctx.info(
-                        "Starting Eclipse JDT LS with java-debug plugin...",
-                    )
-                    await self._lsp_dap_bridge.start(
-                        project_root,
-                        session_id=self.session.id,
-                        workspace_folders=workspace_folders,
-                    )
-            else:
-                self.ctx.debug("Using already-started pooled JDT LS bridge")
-
-                # Register workspace folders with pooled bridge
-                if workspace_folders:
-                    self.ctx.info(
-                        f"Registering {len(workspace_folders)} workspace "
-                        f"folder(s) with pooled JDT LS bridge",
-                    )
-                    await self._lsp_dap_bridge.register_workspace_folders(
-                        workspace_folders,
-                    )
+            # Start or reuse the LSP-DAP bridge
+            await self._ensure_bridge_started(
+                build_root=build_root,
+                project_root=project_root,
+                workspace_root=workspace_root,
+                cwd=cwd,
+                workspace_folders=workspace_folders,
+            )
 
             # Determine main class
             main_class = self._get_main_class(target)
@@ -422,106 +370,24 @@ class JavaAdapter(DebugAdapter):
                 self.config.projectName or JavaAdapterConfig.DEFAULT_PROJECT_NAME
             )
 
-            # Detect if this is a Maven/Gradle project by checking for
-            # pom.xml or build.gradle
-            # For class names, use build_root or cwd; for file paths, use
-            # target's directory
-            if Path(target).is_file():
-                target_dir = Path(target).parent
-            elif "/" in target or "\\" in target:
-                # Path-like but not a file - use as-is
-                target_dir = Path(target)
-            elif build_root:
-                # Class name/identifier - use build_root from earlier detection
-                target_dir = build_root
-            elif cwd:
-                # Fallback to cwd
-                target_dir = Path(cwd)
-            else:
-                # Last resort
-                target_dir = Path(target)
+            # Resolve target directory for Maven/Gradle detection
+            target_dir = JavaBuildSystemDetector.resolve_target_directory(
+                target,
+                build_root,
+                cwd,
+            )
+            is_maven_gradle_project = JavaBuildSystemDetector.is_maven_gradle_project(
+                target_dir,
+            )
 
-            has_maven = (target_dir / "pom.xml").exists()
-            has_gradle = (target_dir / "build.gradle").exists() or (
-                target_dir / "build.gradle.kts"
-            ).exists()
-            is_maven_gradle_project = has_maven or has_gradle
-
+            # Resolve classpath based on project type
             if is_maven_gradle_project:
-                # Maven/Gradle project - use JDT LS classpath resolution
-                self.ctx.debug(f"Detected Maven/Gradle project at {target_dir}")
-
-                # Reset LSP session state before file opening
-                # (skip for pooled bridges - they maintain state across sessions)
-                if self._lsp_dap_bridge.lsp_client:
-                    is_pooled = getattr(self._lsp_dap_bridge, "_is_pooled", False)
-                    if not is_pooled:
-                        self.ctx.debug(
-                            "Resetting LSP session state before file opening",
-                        )
-                        await self._lsp_dap_bridge.lsp_client.reset_session_state()
-                    else:
-                        self.ctx.debug(
-                            "Pooled bridge - skipping LSP session reset "
-                            "before resolveClasspath",
-                        )
-
-                    # Open the target file in JDT LS
-                    if original_source and original_source.endswith(".java"):
-                        self.ctx.info(
-                            f"Opening target file in JDT LS: {original_source}",
-                        )
-                        await self._lsp_dap_bridge.lsp_client.open_file(original_source)
-
-                        # Wait for JDT LS to complete compilation
-                        compilation_complete = (
-                            await self._lsp_dap_bridge.lsp_client.wait_for_diagnostics(
-                                file_path=original_source,
-                                timeout=DEFAULT_WAIT_TIMEOUT_S,
-                            )
-                        )
-
-                        if not compilation_complete:
-                            self.ctx.warning(
-                                f"JDT LS compilation timeout for {original_source}",
-                            )
-                        else:
-                            self.ctx.debug("JDT LS compilation complete")
-
-                # Resolve classpath through JDT LS
-                try:
-                    classpath = await self._lsp_dap_bridge.resolve_classpath(
-                        main_class=main_class,
-                        project_name=project_name,
-                    )
-                    if not classpath:
-                        msg = f"Failed to resolve classpath for {main_class}"
-                        raise AidbError(msg)
-                except Exception as e:
-                    msg = f"Failed to resolve classpath through JDT LS: {e}"
-                    raise AidbError(msg) from e
-
-                # Flatten classpath immediately (JDT LS returns nested lists)
-                # JDT LS startDebugSession expects flat array, not nested structure
-                flat_classpath: list[str] = []
-                for entry in classpath:
-                    if isinstance(entry, list):
-                        flat_classpath.extend(entry)
-                    elif entry:  # Skip empty strings
-                        flat_classpath.append(entry)
-                classpath = flat_classpath
-
-                # Add target/classes for Maven/Gradle projects running main classes
-                # JDT LS may not include target/classes when resolving classpath
-                main_classes_dir = target_dir / "target" / "classes"
-                if main_classes_dir.exists():
-                    main_classes_path = str(main_classes_dir)
-                    if main_classes_path not in classpath:
-                        # Insert at beginning of classpath
-                        classpath.insert(0, main_classes_path)
-                        self.ctx.debug(
-                            f"Added target/classes to classpath: {main_classes_path}",
-                        )
+                classpath = await self._resolve_maven_gradle_classpath(
+                    main_class=main_class,
+                    project_name=project_name,
+                    original_source=original_source,
+                    target_dir=target_dir,
+                )
             else:
                 # Standalone .java file - use simple classpath (no JDT LS resolution)
                 self.ctx.debug("Standalone .java file - using simple classpath")
@@ -545,61 +411,26 @@ class JavaAdapter(DebugAdapter):
             # Update adapter port
             self.adapter_port = dap_port
 
-            # Classpath is already flat (flattened before start_debug_session)
-            flat_classpath = classpath
-
-            # Add test-classes to classpath when running JUnit tests
-            # JDT LS resolves classpath for main classes only, missing test outputs
-            is_junit_launcher = "junit" in main_class.lower()
-            if is_junit_launcher and project_root:
-                test_classes_dir = project_root / "target" / "test-classes"
-                if test_classes_dir.exists():
-                    test_classes_path = str(test_classes_dir)
-                    if test_classes_path not in flat_classpath:
-                        # Insert after target/classes if present, otherwise at start
-                        main_classes = str(project_root / "target" / "classes")
-                        try:
-                            idx = flat_classpath.index(main_classes)
-                            flat_classpath.insert(idx + 1, test_classes_path)
-                            self.ctx.debug(
-                                f"Added test-classes to classpath for JUnit: "
-                                f"{test_classes_path}",
-                            )
-                        except ValueError:
-                            # target/classes not in classpath, add at beginning
-                            flat_classpath.insert(0, test_classes_path)
-                            self.ctx.debug(
-                                f"Added test-classes at beginning of classpath: "
-                                f"{test_classes_path}",
-                            )
-
-            # Store launch configuration for DAP launch request
-            # JDT LS has set up the DAP server, but it still expects a launch request
-            self._launch_config = {
-                "mainClass": main_class,
-                "classPaths": flat_classpath,
-                "projectName": project_name,
-                "vmArgs": " ".join(self.config.vmargs) if self.config.vmargs else "",
-                "args": " ".join(args) if args else "",
-            }
-            if env:
-                self._launch_config["env"] = env
-            if cwd:
-                self._launch_config["cwd"] = cwd
-
-            # Create a dummy process to satisfy the base adapter This
-            # process just sleeps and is cleaned up when the session ends
-            python_code = f"import time; time.sleep({SECONDS_PER_DAY})"
-            proc = await asyncio.create_subprocess_exec(
-                sys.executable,
-                "-c",
-                python_code,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+            # Add test-classes to classpath for JUnit tests
+            classpath = JavaClasspathBuilder.add_test_classes(
+                classpath,
+                project_root,
+                main_class,
             )
 
-            # Store dummy process for cleanup
-            self._dummy_process = proc
+            # Store launch configuration
+            self._launch_config = self._build_launch_config(
+                main_class=main_class,
+                classpath=classpath,
+                project_name=project_name,
+                args=args,
+                env=env,
+                cwd=cwd,
+            )
+
+            # Create dummy process for base adapter compatibility
+            self._dummy_process = await self._create_dummy_process()
+            proc = self._dummy_process
 
             self.ctx.info(f"Java debug session ready on DAP port {dap_port}")
 
@@ -649,8 +480,21 @@ class JavaAdapter(DebugAdapter):
         AidbError
             If the bridge is not available or connection fails
         """
+        # Ensure LSP-DAP bridge is initialized for remote attach
+        # (normally done in PRE_LAUNCH hook, but attach skips launch)
         if not self._lsp_dap_bridge:
-            msg = "JDT LS bridge not available - cannot attach to remote JVM"
+            self.ctx.info("Initializing LSP-DAP bridge for remote attach...")
+            from .hooks import JDTLSSetupHooks
+
+            setup_hooks = JDTLSSetupHooks(self)
+            await setup_hooks.ensure_bridge_initialized()
+
+            # Start the bridge (launch JDT LS) - not done by ensure_bridge_initialized
+            if self._lsp_dap_bridge:
+                await self._lsp_dap_bridge.start()
+
+        if not self._lsp_dap_bridge:
+            msg = "JDT LS bridge not available. Remote attach requires JDT LS."
             raise AidbError(msg)
 
         self.ctx.info(f"Attaching to remote JVM at {host}:{port}")
@@ -662,6 +506,18 @@ class JavaAdapter(DebugAdapter):
             project_name=project_name,
             timeout=timeout,
         )
+
+        # Store attach config for DAP attach request (used by get_launch_configuration).
+        # The java-debug adapter expects hostName and port in the attach request.
+        self._launch_config = {
+            "type": "java",
+            "request": "attach",
+            "hostName": host,
+            "port": port,
+            "timeout": timeout,
+            "projectName": project_name or self.config.DEFAULT_PROJECT_NAME,
+        }
+        self.ctx.debug(f"Stored attach config: {self._launch_config}")
 
         # Return dummy process (None) and the DAP port. The first element is
         # expected by the API but not used for attach
@@ -696,7 +552,7 @@ class JavaAdapter(DebugAdapter):
         await super().stop()
 
         # Clean up debuggee processes via LSP bridge
-        if self._lsp_dap_bridge and getattr(self._lsp_dap_bridge, "_is_pooled", False):
+        if self._lsp_dap_bridge and self._lsp_dap_bridge.is_pooled():
             # For pooled bridges, just clean up children (debuggees)
             # The bridge itself stays alive for reuse
             await self._lsp_dap_bridge.cleanup_children()
@@ -746,7 +602,7 @@ class JavaAdapter(DebugAdapter):
 
         # Only needed when actually using a pooled bridge
         if hasattr(self, "_lsp_dap_bridge") and self._lsp_dap_bridge:
-            return getattr(self._lsp_dap_bridge, "_is_pooled", False)
+            return self._lsp_dap_bridge.is_pooled()
 
         return False
 
@@ -765,7 +621,7 @@ class JavaAdapter(DebugAdapter):
             False if using pooled bridge (skip disconnect), True otherwise
         """
         if self._lsp_dap_bridge:
-            return not getattr(self._lsp_dap_bridge, "_is_pooled", False)
+            return not self._lsp_dap_bridge.is_pooled()
         return True
 
     # ----------------------
@@ -841,6 +697,253 @@ class JavaAdapter(DebugAdapter):
     # ----------------------
     # Process & Environment
     # ----------------------
+
+    def _build_launch_config(
+        self,
+        main_class: str,
+        classpath: list[str],
+        project_name: str,
+        args: list[str] | None,
+        env: dict[str, str] | None,
+        cwd: str | None,
+    ) -> dict[str, Any]:
+        """Build launch configuration for DAP request.
+
+        Parameters
+        ----------
+        main_class : str
+            Main class name
+        classpath : list[str]
+            Classpath entries
+        project_name : str
+            Project name
+        args : list[str] | None
+            Command line arguments
+        env : dict[str, str] | None
+            Environment variables
+        cwd : str | None
+            Working directory
+
+        Returns
+        -------
+        dict[str, Any]
+            Launch configuration dictionary
+        """
+        launch_config: dict[str, Any] = {
+            "mainClass": main_class,
+            "classPaths": classpath,
+            "projectName": project_name,
+            "vmArgs": " ".join(self.config.vmargs) if self.config.vmargs else "",
+            "args": " ".join(args) if args else "",
+        }
+        if env:
+            launch_config["env"] = env
+        if cwd:
+            launch_config["cwd"] = cwd
+        return launch_config
+
+    async def _create_dummy_process(self) -> "asyncio.subprocess.Process":
+        """Create placeholder process for base adapter compatibility.
+
+        Java debugging through JDT LS doesn't expose the actual Java process,
+        so we create a dummy process that sleeps to satisfy the base adapter's
+        process requirement.
+
+        Returns
+        -------
+        asyncio.subprocess.Process
+            A dummy process that sleeps
+        """
+        import asyncio
+        import sys
+
+        python_code = f"import time; time.sleep({SECONDS_PER_DAY})"
+        return await asyncio.create_subprocess_exec(
+            sys.executable,
+            "-c",
+            python_code,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+
+    async def _resolve_maven_gradle_classpath(
+        self,
+        main_class: str,
+        project_name: str,
+        original_source: str | None,
+        target_dir: Path,
+    ) -> list[str]:
+        """Resolve classpath for Maven/Gradle projects via JDT LS.
+
+        Steps:
+        1. Reset LSP session state (skip for pooled)
+        2. Open target file in JDT LS
+        3. Wait for compilation diagnostics
+        4. Resolve classpath via JDT LS
+        5. Flatten and augment classpath
+
+        Parameters
+        ----------
+        main_class : str
+            Main class name
+        project_name : str
+            Project name for JDT LS
+        original_source : str | None
+            Original .java source file path
+        target_dir : Path
+            Target directory for Maven/Gradle project
+
+        Returns
+        -------
+        list[str]
+            Resolved and flattened classpath entries
+        """
+        self.ctx.debug(f"Detected Maven/Gradle project at {target_dir}")
+
+        # Bridge must exist at this point
+        if self._lsp_dap_bridge is None:
+            msg = "LSP-DAP bridge not initialized"
+            raise AidbError(msg)
+
+        # Reset LSP session state before file opening
+        # (skip for pooled bridges - they maintain state across sessions)
+        if self._lsp_dap_bridge.lsp_client:
+            if not self._lsp_dap_bridge.is_pooled():
+                self.ctx.debug(
+                    "Resetting LSP session state before file opening",
+                )
+                await self._lsp_dap_bridge.lsp_client.reset_session_state()
+            else:
+                self.ctx.debug(
+                    "Pooled bridge - skipping LSP session reset "
+                    "before resolveClasspath",
+                )
+
+            # Open the target file in JDT LS
+            if original_source and original_source.endswith(".java"):
+                self.ctx.info(
+                    f"Opening target file in JDT LS: {original_source}",
+                )
+                await self._lsp_dap_bridge.lsp_client.open_file(original_source)
+
+                # Wait for JDT LS to complete compilation
+                compilation_complete = (
+                    await self._lsp_dap_bridge.lsp_client.wait_for_diagnostics(
+                        file_path=original_source,
+                        timeout=DEFAULT_WAIT_TIMEOUT_S,
+                    )
+                )
+
+                if not compilation_complete:
+                    self.ctx.warning(
+                        f"JDT LS compilation timeout for {original_source}",
+                    )
+                else:
+                    self.ctx.debug("JDT LS compilation complete")
+
+        # Resolve classpath through JDT LS
+        try:
+            classpath = await self._lsp_dap_bridge.resolve_classpath(
+                main_class=main_class,
+                project_name=project_name,
+            )
+            if not classpath:
+                msg = f"Failed to resolve classpath for {main_class}"
+                raise AidbError(msg)
+        except Exception as e:
+            msg = f"Failed to resolve classpath through JDT LS: {e}"
+            raise AidbError(msg) from e
+
+        # Flatten classpath (JDT LS returns nested lists)
+        classpath = JavaClasspathBuilder.flatten_classpath(classpath)
+
+        # Add target/classes for Maven/Gradle projects
+        classpath = JavaClasspathBuilder.add_target_classes(classpath, target_dir)
+        if classpath and str(target_dir / "target" / "classes") == classpath[0]:
+            self.ctx.debug(
+                f"Added target/classes to classpath: {classpath[0]}",
+            )
+
+        return classpath
+
+    async def _ensure_bridge_started(
+        self,
+        build_root: Path | None,
+        project_root: Path | None,
+        workspace_root: str | None,
+        cwd: str | None,
+        workspace_folders: list[tuple[Path, str]] | None,
+    ) -> None:
+        """Ensure LSP-DAP bridge is started based on pool status.
+
+        Handles three cases:
+        1. Pooled bridge already running -> register workspace folders
+        2. No bridge process -> try production pool, then standalone
+        3. Non-pooled with process -> log warning (unexpected)
+
+        Parameters
+        ----------
+        build_root : Path | None
+            Detected Maven/Gradle build root
+        project_root : Path | None
+            Project root directory
+        workspace_root : str | None
+            Workspace root from launch config
+        cwd : str | None
+            Current working directory
+        workspace_folders : list[tuple[Path, str]] | None
+            Workspace folders for JDT LS
+        """
+        # Bridge must exist at this point
+        if self._lsp_dap_bridge is None:
+            msg = "LSP-DAP bridge not initialized"
+            raise AidbError(msg)
+
+        # Determine bridge startup strategy based on pool status
+        # Use is_pooled() as single source of truth (not process state)
+        if (
+            self._lsp_dap_bridge.is_pooled()
+            and self._lsp_dap_bridge.process is not None
+        ):
+            # Reusing pooled bridge that's already started
+            self.ctx.debug("Using already-started pooled JDT LS bridge")
+
+            # Register workspace folders with pooled bridge
+            if workspace_folders:
+                self.ctx.info(
+                    f"Registering {len(workspace_folders)} workspace "
+                    f"folder(s) with pooled JDT LS bridge",
+                )
+                await self._lsp_dap_bridge.register_workspace_folders(
+                    workspace_folders,
+                )
+        elif self._lsp_dap_bridge.process is None:
+            # Need to start bridge (new pooled allocation or standalone)
+            # Try production per-project pool first
+            # (test pool already tried in initialize_bridge hook)
+            pool_used = await self._try_production_pool(
+                build_root=build_root,
+                project_root=project_root,
+                workspace_root=workspace_root,
+                cwd=cwd,
+                workspace_folders=workspace_folders,
+            )
+
+            if not pool_used:
+                # Start JDT LS with java-debug plugin (standalone)
+                self.ctx.info(
+                    "Starting Eclipse JDT LS with java-debug plugin...",
+                )
+                await self._lsp_dap_bridge.start(
+                    project_root,
+                    session_id=self.session.id,
+                    workspace_folders=workspace_folders,
+                )
+        else:
+            # Non-pooled bridge with existing process - unexpected state
+            self.ctx.warning(
+                "Bridge has process but is not pooled - unexpected state",
+            )
 
     async def _try_production_pool(
         self,

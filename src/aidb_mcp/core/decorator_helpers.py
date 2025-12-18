@@ -91,17 +91,17 @@ def _get_session_or_error(
 def _setup_session_context(
     require_session: bool,
     session_id: str | None,
-) -> tuple[str | None, Any, Any]:
+) -> tuple[str | None, Any]:
     """Set up session context.
 
-    Returns (sid, api, context).
+    Returns (sid, context).
     """
     if not require_session and session_id is None:
         session_id = get_last_active_session()
 
     if session_id is not None:
         return get_or_create_session(session_id)
-    return None, None, None
+    return None, None
 
 
 async def _check_connection_health(
@@ -127,7 +127,7 @@ async def _check_connection_health(
 
 def _check_termination_status(
     require_session: bool,
-    api: Any,
+    service: Any,
     sid: str | None,
     args: dict[str, Any],
     allow_on_terminated: list[str] | None,
@@ -137,12 +137,28 @@ def _check_termination_status(
     For terminated sessions, blocks operations UNLESS the action is in
     allow_on_terminated list (for read-only operations like 'list').
 
-    Returns error response or None to proceed.
+    Parameters
+    ----------
+    require_session : bool
+        Whether the handler requires an active session
+    service : Any
+        DebugService instance (or None if not yet created)
+    sid : str
+        Session ID
+    args : dict
+        Handler arguments
+    allow_on_terminated : list[str], optional
+        Actions allowed on terminated sessions
+
+    Returns
+    -------
+    dict or None
+        Error response or None to proceed
     """
-    if not require_session or not api or not hasattr(api, "session"):
+    if not require_session or not service or not hasattr(service, "session"):
         return None
 
-    session = api.session
+    session = service.session
     # Only check termination if session has its OWN DAP client
     # Don't check inherited parent DAP (JavaScript child sessions)
     if not (hasattr(session, "connector") and session.connector):
@@ -230,7 +246,7 @@ def _synchronize_execution_state(
     session_context,
     operation_name: str,
     result: dict[str, Any],
-    debug_api,
+    session,
 ) -> None:
     """Synchronize session context with execution state."""
     if session_context and operation_name in ["step", "execute", "run_until"]:
@@ -242,20 +258,19 @@ def _synchronize_execution_state(
                 session_context.at_breakpoint = data["stopped"]
                 session_context.is_running = not data["stopped"]
 
-        # Check for actual session state from API
-        if debug_api and hasattr(debug_api, "session"):
-            session = debug_api.session
-            if hasattr(session, "state") and hasattr(session.state, "is_paused"):
-                is_paused = session.state.is_paused()
-                session_context.is_paused = is_paused
-                session_context.at_breakpoint = is_paused
-                session_context.is_running = (
-                    not is_paused and not session.state.is_terminated()
-                )
-                logger.debug(
-                    "Synchronized session context state: paused=%s",
-                    is_paused,
-                )
+        # Check for actual session state from Session
+        has_state = session and hasattr(session, "state")
+        if has_state and hasattr(session.state, "is_paused"):
+            is_paused = session.state.is_paused()
+            session_context.is_paused = is_paused
+            session_context.at_breakpoint = is_paused
+            session_context.is_running = (
+                not is_paused and not session.state.is_terminated()
+            )
+            logger.debug(
+                "Synchronized session context state: paused=%s",
+                is_paused,
+            )
 
 
 def _track_variable_changes(

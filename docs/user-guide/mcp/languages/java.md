@@ -359,6 +359,40 @@ session_start(
 
 **Note**: For better expression evaluation in multi-project workspaces, configure a VS Code launch.json with the `projectName` property.
 
+**Automatic Source Path Detection**
+
+When debugging remote JVMs, the debugger returns JAR-internal paths like `trino-main.jar!/io/trino/Foo.java`. To resolve these to local source files, you can either:
+
+1. **Automatic detection** (recommended): Provide `workspace_root` pointing to a Maven/Gradle project. Source paths are auto-detected from the project structure.
+
+```python
+# Clone the matching source version locally, then:
+session_start(
+    language="java",
+    mode="remote_attach",
+    host="localhost",
+    port=5005,
+    workspace_root="/path/to/trino-source"  # Auto-detects all src/main/java etc.
+)
+```
+
+2. **Manual configuration**: Explicitly provide `source_paths` if auto-detection doesn't cover your needs.
+
+```python
+session_start(
+    language="java",
+    mode="remote_attach",
+    host="localhost",
+    port=5005,
+    source_paths=[
+        "/path/to/trino-source/core/trino-main/src/main/java",
+        "/path/to/trino-source/plugin/trino-hive/src/main/java"
+    ]
+)
+```
+
+The auto-detection recursively scans for Maven (`pom.xml`) and Gradle (`build.gradle`, `build.gradle.kts`) modules, collecting standard source directories (`src/main/java`, `src/test/java`, `src/main/kotlin`, etc.).
+
 ### Conditional Breakpoints
 
 **Simple Condition**

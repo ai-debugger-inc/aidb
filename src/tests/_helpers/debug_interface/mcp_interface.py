@@ -182,7 +182,7 @@ class MCPInterface(DebugInterface):
         self._initialized_context = True
         self._initialized = True
 
-    async def start_session(  # noqa: C901
+    async def start_session(
         self,
         program: str | Path,
         breakpoints: list[dict[str, Any]] | None = None,
@@ -341,7 +341,7 @@ class MCPInterface(DebugInterface):
         self.session_id = None
         self._session_active = False
 
-    async def set_breakpoint(  # noqa: C901
+    async def set_breakpoint(
         self,
         file: str | Path,
         line: int,

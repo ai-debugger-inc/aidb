@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from aidb.api.constants import DEFAULT_PYTHON_DEBUG_PORT
+from aidb.common.constants import DEFAULT_PYTHON_DEBUG_PORT
 from aidb_common.constants import Language
 from aidb_common.io import safe_read_json
 from aidb_common.io.files import FileOperationError

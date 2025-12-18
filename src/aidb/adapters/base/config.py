@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from aidb.api.constants import (
+from aidb.common.constants import (
     INIT_WAIT_FOR_INITIALIZED_S,
     PROCESS_TERMINATE_TIMEOUT_S,
     PROCESS_WAIT_TIMEOUT_S,

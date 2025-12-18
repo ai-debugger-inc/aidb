@@ -2,7 +2,7 @@
   "name": "aidb-vscode-bridge",
   "displayName": "AIDB VS Code Bridge",
   "description": "Bridge extension for AIDB to execute VS Code tasks and handle launch.json features",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "engines": {
     "vscode": "^1.74.0"
   },

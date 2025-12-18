@@ -306,7 +306,9 @@ class TestResourceManagerCleanup:
         mock_main_proc = MagicMock(spec=asyncio.subprocess.Process)
 
         with patch.object(
-            resource_manager, "cleanup_main_process", new_callable=AsyncMock
+            resource_manager._cleanup._terminator,
+            "cleanup_main_process",
+            new_callable=AsyncMock,
         ) as mock_cleanup:
             mock_cleanup.return_value = True
 
@@ -329,7 +331,9 @@ class TestResourceManagerCleanup:
         resource_manager._port_registry.release_session_ports.return_value = []
 
         with patch.object(
-            resource_manager, "terminate_process_group", new_callable=AsyncMock
+            resource_manager._cleanup._terminator,
+            "terminate_process_group",
+            new_callable=AsyncMock,
         ) as mock_term:
             mock_term.return_value = True
 
@@ -357,7 +361,9 @@ class TestResourceManagerCleanup:
 
         with patch("psutil.process_iter", return_value=[mock_proc]):
             with patch.object(
-                resource_manager, "_terminate_single_process", new_callable=AsyncMock
+                resource_manager._terminator,
+                "_terminate_single_process",
+                new_callable=AsyncMock,
             ) as mock_term:
                 mock_term.return_value = 1
 
@@ -388,7 +394,9 @@ class TestResourceManagerCleanup:
     ) -> None:
         """terminate_process_group terminates process group."""
         with patch.object(
-            resource_manager, "_try_terminate_process_group", new_callable=AsyncMock
+            resource_manager._terminator,
+            "try_terminate_process_group",
+            new_callable=AsyncMock,
         ) as mock_group:
             mock_group.return_value = True
 
@@ -413,13 +421,15 @@ class TestResourceManagerCleanup:
     ) -> None:
         """terminate_process_group falls back to direct termination."""
         with patch.object(
-            resource_manager, "_try_terminate_process_group", new_callable=AsyncMock
+            resource_manager._terminator,
+            "try_terminate_process_group",
+            new_callable=AsyncMock,
         ) as mock_group:
             mock_group.return_value = False
 
             with patch.object(
-                resource_manager,
-                "_try_terminate_process_directly",
+                resource_manager._terminator,
+                "try_terminate_process_directly",
                 new_callable=AsyncMock,
             ) as mock_direct:
                 mock_direct.return_value = True
@@ -498,11 +508,11 @@ class TestResourceManagerLifecycle:
         resource_manager,
     ) -> None:
         """acquire_resources sets _resources_acquired flag."""
-        assert resource_manager._resources_acquired is False
+        assert resource_manager._lifecycle._resources_acquired is False
 
         await resource_manager.acquire_resources()
 
-        assert resource_manager._resources_acquired is True
+        assert resource_manager._lifecycle._resources_acquired is True
 
     @pytest.mark.asyncio
     async def test_acquire_resources_idempotent(
@@ -514,7 +524,7 @@ class TestResourceManagerLifecycle:
         await resource_manager.acquire_resources()
         await resource_manager.acquire_resources()
 
-        assert resource_manager._resources_acquired is True
+        assert resource_manager._lifecycle._resources_acquired is True
 
     @pytest.mark.asyncio
     async def test_release_resources_returns_summary(
@@ -546,7 +556,7 @@ class TestResourceManagerLifecycle:
 
         await resource_manager.release_resources()
 
-        assert resource_manager._cleanup_completed is True
+        assert resource_manager._lifecycle._cleanup_completed is True
 
     @pytest.mark.asyncio
     async def test_release_resources_idempotent(
@@ -586,7 +596,7 @@ class TestResourceManagerLifecycle:
         resource_manager,
     ) -> None:
         """get_resource_state shows 'cleaned' status after cleanup."""
-        resource_manager._cleanup_completed = True
+        resource_manager._lifecycle._cleanup_completed = True
         resource_manager._process_registry.get_process_count.return_value = 0
         resource_manager._port_registry.get_port_count.return_value = 0
 
@@ -606,9 +616,9 @@ class TestResourceManagerLifecycle:
         resource_manager._port_registry.release_session_ports.return_value = []
 
         async with resource_manager.resource_scope():
-            assert resource_manager._resources_acquired is True
+            assert resource_manager._lifecycle._resources_acquired is True
 
-        assert resource_manager._cleanup_completed is True
+        assert resource_manager._lifecycle._cleanup_completed is True
 
     def test_get_resource_usage_returns_stats(
         self,
@@ -639,7 +649,9 @@ class TestResourceManagerHelpers:
             "cmdline": ["python", "-m", "debugpy", "--listen", "5678"],
         }
 
-        result = resource_manager._should_terminate_process(mock_proc, 5678, "debugpy")
+        result = resource_manager._terminator._should_terminate_process(
+            mock_proc, 5678, "debugpy"
+        )
 
         assert result is True
 
@@ -653,7 +665,9 @@ class TestResourceManagerHelpers:
             "cmdline": ["python", "script.py", "--listen", "5678"],
         }
 
-        result = resource_manager._should_terminate_process(mock_proc, 5678, "debugpy")
+        result = resource_manager._terminator._should_terminate_process(
+            mock_proc, 5678, "debugpy"
+        )
 
         assert result is False
 
@@ -667,7 +681,9 @@ class TestResourceManagerHelpers:
             "cmdline": ["python", "-m", "debugpy", "--listen", "9999"],
         }
 
-        result = resource_manager._should_terminate_process(mock_proc, 5678, "debugpy")
+        result = resource_manager._terminator._should_terminate_process(
+            mock_proc, 5678, "debugpy"
+        )
 
         assert result is False
 
@@ -679,7 +695,9 @@ class TestResourceManagerHelpers:
         mock_proc = MagicMock()
         mock_proc.info = {"cmdline": None}
 
-        result = resource_manager._should_terminate_process(mock_proc, 5678, "debugpy")
+        result = resource_manager._terminator._should_terminate_process(
+            mock_proc, 5678, "debugpy"
+        )
 
         assert result is False
 

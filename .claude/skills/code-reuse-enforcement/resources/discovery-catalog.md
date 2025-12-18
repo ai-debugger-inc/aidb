@@ -13,7 +13,7 @@ ______________________________________________________________________
 | `aidb_common/constants.py`     | Shared   | Language enum, AIDB_HOME_DIR, domains           |
 | `aidb/adapters/constants.py`   | Adapters | Platform/arch mappings                          |
 | `aidb/dap/client/constants.py` | DAP      | MessageType, EventType, CommandType, StopReason |
-| `aidb/api/constants.py`        | API      | Timeouts (seconds), defaults, contexts          |
+| `aidb/common/constants.py`     | Core     | Timeouts (seconds), defaults, contexts          |
 | `aidb/audit/constants.py`      | Audit    | Sensitive fields, masking patterns              |
 | `aidb_cli/core/constants.py`   | CLI      | Icons, exit codes, Docker profiles              |
 | `aidb_mcp/core/constants.py`   | MCP      | Tool names, actions, response formats           |
@@ -63,7 +63,7 @@ ______________________________________________________________________
 
 ## Timeout Constants
 
-**Location:** `aidb/api/constants.py`
+**Location:** `aidb/common/constants.py`
 
 ```python
 # Polling/short waits

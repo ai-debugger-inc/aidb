@@ -244,7 +244,7 @@ if var_ref > 0:
 
 ### Evaluation Contexts
 
-The `context` parameter indicates the purpose of evaluation (see `src/aidb/api/constants.py`):
+The `context` parameter indicates the purpose of evaluation (see `src/aidb/common/constants.py`):
 
 - `"repl"`: Interactive evaluation (default, may have side effects)
 - `"watch"`: Watch expression (should avoid side effects)
@@ -389,21 +389,23 @@ if result.body.variablesReference > 0:
     )
 ```
 
-### Pattern 4: AIDB Session-Level Pattern
+### Pattern 4: AIDB Service Layer Pattern
 
 ```python
-# AIDB provides higher-level operations in session.debug
+# AIDB provides higher-level operations via DebugService
+from aidb.service import DebugService
 from aidb.session import Session
 
 session = Session(...)
+service = DebugService(session)
 
 # Get locals (handles scope lookup internally)
-locals_response = await session.debug.locals(frame_id=None)  # None = current frame
+locals_response = await service.variables.locals(frame_id=None)  # None = current frame
 for name, var in locals_response.variables.items():
     print(f"{name}: {var.value} ({var.type_name})")
 
 # Evaluate expression
-result = await session.debug.evaluate(
+result = await service.variables.evaluate(
     expression="x + y",
     frame_id=None,  # None = current frame
     context="repl"
@@ -412,7 +414,7 @@ print(f"Result: {result.result} (type: {result.type_name})")
 
 # Navigate nested structure
 if result.has_children:
-    children = await session.debug.get_variables(
+    children = await service.variables.get_variables(
         variables_reference=result.variablesReference
     )
 ```
@@ -460,7 +462,7 @@ await client.send_request(ContinueRequest(...))
 1. Use `filter` parameter for efficient large array/object inspection
 1. Evaluation contexts (`repl`, `watch`, `hover`) hint at side-effect tolerance
 1. `namedVariables`/`indexedVariables` indicate structure before fetching
-1. AIDB's `session.debug` provides higher-level abstractions over raw DAP
+1. AIDB's `DebugService` provides higher-level abstractions over raw DAP
 
 **See also:**
 
@@ -468,4 +470,4 @@ await client.send_request(ContinueRequest(...))
 - [Initialization Sequence](./initialization-sequence.md) - Session setup
 - [Breakpoint Operations](./breakpoint-operations.md) - Stopping execution
 - `src/aidb/dap/protocol/types.py:Variable` - Full Variable type definition
-- `src/aidb/session/ops/introspection/variables.py` - AIDB variable operations
+- `src/aidb/service/variables/inspector.py` - AIDB variable operations

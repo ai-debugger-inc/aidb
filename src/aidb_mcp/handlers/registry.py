@@ -16,6 +16,7 @@ from ..core.types import ErrorContext
 # Central registry for cross-package access
 from ..registry import load_tool_mapping
 from ..responses.errors import ErrorResponse
+from ..responses.helpers import invalid_action, invalid_parameter
 from ..session.manager_state import get_session_id_from_args
 
 # Import all handlers
@@ -64,13 +65,8 @@ async def _cleanup_cancelled_tool(name: str, args: dict[str, Any]) -> None:
             )
 
             try:
-                _, api, context = get_or_create_session(session_id)
-                if (
-                    api
-                    and hasattr(api, "session")
-                    and hasattr(api.session, "state")
-                    and hasattr(context, "is_running")
-                ):
+                _, context = get_or_create_session(session_id)
+                if context and hasattr(context, "is_running"):
                     context.is_running = False
                     # Don't terminate the session, just ensure it's in a clean state
             except Exception as cleanup_err:
@@ -114,14 +110,11 @@ async def handle_tool(name: str, args: dict[str, Any]) -> dict[str, Any]:
         # Defensive input validation
         if not name or not isinstance(name, str):
             logger.error("Invalid tool name: %s", name)
-            return ErrorResponse(
-                summary="Invalid tool name",
-                error_code=ErrorCode.AIDB_VALIDATION_INVALID_TYPE.value,
-                error_message=(
-                    f"Tool name must be a non-empty string, got: {type(name)}"
-                ),
-                context=ErrorContext(invalid_input=str(name)),
-            ).to_mcp_response()
+            return invalid_parameter(
+                param_name="name",
+                expected_type="non-empty string",
+                received_value=str(type(name)),
+            )
 
         if args is None:
             args = {}
@@ -137,12 +130,11 @@ async def handle_tool(name: str, args: dict[str, Any]) -> dict[str, Any]:
                 "Unknown tool requested",
                 extra={"tool_name": name, "available_tools": available_tools},
             )
-            return ErrorResponse(
-                summary=f"Unknown tool: {name}",
-                error_code=ErrorCode.AIDB_UNKNOWN_ERROR.value,
-                error_message=f"Tool '{name}' is not recognized",
-                context=ErrorContext(available_tools=available_tools),
-            ).to_mcp_response()
+            return invalid_action(
+                action=name,
+                valid_actions=available_tools,
+                tool_name="registry",
+            )
 
         # Add handler name to span metadata
         if span:

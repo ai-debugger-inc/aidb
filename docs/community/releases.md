@@ -80,8 +80,6 @@ When an AI agent attempts to start a debugging session without the required adap
 
 ### Supported Adapters
 
-**Current (0.0.6):**
-
 - **Python**: `debugpy` (agent-installed via MCP)
 - **JavaScript/TypeScript**: `vscode-js-debug` (agent-installed via MCP)
 - **Java**: `java-debug` (agent-installed via MCP)
@@ -94,8 +92,7 @@ When an AI agent attempts to start a debugging session without the required adap
 
 ## Current Status
 
-**Version**: 0.0.6 (Early Access)
-**Release Date**: TBD
+**Version**: 0.0.9
 
 ### What's Working ✓
 

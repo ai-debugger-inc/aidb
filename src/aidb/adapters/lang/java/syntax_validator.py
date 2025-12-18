@@ -3,7 +3,7 @@
 import re
 import tempfile
 
-from aidb.api.constants import SYNTAX_VALIDATION_EXTENDED_TIMEOUT_S
+from aidb.common.constants import SYNTAX_VALIDATION_EXTENDED_TIMEOUT_S
 from aidb_common.constants import Language
 
 from ...base.subprocess_validator import SubprocessValidator

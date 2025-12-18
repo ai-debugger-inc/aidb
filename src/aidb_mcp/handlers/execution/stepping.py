@@ -16,7 +16,13 @@ from ...core.context_utils import build_error_execution_state
 from ...core.decorators import mcp_tool
 from ...responses import StepResponse
 from ...responses.errors import InternalError
-from ...responses.helpers import handle_timeout_error, invalid_parameter, not_paused
+from ...responses.helpers import (
+    handle_timeout_error,
+    invalid_parameter,
+    is_session_paused,
+    not_paused,
+)
+from ...session import get_session
 
 logger = get_logger(__name__)
 
@@ -63,7 +69,7 @@ def _validate_step_action(action_str: str) -> StepAction | dict[str, Any]:
 
 
 def _check_debugger_paused(
-    api: Any,
+    service: Any,
     action: StepAction,
     session_id: str,
 ) -> dict[str, Any] | None:
@@ -71,8 +77,8 @@ def _check_debugger_paused(
 
     Parameters
     ----------
-    api : Any
-        Debug API instance
+    service : Any
+        DebugService instance (Phase 2)
     action : StepAction
         The step action to perform
     session_id : str
@@ -83,17 +89,11 @@ def _check_debugger_paused(
     dict | None
         Error response if not paused, None if ok
     """
-    # Get active session (child if exists, otherwise parent)
-    # to ensure we check the correct session's stopped state
-    active_session = None
-    if api and hasattr(api, "get_active_session"):
-        active_session = api.get_active_session()
+    # Get active session from service (handles child session resolution)
+    active_session = service.session if service else None
 
-    if (
-        active_session
-        and hasattr(active_session, "dap")
-        and not active_session.dap.is_stopped
-    ):
+    # Use shared utility for defensive session state checking
+    if not is_session_paused(active_session):
         logger.debug(
             "Step operation blocked - not paused",
             extra={
@@ -111,7 +111,7 @@ def _check_debugger_paused(
 
 
 async def _execute_single_step(
-    api: Any,
+    service: Any,
     action: StepAction,
     iteration: int,
     count: int,
@@ -120,8 +120,8 @@ async def _execute_single_step(
 
     Parameters
     ----------
-    api : Any
-        Debug API instance
+    service : Any
+        DebugService instance (Phase 2)
     action : StepAction
         The step action
     iteration : int
@@ -134,14 +134,18 @@ async def _execute_single_step(
     Any
         Step result
     """
-    action_map = {
-        StepAction.INTO: (api.orchestration.step_into, "stepping into"),
-        StepAction.OVER: (api.orchestration.step_over, "stepping over"),
-        StepAction.OUT: (api.orchestration.step_out, "stepping out"),
+    # Get current thread_id for stepping operations
+    thread_id = await service.stepping.get_current_thread_id()
+
+    # Map step actions to service methods (Phase 2)
+    action_desc_map = {
+        StepAction.INTO: "stepping into",
+        StepAction.OVER: "stepping over",
+        StepAction.OUT: "stepping out",
     }
 
-    method, desc = action_map.get(action, (None, None))
-    if not method:
+    desc = action_desc_map.get(action)
+    if not desc:
         msg = f"Unexpected step action: {action}"
         raise ValueError(msg)
 
@@ -150,13 +154,23 @@ async def _execute_single_step(
         iteration,
         count,
         desc,
-        extra={"action": action.name, "iteration": iteration},
+        extra={"action": action.name, "iteration": iteration, "thread_id": thread_id},
     )
-    return await method()
+
+    # Execute the step using service (Phase 2)
+    if action == StepAction.INTO:
+        return await service.stepping.step_into(thread_id)
+    if action == StepAction.OVER:
+        return await service.stepping.step_over(thread_id)
+    if action == StepAction.OUT:
+        return await service.stepping.step_out(thread_id)
+
+    msg = f"Unexpected step action: {action}"
+    raise ValueError(msg)
 
 
 async def _execute_step_sequence(
-    api: Any,
+    service: Any,
     action: StepAction,
     count: int,
     session_id: str,
@@ -166,8 +180,8 @@ async def _execute_step_sequence(
 
     Parameters
     ----------
-    api : Any
-        Debug API instance
+    service : Any
+        DebugService instance (Phase 2)
     action : StepAction
         The step action to perform
     count : int
@@ -190,7 +204,7 @@ async def _execute_step_sequence(
     )
 
     for i in range(count):
-        result = await _execute_single_step(api, action, i + 1, count)
+        result = await _execute_single_step(service, action, i + 1, count)
 
         step_info = {ResponseDataKey.STEP: i + 1}
         if hasattr(result, "execution_state"):
@@ -218,7 +232,7 @@ async def _execute_step_sequence(
 async def _build_step_response(
     action: StepAction,
     session_id: str,
-    api: Any,
+    session: Any,
     context: Any,
 ) -> StepResponse:
     """Build step response with location and code context.
@@ -229,8 +243,8 @@ async def _build_step_response(
         The step action performed
     session_id : str
         Session identifier
-    api : Any
-        Debug API instance
+    session : Any
+        Session instance for status/property access
     context : Any
         Session context
 
@@ -243,7 +257,7 @@ async def _build_step_response(
 
     stop_reason = DAPStopReason.STEP.value
     is_paused = context and context.is_paused
-    resp_ctx = await build_response_context(api, context, stop_reason, is_paused)
+    resp_ctx = await build_response_context(session, context, stop_reason, is_paused)
 
     return StepResponse(
         action=action.value,
@@ -284,13 +298,13 @@ async def handle_step(args: dict[str, Any]) -> dict[str, Any]:
 
         # Get session components from decorator
         session_id = args.get("_session_id")
-        api = args.get("_api")
+        service = args.get("_service")
         context = args.get("_context")
 
         # The decorator guarantees these are present
-        if not api or not context:
+        if not service or not context:
             return InternalError(
-                error_message="Debug API or context not available",
+                error_message="DebugService or context not available",
             ).to_mcp_response()
 
         if session_id is None:
@@ -298,16 +312,25 @@ async def handle_step(args: dict[str, Any]) -> dict[str, Any]:
                 error_message="Session ID not available",
             ).to_mcp_response()
 
-        # Check if debugger is paused
-        error_response = _check_debugger_paused(api, action, session_id)
+        # Check if debugger is paused (Phase 2: using service)
+        error_response = _check_debugger_paused(service, action, session_id)
         if error_response:
             return error_response
 
-        # Execute step sequence (context will be synced from execution state inside)
-        _results = await _execute_step_sequence(api, action, count, session_id, context)
+        # Execute step sequence using service (Phase 2)
+        _results = await _execute_step_sequence(
+            service,
+            action,
+            count,
+            session_id,
+            context,
+        )
+
+        # Get session for response building
+        session = get_session(session_id)
 
         # Build and return response with synced context
-        response = await _build_step_response(action, session_id, api, context)
+        response = await _build_step_response(action, session_id, session, context)
         return response.to_mcp_response()
 
     except Exception as e:
@@ -326,8 +349,13 @@ async def handle_step(args: dict[str, Any]) -> dict[str, Any]:
             ).to_mcp_response()
 
         # Add execution state if we have context
-        if "context" in locals() and context and "api" in locals() and api:
-            execution_state = build_error_execution_state(api, context)
+        has_context = "context" in locals() and context
+        has_session = "session_id" in locals() and session_id
+        if has_context and has_session:
+            session = get_session(session_id)
+            execution_state = (
+                build_error_execution_state(session, context) if session else None
+            )
             if execution_state:
                 error_response["data"]["execution_state"] = execution_state
 

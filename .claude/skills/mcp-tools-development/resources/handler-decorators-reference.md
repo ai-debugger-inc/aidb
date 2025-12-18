@@ -12,7 +12,7 @@ Decorators provide cross-cutting functionality for MCP tool handlers, including:
 
 - Execution context capture (location, state, variable tracking)
 - Thread safety for concurrent access
-- Session validation and API injection
+- Session validation and service injection
 - Performance monitoring
 
 **Location:** `src/aidb_mcp/core/decorators.py` and `src/aidb_mcp/core/decorator_primitives.py`
@@ -44,7 +44,7 @@ async def handle_your_tool(args: dict[str, Any]) -> dict[str, Any]:
 
 1. **Injects parameters** into args:
 
-   - `_api`: Debug API instance
+   - `_service`: DebugService instance (for operations)
    - `_context`: Session context (MCPSessionContext)
    - `_session_id`: Active session ID
 
@@ -111,10 +111,12 @@ async def handle_your_tool(args: dict[str, Any]) -> dict[str, Any]:
 ```python
 @with_execution_context()
 async def handle_continue(args: dict[str, Any]) -> dict[str, Any]:
-    api = args.get("_api")
+    service = args.get("_service")
 
-    # Perform operation
-    await api.orchestration.continue_execution()
+    # Perform operation using DebugService
+    thread_id = await service.execution.get_current_thread_id()
+    request = ContinueRequest(seq=0, arguments=ContinueArguments(threadId=thread_id))
+    await service.execution.continue_(request, wait_for_stop=True)
 
     # Response automatically includes current location and state
     return ContinueResponse(
@@ -128,10 +130,11 @@ async def handle_continue(args: dict[str, Any]) -> dict[str, Any]:
 ```python
 @with_execution_context(track_variables=True)
 async def handle_step(args: dict[str, Any]) -> dict[str, Any]:
-    api = args.get("_api")
+    service = args.get("_service")
 
-    # Perform step
-    await api.orchestration.step_over()
+    # Perform step using DebugService
+    thread_id = await service.stepping.get_current_thread_id()
+    await service.stepping.step_over(thread_id)
 
     # Response automatically includes:
     # - Current location
@@ -148,11 +151,13 @@ async def handle_step(args: dict[str, Any]) -> dict[str, Any]:
 ```python
 @with_execution_context(include_before=True, include_after=True)
 async def handle_run_until(args: dict[str, Any]) -> dict[str, Any]:
-    api = args.get("_api")
+    service = args.get("_service")
     target_line = args.get(ParamName.LINE)
 
-    # Run until target line
-    await api.orchestration.run_until_line(target_line)
+    # Run until target line using temporary breakpoint
+    # (See run_until handler for full implementation)
+    await service.breakpoints.set(...)
+    await service.execution.continue_(...)
 
     # Response includes both before and after snapshots
     return RunUntilResponse(
@@ -225,11 +230,11 @@ async def handle_your_tool(args: dict[str, Any]) -> dict[str, Any]:
 @require_initialized_session
 async def handle_inspect(args: dict[str, Any]) -> dict[str, Any]:
     """Thread-safe inspection handler."""
-    api = args.get("_api")
+    service = args.get("_service")
     context = args.get("_context")
 
     # Safe concurrent access to context
-    result = await api.introspection.evaluate(expression)
+    result = await service.variables.evaluate(expression)
 
     return InspectResponse(
         summary="Evaluated expression",
@@ -241,7 +246,7 @@ ______________________________________________________________________
 
 ## @require_initialized_session
 
-Validates session exists and is active, injects API and context.
+Validates session exists and is active, injects service and context.
 
 **Source:** `src/aidb_mcp/core/decorator_primitives.py`
 
@@ -251,7 +256,7 @@ Validates session exists and is active, injects API and context.
 @require_initialized_session
 async def handle_your_tool(args: dict[str, Any]) -> dict[str, Any]:
     # Session is guaranteed to exist and be active
-    api = args.get("_api")  # Injected
+    service = args.get("_service")  # Injected
     context = args.get("_context")  # Injected
     session_id = args.get("_session_id")  # Injected
     pass
@@ -261,7 +266,7 @@ async def handle_your_tool(args: dict[str, Any]) -> dict[str, Any]:
 
 1. Checks if session exists
 1. Validates session is active (not stopped/terminated)
-1. Injects `_api`, `_context`, `_session_id` into args
+1. Injects `_service`, `_context`, `_session_id` into args
 1. Returns error response if session not found/inactive
 
 ### When to Use
@@ -285,14 +290,15 @@ async def handle_your_tool(args: dict[str, Any]) -> dict[str, Any]:
 @require_initialized_session
 async def handle_breakpoint(args: dict[str, Any]) -> dict[str, Any]:
     """Breakpoint handler requiring active session."""
-    api = args.get("_api")  # Guaranteed to exist
+    service = args.get("_service")  # Guaranteed to exist
     context = args.get("_context")  # Guaranteed to exist
     session_id = args.get("_session_id")  # Guaranteed to exist
 
     action = args.get(ParamName.ACTION)
 
     if action == "set":
-        await api.orchestration.set_breakpoint(...)
+        request = SetBreakpointsRequest(...)
+        await service.breakpoints.set(request)
 
     return BreakpointResponse(
         summary="Breakpoint set",
@@ -325,8 +331,8 @@ Tracks operation performance and token estimates.
 
 ```python
 @timed
-async def your_operation(api, *args, **kwargs) -> Any:
-    result = await api.introspection.locals()
+async def your_operation(service, *args, **kwargs) -> Any:
+    result = await service.variables.locals()
     return result
 ```
 
@@ -358,9 +364,9 @@ async def your_operation(api, *args, **kwargs) -> Any:
 
 ```python
 @timed
-async def inspect_locals(api) -> dict[str, Any]:
+async def inspect_locals(service) -> dict[str, Any]:
     """Get local variables with performance tracking."""
-    result = await api.introspection.locals()
+    result = await service.variables.locals()
     return result
 
 # Logs will include:

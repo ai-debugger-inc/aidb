@@ -1,13 +1,13 @@
 """E2E tests using generated test programs.
 
-These tests demonstrate the zero-duplication testing pattern using the DebugInterface
-abstraction to test both MCP and API entry points with generated test programs.
+These tests use the DebugInterface abstraction to test MCP debugging operations with
+generated test programs across all supported languages.
 """
 
 import pytest
 
 
-@pytest.mark.parametrize("debug_interface", ["mcp", "api"], indirect=True)
+@pytest.mark.parametrize("debug_interface", ["mcp"], indirect=True)
 @pytest.mark.asyncio
 async def test_basic_variables_all_languages(
     debug_interface,
@@ -16,18 +16,15 @@ async def test_basic_variables_all_languages(
 ):
     """Test basic_variables scenario across all languages.
 
-    This test runs 6 times:
+    This test runs 3 times:
     - MCP + Python
     - MCP + JavaScript
     - MCP + Java
-    - API + Python
-    - API + JavaScript
-    - API + Java
 
     Parameters
     ----------
     debug_interface : DebugInterface
-        Either MCPInterface or APIInterface
+        MCPInterface for MCP-based debugging
     language : str
         Programming language (python, javascript, java)
     generated_program_factory : callable
@@ -53,7 +50,7 @@ async def test_basic_variables_all_languages(
     await debug_interface.stop_session()
 
 
-@pytest.mark.parametrize("debug_interface", ["mcp", "api"], indirect=True)
+@pytest.mark.parametrize("debug_interface", ["mcp"], indirect=True)
 @pytest.mark.asyncio
 async def test_all_scenarios_python(
     debug_interface,
@@ -62,13 +59,13 @@ async def test_all_scenarios_python(
 ):
     """Test all scenarios with Python.
 
-    This test runs 12 times:
-    - 6 scenarios × 2 interfaces (MCP, API)
+    This test runs 6 times:
+    - 6 scenarios × MCP interface
 
     Parameters
     ----------
     debug_interface : DebugInterface
-        Either MCPInterface or APIInterface
+        MCPInterface for MCP-based debugging
     scenario_id : str
         Scenario ID from manifest
     generated_program_factory : callable
@@ -91,7 +88,7 @@ async def test_all_scenarios_python(
     await debug_interface.stop_session()
 
 
-@pytest.mark.parametrize("debug_interface", ["mcp", "api"], indirect=True)
+@pytest.mark.parametrize("debug_interface", ["mcp"], indirect=True)
 @pytest.mark.asyncio
 async def test_generated_program_structure(
     debug_interface,
@@ -104,7 +101,7 @@ async def test_generated_program_structure(
     Parameters
     ----------
     debug_interface : DebugInterface
-        Either MCPInterface or APIInterface (not used, but required for parametrization)
+        MCPInterface (not used, but required for parametrization)
     generated_program_factory : callable
         Factory to load generated programs
     """

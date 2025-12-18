@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 from aidb.adapters.utils.binary_locator import AdapterBinaryLocator
 from aidb.adapters.utils.output_capture import AdapterOutputCapture
 from aidb.adapters.utils.trace_log import AdapterTraceLogManager
-from aidb.api.constants import DEFAULT_ADAPTER_HOST
+from aidb.common.constants import DEFAULT_ADAPTER_HOST
 from aidb.common.context import AidbContext
 from aidb.common.errors import AdapterCapabilityNotSupportedError
 from aidb.dap.protocol.types import Capabilities
@@ -940,8 +940,8 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
                     f"Adapter version mismatch: {adapter_name} adapter "
                     f"(v{adapter_version}) was built with AIDB "
                     f"v{adapter_aidb_version}, current AIDB is "
-                    f"v{current_aidb_version}. Use the MCP download_adapter tool "
-                    "or update the adapter manually."
+                    f"v{current_aidb_version}. Use the MCP adapter tool "
+                    "(action='download') or update the adapter manually."
                 ),
             )
         else:

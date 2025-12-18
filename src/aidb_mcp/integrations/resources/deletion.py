@@ -91,9 +91,13 @@ def _delete_breakpoint_resource(resource_id: str) -> bool:
 
     if context.session_started and api:
         try:
+            import asyncio
+
             if ":" in location:
                 file_path = location.rsplit(":", 1)[0]
-                api.orchestration.clear_breakpoints(file_path)
+                asyncio.get_event_loop().run_until_complete(
+                    api.breakpoints.clear(source_path=file_path),
+                )
         except Exception as e:
             msg = f"Failed to clear breakpoints for {location}: {e}"
             logger.debug(msg)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from aidb.api.constants import DEFAULT_ADAPTER_HOST, DEFAULT_NODE_DEBUG_PORT
+from aidb.common.constants import DEFAULT_ADAPTER_HOST, DEFAULT_NODE_DEBUG_PORT
 from aidb_common.constants import Language
 from aidb_logging import get_mcp_logger as get_logger
 

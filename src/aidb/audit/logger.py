@@ -11,7 +11,9 @@ from typing import TYPE_CHECKING, Optional
 
 import aiofiles  # type: ignore[import-untyped]
 
-from aidb.api.constants import (
+from aidb.audit.events import AuditEvent
+from aidb.common import AidbContext
+from aidb.common.constants import (
     AUDIT_FLUSH_TIMEOUT_S,
     AUDIT_INIT_TIMEOUT_S,
     AUDIT_INIT_TIMEOUT_TEST_S,
@@ -21,8 +23,6 @@ from aidb.api.constants import (
     AUDIT_SINGLETON_RESET_TIMEOUT_S,
     AUDIT_WORKER_TIMEOUT_S,
 )
-from aidb.audit.events import AuditEvent
-from aidb.common import AidbContext
 from aidb_common.config import config
 from aidb_logging import get_logger
 
@@ -417,7 +417,7 @@ class AuditLogger:
                     # Loop already stopped or closed
                     self._loop.call_soon_threadsafe(self._loop.stop)
 
-    async def shutdown(self) -> None:  # noqa: C901
+    async def shutdown(self) -> None:
         """Shutdown audit logger and flush pending events."""
         if self._shutdown:
             return

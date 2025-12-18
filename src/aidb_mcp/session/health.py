@@ -53,11 +53,11 @@ def check_connection_health(session_id: str | None = None) -> bool:
         )
 
         all_healthy = True
-        for sid, api in sessions_to_check.items():
-            if api and api.started:
+        for sid, service in sessions_to_check.items():
+            if service and service.session.started:
                 try:
                     # Try a simple operation to test connection
-                    _ = api.session_info
+                    _ = service.session.info
                     _last_heartbeat = current_time
                 except Exception as e:
                     logger.warning("Connection unhealthy for session %s: %s", sid, e)
@@ -112,14 +112,14 @@ async def attempt_recovery(session_id: str) -> bool:
         if not session_info:
             return False
 
-        api = _DEBUG_SESSIONS.get(session_id)
-        if not api:
+        service = _DEBUG_SESSIONS.get(session_id)
+        if not service:
             return False
 
         try:
             # Try to reconnect to existing session
-            if api.session and hasattr(api.session, "reconnect"):
-                api.session.reconnect(session_info.id)
+            if service.session and hasattr(service.session, "reconnect"):
+                service.session.reconnect(session_info.id)
                 return True
         except Exception as e:
             msg = f"Failed to reconnect to session {session_info.id}: {e}"

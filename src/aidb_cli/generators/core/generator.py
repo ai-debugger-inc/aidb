@@ -262,7 +262,7 @@ class Generator:
 
         return file_path
 
-    def _write_manifest(  # noqa: C901
+    def _write_manifest(
         self,
         all_results: dict[str, dict[str, GenerationResult]],
         scenarios_map: dict[str, Scenario],

@@ -235,8 +235,7 @@ _fixtures/unit/
 ├── dap/               # Transport, events, receiver mocks
 ├── session/           # Registry, lifecycle, state, child_manager mocks
 ├── adapter/           # Port, process, launch_orchestrator mocks
-├── mcp/               # DebugAPI, MCPSessionContext mocks
-├── api/               # Session, launch_config, breakpoint mocks
+├── mcp/               # DebugService, MCPSessionContext mocks
 ├── conftest.py        # Master fixture re-exports
 ├── context.py         # mock_ctx, null_ctx, tmp_storage
 └── assertions.py      # UnitAssertions class
@@ -448,7 +447,7 @@ Don't start from scratch:
 
 **Code References**:
 
-- **DAP Protocol:** See `src/aidb/dap/protocol.py` (fully typed)
+- **DAP Protocol:** See `src/aidb/dap/protocol/` (fully typed, types.py + requests.py + responses.py + events.py)
 - **Test Infrastructure:** See `src/tests/_helpers/` and `src/tests/_fixtures/`
 - **Working Examples:** See Flask/Express framework tests
 

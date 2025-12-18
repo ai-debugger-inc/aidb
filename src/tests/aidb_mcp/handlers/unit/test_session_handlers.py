@@ -456,7 +456,7 @@ if __name__ == "__main__":
         session_id = response["session_id"]
 
         # Verify source_paths stored in session context
-        _, _, context = get_or_create_session(session_id)
+        _, context = get_or_create_session(session_id)
         assert context.source_paths == source_paths, (
             "source_paths should be stored in session context"
         )
@@ -490,7 +490,7 @@ if __name__ == "__main__":
         session_id = response["session_id"]
 
         # Verify source_paths is empty list (not None)
-        _, _, context = get_or_create_session(session_id)
+        _, context = get_or_create_session(session_id)
         assert context.source_paths == [], "source_paths should default to empty list"
 
         # Cleanup

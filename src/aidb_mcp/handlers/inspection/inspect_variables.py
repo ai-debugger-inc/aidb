@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from aidb.api.constants import LOG_EXPRESSION_PREVIEW_LENGTH
+from aidb.common.constants import LOG_EXPRESSION_PREVIEW_LENGTH
 from aidb_common.config.runtime import ConfigManager
 from aidb_logging import get_mcp_logger as get_logger
 
@@ -41,14 +41,15 @@ def _format_variables_response(
 
 
 @timed
-async def inspect_locals(api) -> Any:
+async def inspect_locals(service) -> Any:
     """Inspect local variables."""
     logger.debug(
         "Inspecting local variables",
         extra={"target": InspectTarget.LOCALS.name},
     )
     try:
-        result = await api.introspection.locals()
+        # Phase 2: use service.variables.locals()
+        result = await service.variables.locals()
 
         var_count = len(result.variables) if result.variables else 0
         logger.info(
@@ -69,14 +70,15 @@ async def inspect_locals(api) -> Any:
 
 
 @timed
-async def inspect_globals(api) -> Any:
+async def inspect_globals(service) -> Any:
     """Inspect global variables."""
     logger.debug(
         "Inspecting global variables",
         extra={"target": InspectTarget.GLOBALS.name},
     )
     try:
-        result = await api.introspection.globals()
+        # Phase 2: use service.variables.globals()
+        result = await service.variables.globals()
 
         var_count = len(result.variables) if result.variables else 0
         logger.info(
@@ -97,7 +99,7 @@ async def inspect_globals(api) -> Any:
 
 
 @timed
-async def inspect_expression(api, expression: str, frame_id: int | None) -> Any:
+async def inspect_expression(service, expression: str, frame_id: int | None) -> Any:
     """Evaluate a custom expression."""
     truncated_expr = (
         expression[:LOG_EXPRESSION_PREVIEW_LENGTH]
@@ -114,7 +116,8 @@ async def inspect_expression(api, expression: str, frame_id: int | None) -> Any:
         },
     )
     try:
-        result = await api.introspection.evaluate(expression, frame_id=frame_id)
+        # Phase 2: use service.variables.evaluate()
+        result = await service.variables.evaluate(expression, frame_id=frame_id)
 
         logger.info(
             "Expression evaluation completed",

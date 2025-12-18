@@ -18,7 +18,7 @@ from .inspect_variables import inspect_globals, inspect_locals
 logger = get_logger(__name__)
 
 
-async def _safe_inspect(name: str, inspect_func, api) -> tuple[Any | None, bool]:
+async def _safe_inspect(name: str, inspect_func, service) -> tuple[Any | None, bool]:
     """Safely call an inspection function, returning (result, success).
 
     Parameters
@@ -27,8 +27,8 @@ async def _safe_inspect(name: str, inspect_func, api) -> tuple[Any | None, bool]
         Name of the inspection target for logging
     inspect_func : Callable
         The inspection function to call (e.g., inspect_locals)
-    api
-        The debug API instance
+    service
+        The DebugService instance (Phase 2)
 
     Returns
     -------
@@ -36,7 +36,7 @@ async def _safe_inspect(name: str, inspect_func, api) -> tuple[Any | None, bool]
         (result, success) where result is the inspection data or None on failure
     """
     try:
-        result = await inspect_func(api)
+        result = await inspect_func(service)
         return result, True
     except Exception as e:
         logger.debug(
@@ -49,7 +49,7 @@ async def _safe_inspect(name: str, inspect_func, api) -> tuple[Any | None, bool]
 
 
 @timed
-async def inspect_all(api) -> dict[str, Any]:
+async def inspect_all(service) -> dict[str, Any]:
     """Inspect all available information.
 
     Gathers comprehensive debugging information by calling the individual
@@ -58,8 +58,8 @@ async def inspect_all(api) -> dict[str, Any]:
 
     Parameters
     ----------
-    api
-        The debug API instance
+    service
+        The DebugService instance (Phase 2)
 
     Returns
     -------
@@ -86,7 +86,7 @@ async def inspect_all(api) -> dict[str, Any]:
     ]
 
     for name, inspect_func in inspection_targets:
-        data, success = await _safe_inspect(name, inspect_func, api)
+        data, success = await _safe_inspect(name, inspect_func, service)
         if success and data is not None:
             all_data[name] = data
             gathered_count += 1

@@ -20,8 +20,9 @@ from .constants import DetailedExecutionStatus, ExecutionState
 from .response_limiter import ResponseLimiter
 
 if TYPE_CHECKING:
-    from aidb import DebugAPI
+    from aidb import DebugService
     from aidb.common.code_context import CodeContextResult
+    from aidb.session import Session
 
     from ..session.context import MCPSessionContext
 
@@ -95,13 +96,13 @@ def _get_execution_state(session_context: Any | None) -> str:
     return ExecutionState.UNKNOWN.value
 
 
-async def _gather_stack_info(debug_api: DebugAPI) -> dict[str, Any]:
+async def _gather_stack_info(service: DebugService | None) -> dict[str, Any]:
     """Gather stack trace information.
 
     Parameters
     ----------
-    debug_api : DebugAPI
-        The debug API instance
+    service : DebugService | None
+        The debug service instance
 
     Returns
     -------
@@ -116,11 +117,11 @@ async def _gather_stack_info(debug_api: DebugAPI) -> dict[str, Any]:
         "thread_info": None,
     }
 
-    if not hasattr(debug_api, "introspection"):
+    if not service:
         return result
 
     try:
-        stack_response = await debug_api.introspection.callstack()
+        stack_response = await service.stack.callstack()
         if not stack_response or not stack_response.frames:
             return result
 
@@ -168,25 +169,25 @@ async def _gather_stack_info(debug_api: DebugAPI) -> dict[str, Any]:
 
 
 async def _gather_breakpoint_info(
-    debug_api: DebugAPI,
+    service: DebugService | None,
 ) -> list[dict[str, int | bool | str | None]]:
     """Gather active breakpoint information.
 
     Parameters
     ----------
-    debug_api : DebugAPI
-        The debug API instance
+    service : DebugService | None
+        The debug service instance
 
     Returns
     -------
     list[dict[str, int | bool | str | None]]
         List of active breakpoint info
     """
-    if not hasattr(debug_api, "orchestration"):
+    if not service:
         return []
 
     try:
-        response = await debug_api.orchestration.list_breakpoints()
+        response = await service.breakpoints.list()
         if not response or not response.breakpoints:
             return []
 
@@ -205,7 +206,8 @@ async def _gather_breakpoint_info(
 
 
 async def gather_execution_context(
-    debug_api: DebugAPI | None,
+    session: Session | None,
+    service: DebugService | None,
     session_id: str,
     session_context: Any | None = None,
 ) -> dict[str, Any]:
@@ -213,8 +215,10 @@ async def gather_execution_context(
 
     Parameters
     ----------
-    debug_api : Optional[DebugAPI]
-        The debug API instance
+    session : Session | None
+        The debug session instance
+    service : DebugService | None
+        The debug service instance
     session_id : str
         The session ID
     session_context : Optional[Any]
@@ -238,20 +242,20 @@ async def gather_execution_context(
         "breakpoints_active": [],
     }
 
-    if not debug_api or not debug_api.started:
+    if not session or not session.started:
         logger.debug("No active debug session for context gathering: %s", session_id)
         return context
 
     try:
         if not session_context:
-            _, _, session_context = get_or_create_session(session_id)
+            _, session_context = get_or_create_session(session_id)
 
         context["execution_state"] = _get_execution_state(session_context)
 
-        stack_info = await _gather_stack_info(debug_api)
+        stack_info = await _gather_stack_info(service)
         context.update(stack_info)
 
-        context["breakpoints_active"] = await _gather_breakpoint_info(debug_api)
+        context["breakpoints_active"] = await _gather_breakpoint_info(service)
 
     except Exception as e:
         logger.warning("Error gathering execution context: %s", e)
@@ -399,7 +403,7 @@ def _map_session_status_to_detailed_status(
 
 
 def determine_detailed_status(
-    api: DebugAPI | None,
+    session: Session | None,
     context: MCPSessionContext | None,
     stop_reason: DAPStopReason | str | None,
 ) -> DetailedExecutionStatus:
@@ -410,8 +414,8 @@ def determine_detailed_status(
 
     Parameters
     ----------
-    api : DebugAPI | None
-        Debug API instance to check session state
+    session : Session | None
+        Debug session instance to check session state
     context : MCPSessionContext | None
         Session context with current state
     stop_reason : DAPStopReason | str | None
@@ -423,8 +427,8 @@ def determine_detailed_status(
         Combined status for clear messaging
     """
     # Try to get status from core session first (primary source)
-    if api and hasattr(api, "session") and api.session:
-        core_status = api.session.status
+    if session:
+        core_status = session.status
         breakpoints_set = bool(context.breakpoints_set) if context else False
         return _map_session_status_to_detailed_status(
             core_status,
@@ -510,15 +514,15 @@ def get_next_action_guidance(
 
 
 async def get_code_snapshot_if_paused(
-    debug_api: DebugAPI,
+    session: Session | None,
     context: MCPSessionContext | None,
 ) -> CodeContextResult | None:
     """Get code snapshot if debugger is paused.
 
     Parameters
     ----------
-    debug_api : DebugAPI
-        Debug API instance
+    session : Session | None
+        Debug session instance
     context : MCPSessionContext | None
         Session context with current location
 
@@ -541,8 +545,8 @@ async def get_code_snapshot_if_paused(
     try:
         # Get source path resolver from adapter if available
         source_path_resolver = None
-        if debug_api and debug_api.session and debug_api.session.adapter:
-            source_path_resolver = debug_api.session.adapter.source_path_resolver
+        if session and session.adapter:
+            source_path_resolver = session.adapter.source_path_resolver
 
         # Create CodeContext instance with source paths for remote debugging
         source_paths = context.source_paths if context else []
@@ -586,7 +590,7 @@ async def get_code_snapshot_if_paused(
 
 
 def build_error_execution_state(
-    api: DebugAPI | None,
+    session: Session | None,
     context: MCPSessionContext | None,
     include_error_context: bool = False,
 ) -> dict[str, Any]:
@@ -597,8 +601,8 @@ def build_error_execution_state(
 
     Parameters
     ----------
-    api : DebugAPI | None
-        Debug API instance
+    session : Session | None
+        Debug session instance
     context : MCPSessionContext | None
         Session context
     include_error_context : bool
@@ -611,7 +615,7 @@ def build_error_execution_state(
         and breakpoints_active fields
     """
     try:
-        detailed_status = determine_detailed_status(api, context, None)
+        detailed_status = determine_detailed_status(session, context, None)
         state: dict[str, Any] = {
             "status": detailed_status.value,
             "session_state": (
@@ -658,7 +662,7 @@ class ResponseContext:
 
 
 async def build_response_context(
-    api: DebugAPI | None,
+    session: Session | None,
     context: MCPSessionContext | None,
     stop_reason: str | None = None,
     is_paused: bool = True,
@@ -670,8 +674,8 @@ async def build_response_context(
 
     Parameters
     ----------
-    api : DebugAPI | None
-        Debug API instance
+    session : Session | None
+        Debug session instance
     context : MCPSessionContext | None
         Session context with current location and state
     stop_reason : str | None
@@ -690,7 +694,7 @@ async def build_response_context(
         location = f"{context.current_file}:{context.current_line}"
 
     # Determine detailed status
-    detailed_status = determine_detailed_status(api, context, stop_reason)
+    detailed_status = determine_detailed_status(session, context, stop_reason)
 
     # Check for breakpoints
     has_breakpoints = bool(context.breakpoints_set) if context else False
@@ -698,7 +702,7 @@ async def build_response_context(
     # Get code snapshot if paused
     code_context = None
     if is_paused and context:
-        code_context = await get_code_snapshot_if_paused(api, context)
+        code_context = await get_code_snapshot_if_paused(session, context)
 
     return ResponseContext(
         location=location,

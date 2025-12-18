@@ -31,9 +31,9 @@ class TestCheckConnectionHealth:
         """Test that health check returns True when all sessions are healthy."""
         from aidb_mcp.session.health import check_connection_health
 
-        _, api, _ = populated_session_state
-        # Ensure session_info access doesn't raise
-        api.session_info = MagicMock(id="test-123")
+        _, service, _ = populated_session_state
+        # Ensure session.info access doesn't raise
+        service.session.info = MagicMock(id="test-123")
 
         result = check_connection_health()
 
@@ -46,8 +46,8 @@ class TestCheckConnectionHealth:
         """Test that health check can target a specific session."""
         from aidb_mcp.session.health import check_connection_health
 
-        session_id, api, _ = populated_session_state
-        api.session_info = MagicMock(id="test-123")
+        session_id, service, _ = populated_session_state
+        service.session.info = MagicMock(id="test-123")
 
         result = check_connection_health(session_id=session_id)
 
@@ -55,10 +55,10 @@ class TestCheckConnectionHealth:
 
     def test_check_connection_health_not_started(
         self,
-        mock_debug_api_not_started: MagicMock,
+        mock_debug_service_not_started: MagicMock,
         mock_mcp_session_context: MagicMock,
     ) -> None:
-        """Test that health check skips sessions where api.started=False."""
+        """Test that health check skips sessions where service.session.started=False."""
         from aidb_mcp.session.health import check_connection_health
         from aidb_mcp.session.manager_shared import (
             _DEBUG_SESSIONS,
@@ -66,7 +66,7 @@ class TestCheckConnectionHealth:
         )
 
         session_id = "not-started-session"
-        _DEBUG_SESSIONS[session_id] = mock_debug_api_not_started
+        _DEBUG_SESSIONS[session_id] = mock_debug_service_not_started
         _SESSION_CONTEXTS[session_id] = mock_mcp_session_context
 
         result = check_connection_health()
@@ -78,12 +78,12 @@ class TestCheckConnectionHealth:
         self,
         populated_session_state: tuple[str, MagicMock, MagicMock],
     ) -> None:
-        """Test that health check handles api.session_info exception."""
+        """Test that health check handles service.session.info exception."""
         from aidb_mcp.session.health import check_connection_health
 
-        _, api, _ = populated_session_state
-        # Make session_info access raise
-        type(api).session_info = property(
+        _, service, _ = populated_session_state
+        # Make session.info access raise
+        type(service.session).info = property(
             lambda self: (_ for _ in ()).throw(RuntimeError("Connection lost"))
         )
 
@@ -99,8 +99,8 @@ class TestCheckConnectionHealth:
         import aidb_mcp.session.health as health_module
         from aidb_mcp.session.health import check_connection_health
 
-        _, api, _ = populated_session_state
-        api.session_info = MagicMock(id="test-123")
+        _, service, _ = populated_session_state
+        service.session.info = MagicMock(id="test-123")
 
         initial_heartbeat = health_module._last_heartbeat
 
@@ -125,8 +125,8 @@ class TestCheckConnectionHealth:
         from aidb_mcp.session.health import check_connection_health
 
         # Make one session unhealthy
-        _, api, _ = multiple_sessions_state[1]
-        type(api).session_info = property(
+        _, service, _ = multiple_sessions_state[1]
+        type(service.session).info = property(
             lambda self: (_ for _ in ()).throw(RuntimeError("Connection lost"))
         )
 
@@ -164,9 +164,10 @@ class TestHeartbeatMonitor:
         from aidb_mcp.session.manager_shared import _DEBUG_SESSIONS
 
         # Add a session that will fail health check
-        api = MagicMock()
-        api.started = True
-        _DEBUG_SESSIONS["test-session"] = api
+        service = MagicMock()
+        service.session = MagicMock()
+        service.session.started = True
+        _DEBUG_SESSIONS["test-session"] = service
 
         with (
             patch(
@@ -242,14 +243,14 @@ class TestAttemptRecovery:
 
     async def test_attempt_recovery_no_context(
         self,
-        mock_debug_api: MagicMock,
+        mock_debug_service: MagicMock,
     ) -> None:
         """Test that recovery returns False if no context."""
         from aidb_mcp.session.health import attempt_recovery
         from aidb_mcp.session.manager_shared import _DEBUG_SESSIONS
 
         session_id = "no-context-session"
-        _DEBUG_SESSIONS[session_id] = mock_debug_api
+        _DEBUG_SESSIONS[session_id] = mock_debug_service
         # Don't add to _SESSION_CONTEXTS
 
         result = await attempt_recovery(session_id)
@@ -258,7 +259,7 @@ class TestAttemptRecovery:
 
     async def test_attempt_recovery_not_started(
         self,
-        mock_debug_api: MagicMock,
+        mock_debug_service: MagicMock,
         mock_mcp_session_context_not_started: MagicMock,
     ) -> None:
         """Test that recovery returns False if session_started=False."""
@@ -269,7 +270,7 @@ class TestAttemptRecovery:
         )
 
         session_id = "not-started-session"
-        _DEBUG_SESSIONS[session_id] = mock_debug_api
+        _DEBUG_SESSIONS[session_id] = mock_debug_service
         _SESSION_CONTEXTS[session_id] = mock_mcp_session_context_not_started
 
         result = await attempt_recovery(session_id)
@@ -278,7 +279,7 @@ class TestAttemptRecovery:
 
     async def test_attempt_recovery_no_session_info(
         self,
-        mock_debug_api: MagicMock,
+        mock_debug_service: MagicMock,
         mock_mcp_session_context_no_session_info: MagicMock,
     ) -> None:
         """Test that recovery returns False if no session_info."""
@@ -289,7 +290,7 @@ class TestAttemptRecovery:
         )
 
         session_id = "no-info-session"
-        _DEBUG_SESSIONS[session_id] = mock_debug_api
+        _DEBUG_SESSIONS[session_id] = mock_debug_service
         _SESSION_CONTEXTS[session_id] = mock_mcp_session_context_no_session_info
 
         result = await attempt_recovery(session_id)
@@ -303,16 +304,15 @@ class TestAttemptRecovery:
         """Test that recovery calls reconnect and returns True on success."""
         from aidb_mcp.session.health import attempt_recovery
 
-        session_id, api, context = populated_session_state
+        session_id, service, context = populated_session_state
         context.session_started = True
         context.session_info = MagicMock(id="original-id")
-        api.session = MagicMock()
-        api.session.reconnect = MagicMock()
+        service.session.reconnect = MagicMock()
 
         result = await attempt_recovery(session_id)
 
         assert result is True
-        api.session.reconnect.assert_called_once()
+        service.session.reconnect.assert_called_once()
 
     async def test_attempt_recovery_reconnect_failure(
         self,
@@ -321,11 +321,10 @@ class TestAttemptRecovery:
         """Test that recovery marks session dead on reconnect failure."""
         from aidb_mcp.session.health import attempt_recovery
 
-        session_id, api, context = populated_session_state
+        session_id, service, context = populated_session_state
         context.session_started = True
         context.session_info = MagicMock(id="original-id")
-        api.session = MagicMock()
-        api.session.reconnect.side_effect = RuntimeError("Reconnect failed")
+        service.session.reconnect.side_effect = RuntimeError("Reconnect failed")
 
         result = await attempt_recovery(session_id)
 

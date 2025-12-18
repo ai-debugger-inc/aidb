@@ -5,7 +5,7 @@ Handles the breakpoint tool for setting, removing, and listing breakpoints.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from aidb_common.constants import Language
 from aidb_logging import get_mcp_logger as get_logger
@@ -19,17 +19,23 @@ from ...responses.errors import InternalError, UnsupportedOperationError
 from ...responses.helpers import (
     internal_error,
     invalid_parameter,
+    is_session_paused,
     missing_parameter,
 )
-
-if TYPE_CHECKING:
-    from ...core.types import BreakpointSpec
 
 logger = get_logger(__name__)
 
 
-async def _handle_set_breakpoint(api, context, args: dict[str, Any]) -> dict[str, Any]:
+async def _handle_set_breakpoint(
+    service,
+    context,
+    args: dict[str, Any],
+) -> dict[str, Any]:
     """Handle SET breakpoint action."""
+    from aidb.dap.protocol.bodies import SetBreakpointsArguments
+    from aidb.dap.protocol.requests import SetBreakpointsRequest
+    from aidb.dap.protocol.types import Source, SourceBreakpoint
+
     location = args.get(ParamName.LOCATION)
     if not location:
         logger.debug(
@@ -51,10 +57,10 @@ async def _handle_set_breakpoint(api, context, args: dict[str, Any]) -> dict[str
         },
     )
 
-    # Validate hit condition if provided
+    # Validate hit condition if provided (Phase 2: using service)
     hit_condition = args.get(ParamName.HIT_CONDITION)
     if hit_condition:
-        is_valid, error_msg = api.orchestration.validate_hit_condition(hit_condition)
+        is_valid, error_msg = service.breakpoints.validate_hit_condition(hit_condition)
         if not is_valid:
             return invalid_parameter(
                 param_name="hit_condition",
@@ -78,21 +84,23 @@ async def _handle_set_breakpoint(api, context, args: dict[str, Any]) -> dict[str
         )
     file_path, line = parsed
 
-    # Build BreakpointSpec with all parameters
-    bp_spec: BreakpointSpec = {
-        "file": file_path,
-        "line": line,
-    }
+    # Build DAP request (Phase 2: using service with DAP request)
     condition = args.get(ParamName.CONDITION)
-    if condition:
-        bp_spec["condition"] = condition
-    if hit_condition:
-        bp_spec["hit_condition"] = hit_condition
     log_message = args.get(ParamName.LOG_MESSAGE)
-    if log_message:
-        bp_spec["log_message"] = log_message
 
-    response = await api.orchestration.breakpoint(bp_spec)
+    source_bp = SourceBreakpoint(line=line)
+    if condition:
+        source_bp.condition = condition
+    if hit_condition:
+        source_bp.hitCondition = hit_condition
+    if log_message:
+        source_bp.logMessage = log_message
+
+    source = Source(path=file_path)
+    bp_args = SetBreakpointsArguments(source=source, breakpoints=[source_bp])
+    request = SetBreakpointsRequest(seq=0, arguments=bp_args)
+
+    response = await service.breakpoints.set(request)
 
     # Extract verification status from the response
     # Response contains a dict of breakpoints, get the first one
@@ -117,7 +125,7 @@ async def _handle_set_breakpoint(api, context, args: dict[str, Any]) -> dict[str
 
 
 async def _handle_remove_breakpoint(
-    api,
+    service,
     context,
     args: dict[str, Any],
 ) -> dict[str, Any]:
@@ -136,10 +144,10 @@ async def _handle_remove_breakpoint(
 
     file_path, line_to_remove = parsed
 
-    # Use the new remove_breakpoint method from the session layer
-    if file_path and line_to_remove and api:
+    # Use service to remove breakpoint (Phase 2)
+    if file_path and line_to_remove and service:
         try:
-            await api.orchestration.remove_breakpoint(file_path, line_to_remove)
+            await service.breakpoints.remove(file_path, line_to_remove)
             removed_count = 1
 
             # Update session context if available
@@ -174,27 +182,26 @@ async def _handle_remove_breakpoint(
 
 
 async def _handle_list_breakpoints(
-    api,
+    service,
     context,
     _args: dict[str, Any],
 ) -> dict[str, Any]:
     """Handle LIST breakpoint action.
 
-    Delegates to the public API method which handles:
-    - Waiting for breakpoint verification (prevents race conditions)
-    - Child session resolution (JavaScript)
+    Delegates to the service method which handles:
+    - Breakpoint state retrieval from session store
     - Proper breakpoint state retrieval
 
     Note: This handler works on terminated sessions because:
     1. The @mcp_tool decorator allows 'list' action on terminated sessions
-    2. The API's list_breakpoints() accesses preserved breakpoint state
+    2. The service's list_all() accesses preserved breakpoint state
     """
     breakpoints = []
 
-    # Get breakpoints from API (works even on terminated sessions
-    # since we preserve breakpoint state on termination)
-    if api:
-        response = await api.orchestration.list_breakpoints()
+    # Get breakpoints from service (Phase 2)
+    # Works even on terminated sessions since we preserve breakpoint state
+    if service:
+        response = await service.breakpoints.list_all()
 
         # Convert AidbBreakpointsResponse to MCP format
         if response.breakpoints:
@@ -214,7 +221,7 @@ async def _handle_list_breakpoints(
                     bp_info["log_message"] = bp.log_message
                 breakpoints.append(bp_info)
 
-    # Fallback if no API available (shouldn't happen in normal operation)
+    # Fallback if no service available (shouldn't happen in normal operation)
     elif context and hasattr(context, "breakpoints_set"):
         for bp in context.breakpoints_set:
             if "id" not in bp or bp["id"] in (None, ""):
@@ -228,21 +235,21 @@ async def _handle_list_breakpoints(
 
 
 async def _handle_clear_all_breakpoints(
-    api,
+    service,
     context,
     _args: dict[str, Any],
 ) -> dict[str, Any]:
     """Handle CLEAR_ALL breakpoint action."""
     cleared_count = 0
 
-    # Count breakpoints before clearing (use public property)
-    if api and api.session:
-        cleared_count = api.session.breakpoint_count
+    # Count breakpoints before clearing (use service.session)
+    if service and service.session:
+        cleared_count = service.session.breakpoint_count
 
-    # Clear all breakpoints via the API
-    if api:
+    # Clear all breakpoints via the service (Phase 2)
+    if service:
         try:
-            await api.orchestration.clear_breakpoints(clear_all=True)
+            await service.breakpoints.clear(clear_all=True)
         except Exception as e:
             logger.error("Failed to clear all breakpoints: %s", e)
             return internal_error(
@@ -263,7 +270,7 @@ async def _handle_clear_all_breakpoints(
 
 
 async def _handle_watch_breakpoint(
-    api,
+    service,
     _context,
     args: dict[str, Any],
 ) -> dict[str, Any]:
@@ -272,8 +279,12 @@ async def _handle_watch_breakpoint(
     Watchpoints break when a variable is read or written. Only supported for Java
     debugging.
     """
-    # Validate language is Java
-    language = getattr(api.session, "language", None) if api.session else None
+    from aidb.dap.protocol.bodies import SetDataBreakpointsArguments
+    from aidb.dap.protocol.requests import SetDataBreakpointsRequest
+    from aidb.dap.protocol.types import DataBreakpoint
+
+    # Validate language is Java (Phase 2: using service.session)
+    language = getattr(service.session, "language", None) if service.session else None
     if language != Language.JAVA.value:
         return UnsupportedOperationError(
             operation="Watchpoints",
@@ -285,14 +296,9 @@ async def _handle_watch_breakpoint(
             ),
         ).to_mcp_response()
 
-    # Validate we're paused
-    session = api.session if api and hasattr(api, "session") else None
-    if (
-        session
-        and hasattr(session, "state")
-        and hasattr(session.state, "is_paused")
-        and not session.state.is_paused()
-    ):
+    # Validate we're paused - use shared utility for defensive checking
+    session = service.session if service else None
+    if session and not is_session_paused(session):
         return UnsupportedOperationError(
             operation="Set watchpoint",
             adapter_type="Java adapter",
@@ -327,8 +333,8 @@ async def _handle_watch_breakpoint(
     )
 
     try:
-        # Step 1: Resolve variable to get variablesReference
-        var_ref, error_msg = await api.introspection.resolve_variable(var_name)
+        # Step 1: Resolve variable to get variablesReference (Phase 2)
+        var_ref, error_msg = await service.variables.resolve_variable(var_name)
         if error_msg:
             return invalid_parameter(
                 param_name=ParamName.NAME,
@@ -337,9 +343,9 @@ async def _handle_watch_breakpoint(
                 error_message=error_msg,
             )
 
-        # Step 2: Get data breakpoint info
+        # Step 2: Get data breakpoint info (Phase 2)
         var_parts = var_name.split(".")
-        data_bp_info = await api.session.debug.get_data_breakpoint_info(
+        data_bp_info = await service.breakpoints.get_data_info(
             variable_reference=var_ref,
             name=var_parts[-1],
         )
@@ -355,13 +361,16 @@ async def _handle_watch_breakpoint(
                 ),
             ).to_mcp_response()
 
-        # Step 3: Set the data breakpoint
-        response = await api.orchestration.data_breakpoint(
-            data_id=data_bp_info.data_id,
-            access_type=access_type,
+        # Step 3: Set the data breakpoint using DAP request (Phase 2)
+        data_bp = DataBreakpoint(
+            dataId=data_bp_info.data_id,
+            accessType=access_type,
             condition=condition,
-            hit_condition=hit_condition,
+            hitCondition=hit_condition,
         )
+        bp_args = SetDataBreakpointsArguments(breakpoints=[data_bp])
+        request = SetDataBreakpointsRequest(seq=0, arguments=bp_args)
+        response = await service.breakpoints.set_data(request)
 
         return BreakpointMutationResponse(
             action="watch",
@@ -382,7 +391,7 @@ async def _handle_watch_breakpoint(
 
 
 async def _handle_unwatch_breakpoint(
-    api,
+    service,
     _context,
     args: dict[str, Any],
 ) -> dict[str, Any]:
@@ -390,8 +399,8 @@ async def _handle_unwatch_breakpoint(
 
     Removes a previously set watchpoint.
     """
-    # Validate language is Java
-    language = getattr(api.session, "language", None) if api.session else None
+    # Validate language is Java (Phase 2: using service.session)
+    language = getattr(service.session, "language", None) if service.session else None
     if language != Language.JAVA.value:
         return UnsupportedOperationError(
             operation="Watchpoints",
@@ -410,10 +419,10 @@ async def _handle_unwatch_breakpoint(
     logger.info("Removing watchpoint", extra={"variable_name": var_name})
 
     try:
-        # Clear all data breakpoints using the proper API layer
+        # Clear all data breakpoints using the service (Phase 2)
         # DAP's setDataBreakpoints replaces all data breakpoints
         # For per-watchpoint removal, we'd need to track and re-send without this one
-        await api.orchestration.clear_data_breakpoints()
+        await service.breakpoints.clear_data()
 
         return BreakpointMutationResponse(
             action="unwatch",
@@ -506,13 +515,13 @@ async def handle_breakpoint(args: dict[str, Any]) -> dict[str, Any]:
     )
 
     # Get session components from decorator
-    api = args.get("_api")
+    service = args.get("_service")
     context = args.get("_context")
 
     # The decorator guarantees these are present
-    if not api:
+    if not service:
         return InternalError(
-            error_message="Debug API not available",
+            error_message="DebugService not available",
         ).to_mcp_response()
 
     action_handlers = {
@@ -530,7 +539,7 @@ async def handle_breakpoint(args: dict[str, Any]) -> dict[str, Any]:
         action_handlers,
         default_action=BreakpointAction.SET,
         tool_name=ToolName.BREAKPOINT,
-        handler_args=(api, context),
+        handler_args=(service, context),
         normalize=True,
     )
 

@@ -6,7 +6,7 @@ import shutil
 import subprocess
 from typing import TYPE_CHECKING, Any
 
-from aidb.api.constants import DEFAULT_ADAPTER_HOST, DEFAULT_PYTHON_DEBUG_PORT
+from aidb.common.constants import DEFAULT_ADAPTER_HOST, DEFAULT_PYTHON_DEBUG_PORT
 from aidb_common.constants import Language
 from aidb_common.path import get_aidb_adapters_dir
 from aidb_logging import get_mcp_logger as get_logger

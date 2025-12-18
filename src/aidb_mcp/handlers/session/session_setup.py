@@ -111,8 +111,8 @@ def create_mcp_child_bridge_callback(
     return callback
 
 
-async def _create_session_for_mode(
-    debug_api: Any,
+def _create_session_for_mode(
+    session_manager: Any,
     mode: LaunchMode,
     language: str | None,
     breakpoints_parsed: list[BreakpointSpec],
@@ -128,8 +128,8 @@ async def _create_session_for_mode(
 
     Parameters
     ----------
-    debug_api : Any
-        The debug API instance
+    session_manager : SessionManager
+        The session manager instance
     mode : LaunchMode
         Launch mode (LAUNCH, ATTACH, or REMOTE_ATTACH)
     language : str, optional
@@ -197,7 +197,7 @@ async def _create_session_for_mode(
                 },
             )
 
-        return await debug_api.create_session(
+        return session_manager.create_session(
             target=target,
             language=language,
             breakpoints=breakpoints_parsed,
@@ -210,19 +210,23 @@ async def _create_session_for_mode(
             **additional_kwargs,
         )
     if mode == LaunchMode.ATTACH:
-        return await debug_api.create_session(
+        return session_manager.create_session(
             pid=pid,
             language=language,
             breakpoints=breakpoints_parsed,
+            workspace_root=args.get(ParamName.WORKSPACE_ROOT),
             on_child_created_callback=on_child_created_callback,
+            **additional_kwargs,
         )
     # REMOTE_ATTACH
-    return await debug_api.create_session(
+    return session_manager.create_session(
         host=host,
         port=port,
         language=language,
         breakpoints=breakpoints_parsed,
+        workspace_root=args.get(ParamName.WORKSPACE_ROOT),
         on_child_created_callback=on_child_created_callback,
+        **additional_kwargs,
     )
 
 
@@ -276,7 +280,7 @@ async def _setup_event_bridge(
     session: Any,
     session_id: str,
     session_context: Any,
-    debug_api: Any,
+    session_manager: Any,
 ) -> None:
     """Register MCP event bridge for parent session DAP events.
 
@@ -293,8 +297,8 @@ async def _setup_event_bridge(
         Session identifier
     session_context : Any
         Session context for storing bridge reference
-    debug_api : Any
-        Debug API instance (for compatibility)
+    session_manager : SessionManager
+        Session manager instance for resolving active session
     """
     try:
         notification_manager = get_notification_manager()
@@ -302,7 +306,9 @@ async def _setup_event_bridge(
 
         # Only register if this is NOT a parent session with children
         # (JavaScript uses child sessions for debugging)
-        active_session = debug_api.get_active_session() if debug_api else session
+        active_session = (
+            session_manager.get_active_session() if session_manager else session
+        )
         if active_session and active_session != session:
             # This is a parent with a child session
             # Child session bridge was already registered via callback
@@ -339,7 +345,8 @@ async def _setup_event_bridge(
 
 def _check_if_paused(
     session_context: Any,
-    debug_api: Any,
+    session: Any,
+    session_manager: Any = None,
 ) -> bool:
     """Check if session is currently paused at a breakpoint.
 
@@ -349,15 +356,23 @@ def _check_if_paused(
     ----------
     session_context : Any
         Session context to update with running state
-    debug_api : Any
-        Debug API instance
+    session : Any
+        Debug session instance
+    session_manager : Any, optional
+        Session manager for resolving active session
 
     Returns
     -------
     bool
         True if session is paused at a breakpoint
     """
-    if debug_api.session and debug_api.session.is_paused():
+    # Resolve to active session (handles languages with parent/child patterns)
+    active_session = (
+        session_manager.get_active_session() if session_manager else session
+    )
+    check_session = active_session or session
+
+    if check_session and check_session.is_paused():
         logger.debug("Session is paused at breakpoint")
         session_context.is_running = False
         return True
@@ -368,7 +383,6 @@ def _check_if_paused(
 
 
 async def _start_and_verify_session(
-    debug_api: Any,
     session: Any,
     session_id: str,
     mode: LaunchMode,
@@ -393,24 +407,24 @@ async def _start_and_verify_session(
         ).to_mcp_response()
 
     # Verify the session is actually started
-    if not debug_api.started:
+    if not session.started:
         logger.warning(
-            "Session start returned success but debug_api.started is False",
+            "Session start returned success but session.started is False",
             extra={
                 "session_id": session_id,
-                "has_session": debug_api.session is not None,
+                "has_session": session is not None,
             },
         )
         # Force a check to see if session is there
-        if debug_api.session:
+        if session:
             logger.info(
                 "Session exists despite started flag",
                 extra={
-                    "session_id": debug_api.session.id,
-                    "started": debug_api.session.started,
+                    "session_id": session.id,
+                    "started": session.started,
                     "state": (
                         SessionState.RUNNING.name
-                        if debug_api.session.started
+                        if session.started
                         else SessionState.STOPPED.name
                     ),
                 },

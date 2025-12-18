@@ -13,7 +13,7 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
-from aidb.api.constants import DOWNLOAD_TIMEOUT_S
+from aidb.common.constants import DOWNLOAD_TIMEOUT_S
 from aidb.patterns import Obj
 from aidb.session.adapter_registry import AdapterRegistry
 from aidb_common.config import config as env_config

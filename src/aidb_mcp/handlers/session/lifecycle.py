@@ -8,6 +8,7 @@ from __future__ import annotations
 import contextlib
 from typing import Any
 
+from aidb_common.constants import Language
 from aidb_logging import get_mcp_logger as get_logger
 
 from ...core import (
@@ -51,6 +52,60 @@ from .validation import _validate_and_prepare_session, _validate_target_syntax
 logger = get_logger(__name__)
 
 
+def _resolve_source_paths(
+    args: dict[str, Any],
+    language: str,
+    session_id: str,
+) -> list[str]:
+    """Resolve source paths, auto-detecting for Java projects if needed.
+
+    Parameters
+    ----------
+    args : dict
+        Session arguments containing SOURCE_PATHS and WORKSPACE_ROOT
+    language : str
+        Programming language
+    session_id : str
+        Session ID for logging
+
+    Returns
+    -------
+    list[str]
+        Resolved source paths (explicit or auto-detected)
+    """
+    source_paths = args.get(ParamName.SOURCE_PATHS, [])
+    workspace_root = args.get(ParamName.WORKSPACE_ROOT)
+
+    # Auto-detect source paths for Java projects if not explicitly provided
+    if not source_paths and workspace_root and language == Language.JAVA:
+        from aidb.adapters.lang.java.source_detection import (
+            detect_java_source_paths,
+        )
+
+        auto_detected = detect_java_source_paths(workspace_root)
+        if auto_detected:
+            source_paths = auto_detected
+            logger.info(
+                "Auto-detected Java source paths",
+                extra={
+                    "session_id": session_id,
+                    "count": len(auto_detected),
+                    "paths_sample": auto_detected[:3],
+                },
+            )
+
+    if source_paths:
+        logger.debug(
+            "Stored source paths for code context resolution",
+            extra={
+                "session_id": session_id,
+                "source_paths_count": len(source_paths),
+            },
+        )
+
+    return source_paths
+
+
 async def handle_session_start(args: dict[str, Any]) -> dict[str, Any]:
     """Handle unified session start - combines create + start operations.
 
@@ -66,12 +121,17 @@ async def handle_session_start(args: dict[str, Any]) -> dict[str, Any]:
         try:
             (
                 session_id,
-                debug_api,
                 session_context,
                 mode,
                 language,
                 breakpoints_parsed,
             ) = await _validate_and_prepare_session(args)
+
+            # Create SessionManager locally for session creation
+            # (not stored in registry - only DebugService is stored after start)
+            from aidb.session import SessionManager
+
+            session_manager = SessionManager()
         except ValueError as e:
             error_msg = str(e)
 
@@ -128,8 +188,8 @@ async def handle_session_start(args: dict[str, Any]) -> dict[str, Any]:
         try:
             # Create the session with appropriate parameters
             # Pass session_id and session_context for child bridge callback
-            session = await _create_session_for_mode(
-                debug_api=debug_api,
+            session = _create_session_for_mode(
+                session_manager=session_manager,
                 mode=mode,
                 language=language,
                 breakpoints_parsed=breakpoints_parsed,
@@ -145,7 +205,6 @@ async def handle_session_start(args: dict[str, Any]) -> dict[str, Any]:
             # Start and verify the session
             # For JavaScript, child session is created during this call
             start_error = await _start_and_verify_session(
-                debug_api=debug_api,
                 session=session,
                 session_id=session_id,
                 mode=mode,
@@ -160,6 +219,24 @@ async def handle_session_start(args: dict[str, Any]) -> dict[str, Any]:
             # Mark the session context as started
             session_context.session_started = True
 
+            # Create and store DebugService wrapping the session
+            from aidb import DebugService
+
+            from ...session.manager_core import set_service
+            from ...session.manager_shared import _DEBUG_SESSIONS
+
+            service = DebugService(session)
+            set_service(session_id, service)
+
+            # Store DebugService in _DEBUG_SESSIONS for backward compatibility
+            # DebugService now has .started, .session_info, .session properties
+            _DEBUG_SESSIONS[session_id] = service
+
+            logger.debug(
+                "Created DebugService for session",
+                extra={"session_id": session_id},
+            )
+
             # Setup event bridge AFTER starting session
             # This ensures child sessions exist (JavaScript pattern)
             # Registers with active session's event processor (child if exists)
@@ -167,13 +244,14 @@ async def handle_session_start(args: dict[str, Any]) -> dict[str, Any]:
                 session=session,
                 session_id=session_id,
                 session_context=session_context,
-                debug_api=debug_api,
+                session_manager=session_manager,
             )
 
             # Check if paused AFTER starting
             is_paused = _check_if_paused(
                 session_context=session_context,
-                debug_api=debug_api,
+                session=session,
+                session_manager=session_manager,
             )
 
             # Handle event subscriptions
@@ -194,16 +272,9 @@ async def handle_session_start(args: dict[str, Any]) -> dict[str, Any]:
             _store_breakpoints_in_context(session_context, breakpoints_parsed)
 
             # Store source paths for code context resolution (remote debugging)
-            source_paths = args.get(ParamName.SOURCE_PATHS, [])
+            source_paths = _resolve_source_paths(args, language, session_id)
             if source_paths:
                 session_context.source_paths = source_paths
-                logger.debug(
-                    "Stored source paths for code context resolution",
-                    extra={
-                        "session_id": session_id,
-                        "source_paths_count": len(source_paths),
-                    },
-                )
 
             # Store launch params for potential restart
             session_context.launch_params = {
@@ -232,14 +303,15 @@ async def handle_session_start(args: dict[str, Any]) -> dict[str, Any]:
             # Determine stop reason for context (always breakpoint)
             stop_reason = StopReason.BREAKPOINT
             detailed_status = determine_detailed_status(
-                debug_api,
+                session,
                 session_context,
                 stop_reason,
             )
 
             # Get code context and location if paused
             code_context, location = await _prepare_code_context_and_location(
-                debug_api,
+                session,
+                service,
                 session_context,
                 session_id,
                 is_paused,
@@ -284,7 +356,9 @@ async def handle_session_start(args: dict[str, Any]) -> dict[str, Any]:
             )
             # Clean up the session on failure
             with contextlib.suppress(Exception):
-                await debug_api.stop()
+                await session.stop()
+                await session.destroy()
+                session_manager.destroy_session()
 
             # Return a standardized error response
             return SessionStartFailedError(

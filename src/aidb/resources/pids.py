@@ -6,8 +6,8 @@ import signal
 import threading
 from typing import TYPE_CHECKING, Any, Optional
 
-from aidb.api.constants import PROCESS_WAIT_TIMEOUT_S
 from aidb.common import acquire_lock
+from aidb.common.constants import PROCESS_WAIT_TIMEOUT_S
 from aidb.patterns import Obj
 from aidb_common.patterns import Singleton
 from aidb_logging.utils import LogOnce

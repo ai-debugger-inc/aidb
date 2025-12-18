@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Optional
 import psutil
 
 from aidb.adapters.utils.output_capture import AdapterOutputCapture
-from aidb.api.constants import (
+from aidb.common.constants import (
     BACKOFF_MULTIPLIER,
     DEFAULT_ADAPTER_HOST,
     EVENT_POLL_TIMEOUT_S,

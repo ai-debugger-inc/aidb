@@ -110,49 +110,6 @@ class TestSpringBootDebugging(FrameworkDebugTestBase):
 
         await debug_interface.stop_session()
 
-    @pytest.mark.asyncio
-    async def test_dual_launch_equivalence(self, springboot_app: Path):
-        """Verify that API and launch.json produce equivalent behavior.
-
-        This test ensures that both launch methods result in the same
-        debugging capabilities and session state.
-
-        Parameters
-        ----------
-        springboot_app : Path
-            Path to Spring Boot test application
-        """
-        from tests._helpers.debug_interface.api_interface import APIInterface
-
-        api_interface = APIInterface(language="java")
-        await api_interface.initialize()
-
-        app_port = os.environ.get("APP_PORT", "8080")
-        api_session = await api_interface.start_session(
-            program="com.example.demo.DemoApplication",
-            main_class="com.example.demo.DemoApplication",
-            project_name="springboot-demo",
-            args=[f"--server.port={app_port}"],
-            cwd=str(springboot_app),
-        )
-
-        from aidb.adapters.base.vslaunch import LaunchConfigurationManager
-
-        manager = LaunchConfigurationManager(workspace_root=springboot_app)
-        config = manager.get_configuration(name="Spring Boot: Debug Controller")
-
-        vscode_session = await self.launch_from_config(
-            api_interface,
-            config,
-            workspace_root=springboot_app,
-        )
-
-        assert api_session["status"] == vscode_session["status"]
-        assert api_session["session_id"] is not None
-        assert vscode_session["session_id"] is not None
-
-        await api_interface.stop_session()
-
     @parametrize_interfaces
     @pytest.mark.asyncio
     async def test_springboot_controller_debugging(

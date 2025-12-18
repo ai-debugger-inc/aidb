@@ -5,7 +5,7 @@ import contextlib
 import time
 from typing import TYPE_CHECKING, Optional
 
-from aidb.api.constants import MAX_CONSECUTIVE_FAILURES, SHORT_SLEEP_S
+from aidb.common.constants import MAX_CONSECUTIVE_FAILURES, SHORT_SLEEP_S
 from aidb.common.errors import DebugConnectionError
 
 if TYPE_CHECKING:

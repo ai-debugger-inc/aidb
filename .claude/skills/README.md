@@ -32,8 +32,7 @@ Skills are modular knowledge bases that Claude loads when needed. They provide:
 
 **Priority:** CRITICAL - Automatically injected into context when detected
 
-**Main file:** `adapter-development/SKILL.md` (368 lines)
-**Resources:** 3 files (Python, JavaScript, Java patterns)
+**Main file:** `adapter-development/SKILL.md`
 
 ### 2. dap-protocol-guide (HIGH PRIORITY)
 
@@ -53,8 +52,7 @@ Skills are modular knowledge bases that Claude loads when needed. They provide:
 
 **Priority:** HIGH - Automatically injected into context when detected
 
-**Main file:** `dap-protocol-guide/SKILL.md` (464 lines)
-**Resources:** 2 files (initialization, breakpoints)
+**Main file:** `dap-protocol-guide/SKILL.md`
 
 ### 3. testing-strategy (HIGH PRIORITY)
 
@@ -74,8 +72,7 @@ Skills are modular knowledge bases that Claude loads when needed. They provide:
 
 **Priority:** HIGH - Automatically injected into context when detected
 
-**Main file:** `testing-strategy/SKILL.md` (518 lines)
-**Resources:** 3 files (DebugInterface, E2E patterns, framework tests)
+**Main file:** `testing-strategy/SKILL.md`
 
 ### 4. mcp-tools-development (HIGH PRIORITY)
 
@@ -95,8 +92,7 @@ Skills are modular knowledge bases that Claude loads when needed. They provide:
 
 **Priority:** HIGH - Automatically injected into context when detected
 
-**Main file:** `mcp-tools-development/SKILL.md` (645 lines)
-**Resources:** 1 file (tool architecture)
+**Main file:** `mcp-tools-development/SKILL.md`
 
 ### 5. code-reuse-enforcement (CRITICAL GUIDANCE)
 
@@ -116,8 +112,7 @@ Skills are modular knowledge bases that Claude loads when needed. They provide:
 
 **Priority:** CRITICAL - Automatically injected into context when detected
 
-**Main file:** `code-reuse-enforcement/SKILL.md` (434 lines)
-**Resources:** 2 files (constants discovery, enum patterns)
+**Main file:** `code-reuse-enforcement/SKILL.md`
 
 ## How Skills Activate
 

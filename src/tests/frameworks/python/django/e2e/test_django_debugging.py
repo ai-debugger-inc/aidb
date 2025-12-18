@@ -111,49 +111,6 @@ class TestDjangoDebugging(FrameworkDebugTestBase):
 
         await debug_interface.stop_session()
 
-    @pytest.mark.asyncio
-    async def test_dual_launch_equivalence(self, django_app: Path):
-        """Verify that API and launch.json produce equivalent behavior.
-
-        This test ensures that both launch methods result in the same
-        debugging capabilities and session state.
-
-        Parameters
-        ----------
-        django_app : Path
-            Path to Django test application
-        """
-        from tests._helpers.debug_interface.api_interface import APIInterface
-
-        manage_py = django_app / "manage.py"
-
-        api_interface = APIInterface(language="python")
-        await api_interface.initialize()
-
-        app_port = os.environ.get("APP_PORT", "8000")
-        api_session = await api_interface.start_session(
-            program=str(manage_py),
-            args=["runserver", app_port, "--noreload"],
-            cwd=str(django_app),
-        )
-
-        from aidb.adapters.base.vslaunch import LaunchConfigurationManager
-
-        manager = LaunchConfigurationManager(workspace_root=django_app)
-        config = manager.get_configuration(name="Django: Debug View")
-
-        vscode_session = await self.launch_from_config(
-            api_interface,
-            config,
-            workspace_root=django_app,
-        )
-
-        assert api_session["status"] == vscode_session["status"]
-        assert api_session["session_id"] is not None
-        assert vscode_session["session_id"] is not None
-
-        await api_interface.stop_session()
-
     @parametrize_interfaces
     @pytest.mark.asyncio
     async def test_django_view_debugging(

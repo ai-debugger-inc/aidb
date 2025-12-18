@@ -18,7 +18,12 @@ from ..responses.errors import (
     MissingParameterError,
     NoSessionError,
 )
-from ..session import _state_lock, get_or_create_session, get_session_id_from_args
+from ..session import (
+    _state_lock,
+    get_or_create_session,
+    get_service,
+    get_session_id_from_args,
+)
 from .constants import ParamName
 from .decorator_helpers import (
     _add_session_id_to_result,
@@ -74,7 +79,7 @@ def with_thread_safety(
                     return error
 
                 # Set up session context
-                sid, api, context = _setup_session_context(require_session, session_id)
+                sid, context = _setup_session_context(require_session, session_id)
 
                 # Log handler invocation
                 logger.debug(
@@ -97,10 +102,13 @@ def with_thread_safety(
                 if health_error:
                     return health_error
 
+                # Get service for this session (may be None before session_start)
+                service = get_service(sid) if sid else None
+
                 # Check if session is terminated (fail fast)
                 termination_error = _check_termination_status(
                     require_session,
-                    api,
+                    service,
                     sid,
                     args,
                     allow_on_terminated,
@@ -111,7 +119,7 @@ def with_thread_safety(
                 # Add session info to args for handler
                 if sid is not None:
                     args["_session_id"] = sid
-                    args["_api"] = api
+                    args["_service"] = service
                     args["_context"] = context
 
                 # Execute the handler
@@ -221,7 +229,7 @@ def require_initialized_session(func: Callable) -> Callable:
                 ),
             ).to_mcp_response()
 
-        _, _, context = get_or_create_session(session_id)
+        _, context = get_or_create_session(session_id)
         if not context.init_completed:
             logger.warning(
                 "Tool '%s' called on session without init",
@@ -244,7 +252,6 @@ def require_initialized_session(func: Callable) -> Callable:
 
         # Check for session (args should have been populated by @with_thread_safety)
         session_id = args.get("_session_id")
-        api = args.get("_api")
         context = cast("MCPSessionContext", args.get("_context"))
 
         # No session at all
@@ -262,8 +269,8 @@ def require_initialized_session(func: Callable) -> Callable:
                 requested_operation=tool_name,
             ).to_mcp_response()
 
-        # Session exists but API not started (shouldn't happen normally)
-        if api and not api.started:
+        # Session exists but not started (shouldn't happen normally)
+        if context and not context.session_started:
             from ..responses.errors import SessionNotStartedError
 
             logger.warning(

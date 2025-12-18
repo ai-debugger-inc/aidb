@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from aidb.adapters.downloader import AdapterDownloader
+from aidb.common.capabilities import DAPCapability
 from aidb_common.config import config
 from aidb_common.constants import Language
 from aidb_logging import get_mcp_logger as get_logger
@@ -180,7 +181,7 @@ async def _handle_config_adapters(_args: dict[str, Any]) -> dict[str, Any]:
                     "installed": False,
                     "status": AdapterStatus.MISSING.value,
                     "suggestions": [
-                        f"Use download_adapter tool with language='{language}'",
+                        f"Use adapter tool: action='download', language='{language}'",
                     ],
                 }
 
@@ -204,8 +205,8 @@ async def _handle_config_adapters(_args: dict[str, Any]) -> dict[str, Any]:
         # Add quick actions if any adapters are missing
         if installed_count < total_adapters:
             response_dict["quick_actions"] = [
-                "Use download_all_adapters tool to install all missing adapters",
-                "Use list_installed_adapters tool for detailed status",
+                "Use adapter tool: action='download_all' to install all",
+                "Use adapter tool: action='list' for detailed status",
             ]
 
         return response_dict
@@ -233,7 +234,7 @@ async def _handle_config_show(_args: dict[str, Any]) -> dict[str, Any]:
         from ...session import get_or_create_session
 
         try:
-            _, _, context = get_or_create_session(session_id)
+            _, context = get_or_create_session(session_id)
             target = (
                 context.session_info.target
                 if context and context.session_info
@@ -265,11 +266,11 @@ def _get_breakpoint_capabilities(capabilities: Any) -> list[str]:
     breakpoints = ["line"]  # Always support line breakpoints
 
     capability_map = {
-        "supportsConditionalBreakpoints": "conditional",
-        "supportsFunctionBreakpoints": "function",
-        "supportsLogPoints": "logpoints",
-        "supportsDataBreakpoints": "data",
-        "supportsInstructionBreakpoints": "instruction",
+        DAPCapability.CONDITIONAL_BREAKPOINTS: "conditional",
+        DAPCapability.FUNCTION_BREAKPOINTS: "function",
+        DAPCapability.LOG_POINTS: "logpoints",
+        DAPCapability.DATA_BREAKPOINTS: "data",
+        DAPCapability.INSTRUCTION_BREAKPOINTS: "instruction",
     }
 
     for attr, name in capability_map.items():
@@ -287,9 +288,9 @@ def _get_stepping_capabilities(capabilities: Any) -> list[str]:
         StepAction.OUT.value,
     ]
 
-    if getattr(capabilities, "supportsStepBack", False):
+    if getattr(capabilities, DAPCapability.STEP_BACK, False):
         stepping.append("back")
-    if getattr(capabilities, "supportsSteppingGranularity", False):
+    if getattr(capabilities, DAPCapability.STEPPING_GRANULARITY, False):
         stepping.append("granular")
 
     return stepping
@@ -300,10 +301,10 @@ def _get_evaluation_capabilities(capabilities: Any) -> list[str]:
     evaluation = []
 
     capability_map = {
-        "supportsEvaluateForHovers": "hover",
-        "supportsSetVariable": "set_variable",
-        "supportsSetExpression": "set_expression",
-        "supportsCompletionsRequest": "completions",
+        DAPCapability.EVALUATE_FOR_HOVERS: "hover",
+        DAPCapability.SET_VARIABLE: "set_variable",
+        DAPCapability.SET_EXPRESSION: "set_expression",
+        DAPCapability.COMPLETIONS: "completions",
     }
 
     for attr, name in capability_map.items():
@@ -318,12 +319,12 @@ def _get_advanced_capabilities(capabilities: Any) -> list[str]:
     advanced = []
 
     capability_map = {
-        "supportsRestartRequest": "restart",
-        "supportsTerminateRequest": "terminate",
-        "supportsReadMemoryRequest": "memory_read",
-        "supportsWriteMemoryRequest": "memory_write",
-        "supportsDisassembleRequest": "disassemble",
-        "supportsModulesRequest": "modules",
+        DAPCapability.RESTART: "restart",
+        DAPCapability.TERMINATE: "terminate",
+        DAPCapability.READ_MEMORY: "memory_read",
+        DAPCapability.WRITE_MEMORY: "memory_write",
+        DAPCapability.DISASSEMBLE: "disassemble",
+        DAPCapability.MODULES: "modules",
     }
 
     for attr, name in capability_map.items():

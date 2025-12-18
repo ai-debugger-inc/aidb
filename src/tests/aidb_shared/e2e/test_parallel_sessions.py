@@ -10,8 +10,15 @@ from tests._helpers.parametrization import parametrize_interfaces, parametrize_l
 from tests._helpers.test_bases.base_e2e_test import BaseE2ETest
 
 
+@pytest.mark.serial
+@pytest.mark.xdist_group(name="serial")
 class TestParallelSessions(BaseE2ETest):
-    """E2E tests for parallel session management."""
+    """E2E tests for parallel session management.
+
+    Marked serial because these tests create multiple concurrent debug sessions
+    internally. Running them under pytest-xdist parallel workers causes resource
+    contention (ports, adapters) that can lead to hangs.
+    """
 
     @parametrize_interfaces
     @parametrize_languages()

@@ -9,7 +9,8 @@ import random
 import time
 from pathlib import Path
 
-from aidb.api.constants import (
+from aidb.adapters.lang.java.tooling import JavaBuildSystemDetector
+from aidb.common.constants import (
     DEFAULT_WAIT_TIMEOUT_S,
     LSP_EXECUTE_COMMAND_TIMEOUT_S,
     LSP_MAVEN_IMPORT_TIMEOUT_S,
@@ -113,9 +114,8 @@ class WorkspaceManager(Obj):
         # not caller loop). Pooled bridges fall back to polling-based wait
         # which works correctly
         progress_ready = False
-        is_pooled = getattr(lsp_client, "_is_pooled", False)
         if (
-            not is_pooled
+            not lsp_client.is_pooled()
             and lsp_client
             and hasattr(lsp_client, "wait_for_maven_import_complete")
         ):
@@ -349,12 +349,7 @@ class WorkspaceManager(Obj):
             return
 
         # Validate it's a Maven/Gradle project
-        has_pom = (project_root / "pom.xml").exists()
-        has_gradle = (project_root / "build.gradle").exists() or (
-            project_root / "build.gradle.kts"
-        ).exists()
-
-        if not (has_pom or has_gradle):
+        if not JavaBuildSystemDetector.is_maven_gradle_project(project_root):
             self.ctx.warning(
                 f"No pom.xml or build.gradle found in {project_root} - "
                 "JDT LS may not be able to resolve dependencies",

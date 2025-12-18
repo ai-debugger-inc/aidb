@@ -58,7 +58,7 @@ This provides file excludes, search configuration, and venv selection. It is hig
 ./dev-cli test run -s shared -v
 
 # Run specific suite
-./dev-cli test run -s mcp --local
+./dev-cli test run -s mcp
 
 # Serve documentation
 ./dev-cli docs serve --build-first
@@ -110,7 +110,7 @@ src/
 ```bash
 bash scripts/install/src/install.sh  # Reinstall
 # or
-./dev-cli install reinstall --completion
+./dev-cli install reinstall
 ```
 
 ### Docker issues

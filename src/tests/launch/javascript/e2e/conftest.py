@@ -28,19 +28,9 @@ async def debug_interface(
     DebugInterface
         Debug interface configured for JavaScript
     """
-    from tests._fixtures.base import DebugInterfaceType
-    from tests._helpers.debug_interface import APIInterface, MCPInterface
+    from tests._helpers.debug_interface import MCPInterface
 
-    interface_type = getattr(request, "param", DebugInterfaceType.API.value)
-
-    if interface_type == DebugInterfaceType.MCP.value:
-        interface = MCPInterface(language="javascript")
-    elif interface_type == DebugInterfaceType.API.value:
-        interface = APIInterface(language="javascript")
-    else:
-        valid = [t.value for t in DebugInterfaceType]
-        msg = f"Unknown interface type: {interface_type}. Use {valid}"
-        raise ValueError(msg)
+    interface = MCPInterface(language="javascript")
 
     await interface.initialize(
         language="javascript",

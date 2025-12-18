@@ -12,7 +12,7 @@ from pathlib import Path
 # Add the scripts directory to path so we can import the adapters package
 sys.path.insert(0, str(Path(__file__).parent))
 
-from adapters import get_builder, ADAPTER_BUILDERS
+from adapters import ADAPTER_BUILDERS, get_builder
 
 
 def main():
@@ -35,7 +35,7 @@ def main():
             print(f"Error: Versions file not found: {versions_file}", file=sys.stderr)
             sys.exit(1)
 
-        with open(versions_file) as f:
+        with versions_file.open() as f:
             versions = json.load(f)
 
         # Handle list command
@@ -66,13 +66,13 @@ def main():
             platform_map = {
                 "darwin": "darwin",
                 "linux": "linux",
-                "windows": "windows"
+                "windows": "windows",
             }
             arch_map = {
                 "x86_64": "x64",
                 "amd64": "x64",
                 "arm64": "arm64",
-                "aarch64": "arm64"
+                "aarch64": "arm64",
             }
 
             platform_name = platform_map.get(system, system)
@@ -96,7 +96,7 @@ def main():
         builder = get_builder(args.adapter, versions, platform_name, arch)
         tarball_path, checksum = builder.build_adapter()
 
-        print(f"Successfully built adapter:")
+        print("Successfully built adapter:")
         print(f"  File: {tarball_path}")
         print(f"  Checksum: {checksum}")
 
@@ -110,10 +110,10 @@ def main():
             # Extract directly to cache dir, stripping the top-level directory
             for member in tar.getmembers():
                 # Skip the top-level directory itself
-                parts = member.name.split('/', 1)
+                parts = member.name.split("/", 1)
                 if len(parts) > 1:
                     # Skip macOS resource fork files
-                    if not parts[1].startswith('._') and '/._' not in parts[1]:
+                    if not parts[1].startswith("._") and "/._" not in parts[1]:
                         member.name = parts[1]
                         tar.extract(member, cache_dir)
 

@@ -35,14 +35,16 @@ def _remove_empty_locals(frames: Any) -> Any:
 
 
 @timed
-async def inspect_stack(api) -> Any:
+async def inspect_stack(service) -> Any:
     """Inspect call stack."""
     logger.debug(
         "Inspecting call stack",
         extra={"target": InspectTarget.STACK.name},
     )
     try:
-        result = await api.introspection.callstack()
+        # Get current thread_id first, then call stack (Phase 2 service pattern)
+        thread_id = await service.stack.get_current_thread_id()
+        result = await service.stack.callstack(thread_id)
         frames_data = result.frames if hasattr(result, "frames") else result
 
         if hasattr(frames_data, "__len__"):
@@ -93,15 +95,17 @@ async def inspect_stack(api) -> Any:
 
 
 @timed
-async def inspect_threads(api) -> Any:
+async def inspect_threads(service) -> Any:
     """Inspect threads."""
     logger.debug(
         "Inspecting threads",
         extra={"target": InspectTarget.THREADS.name},
     )
     try:
-        result = await api.introspection.threads()
+        # Phase 2: use service.stack.threads()
+        result = await service.stack.threads()
         threads_data = result.threads if hasattr(result, "threads") else result
+        current_thread = getattr(result, "current_thread_id", None)
 
         if hasattr(threads_data, "__len__"):
             thread_count = len(threads_data) if threads_data else 0
@@ -113,7 +117,34 @@ async def inspect_threads(api) -> Any:
         else:
             logger.debug("Threads result: %s", type(threads_data).__name__)
 
-        return to_jsonable(threads_data)
+        jsonable_threads = to_jsonable(threads_data)
+
+        if isinstance(jsonable_threads, dict):
+            limited_threads, was_truncated = ResponseLimiter.limit_threads(
+                jsonable_threads,
+                current_thread_id=current_thread,
+            )
+
+            if was_truncated:
+                logger.info(
+                    "Truncated threads from %d to %d",
+                    len(jsonable_threads),
+                    len(limited_threads),
+                    extra={
+                        "total_threads": len(jsonable_threads),
+                        "showing_threads": len(limited_threads),
+                    },
+                )
+                return {
+                    "threads": limited_threads,
+                    "truncated": True,
+                    "total_threads": len(jsonable_threads),
+                    "showing_threads": len(limited_threads),
+                }
+
+            return limited_threads
+
+        return jsonable_threads
     except Exception as e:
         logger.warning(
             "Failed to inspect threads: %s",
