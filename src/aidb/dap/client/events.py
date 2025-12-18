@@ -330,7 +330,7 @@ class EventProcessor(Obj):
         ):
             self.ctx.debug(
                 f"Ignoring spurious continued event (seq={continued_event.seq}) - "
-                f"received after stopped event (seq={self._last_stopped_event.seq})",
+                f"came after stopped (seq={self._last_stopped_event.seq})",
             )
             return
 

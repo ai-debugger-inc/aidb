@@ -123,11 +123,16 @@ class SessionState(Obj):
 
                 if is_child:
                     # Child session: Check stopped state first
-                    if hasattr(dap, "is_stopped") and dap.is_stopped:
+                    dap_is_stopped = hasattr(dap, "is_stopped") and dap.is_stopped
+                    dap_is_terminated = (
+                        hasattr(dap, "is_terminated") and dap.is_terminated
+                    )
+
+                    if dap_is_stopped:
                         return SessionStatus.PAUSED
 
                     # Then check if explicitly terminated
-                    if hasattr(dap, "is_terminated") and dap.is_terminated:
+                    if dap_is_terminated:
                         return SessionStatus.TERMINATED
 
                     # Child sessions are running if not stopped/terminated

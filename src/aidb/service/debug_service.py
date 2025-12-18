@@ -64,11 +64,17 @@ class DebugService(Obj):
 
     @property
     def session(self) -> "Session":
-        """Get the underlying debug session.
+        """Get the active debug session, resolving to child if applicable.
+
+        For languages with child sessions (e.g., JavaScript), the child session
+        becomes the active session once it exists. All operations are routed to
+        the child unconditionally.
 
         Returns
         -------
         Session
-            Debug session instance
+            The active session (child if exists, otherwise parent)
         """
-        return self._session
+        from aidb.common.dap_utilities import resolve_active_session
+
+        return resolve_active_session(self._session, self.ctx)

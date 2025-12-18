@@ -45,14 +45,17 @@ def resolve_active_session(session: Session, ctx: IContext) -> Session:
     if session.is_child:
         return session
 
-    # For adapters requiring child sessions, always use child when it exists
-    if (
-        hasattr(session, "adapter")
-        and session.adapter
+    # Check if adapter requires child session routing
+    has_adapter = hasattr(session, "adapter") and session.adapter is not None
+    requires_child = (
+        has_adapter
         and hasattr(session.adapter, "requires_child_session_wait")
         and session.adapter.requires_child_session_wait
-        and session.child_session_ids
-    ):
+    )
+    has_children = bool(session.child_session_ids)
+
+    # For adapters requiring child sessions, always use child when it exists
+    if has_adapter and requires_child and has_children:
         # Resolve to first child (JavaScript only has one)
         child_id = session.child_session_ids[0]
         child = session.registry.get_session(child_id)

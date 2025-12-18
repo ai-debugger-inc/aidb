@@ -37,6 +37,7 @@ class TestSessionExecutionState:
         session.started = True
         session.status = SessionStatus.TERMINATED
         session.child_manager = None  # No child session
+        session.registry = None  # No registry
 
         state, is_paused = _get_session_execution_state(session)
         assert state == ExecutionState.TERMINATED.value
@@ -48,6 +49,7 @@ class TestSessionExecutionState:
         session.started = True
         session.status = SessionStatus.ERROR
         session.child_manager = None  # No child session
+        session.registry = None  # No registry
 
         state, is_paused = _get_session_execution_state(session)
         assert state == ExecutionState.TERMINATED.value
@@ -59,6 +61,7 @@ class TestSessionExecutionState:
         session.started = True
         session.status = SessionStatus.PAUSED
         session.child_manager = None  # No child session
+        session.registry = None  # No registry
 
         state, is_paused = _get_session_execution_state(session)
         assert state == ExecutionState.PAUSED.value
@@ -70,6 +73,7 @@ class TestSessionExecutionState:
         session.started = True
         session.status = SessionStatus.RUNNING
         session.child_manager = None  # No child session
+        session.registry = None  # No registry
 
         state, is_paused = _get_session_execution_state(session)
         assert state == ExecutionState.RUNNING.value
@@ -91,6 +95,7 @@ class TestHandleContext:
         session.started = True
         session.status = SessionStatus.TERMINATED
         session.child_manager = None  # No child session
+        session.registry = None  # No registry
         session.info = Mock()
         session.info.target = "test.py"
         session.info.language = "python"
@@ -125,6 +130,7 @@ class TestHandleContext:
         session.started = True
         session.status = SessionStatus.PAUSED
         session.child_manager = None  # No child session
+        session.registry = None  # No registry
         session.info = Mock()
         session.info.target = "test.py"
         session.info.language = "python"
@@ -159,6 +165,7 @@ class TestHandleContext:
         session.started = True
         session.status = SessionStatus.RUNNING
         session.child_manager = None  # No child session
+        session.registry = None  # No registry
         session.info = Mock()
         session.info.target = "test.py"
         session.info.language = "python"
@@ -196,6 +203,7 @@ class TestHandleContext:
         session.started = True
         session.status = SessionStatus.TERMINATED
         session.child_manager = None  # No child session
+        session.registry = None  # No registry
         session.info = Mock()
         session.info.target = "test.py"
         session.info.language = "python"
@@ -237,6 +245,7 @@ class TestHandleContext:
         session.started = True
         session.status = SessionStatus.RUNNING
         session.child_manager = None  # No child session
+        session.registry = None  # No registry
         session.info = Mock()
         session.info.target = "test.py"
         session.info.language = "python"
@@ -276,6 +285,7 @@ class TestHandleContext:
         session.started = True
         session.status = SessionStatus.TERMINATED
         session.child_manager = None  # No child session
+        session.registry = None  # No registry
         session.info = Mock()
         session.info.target = "test.py"
         session.info.language = "python"
