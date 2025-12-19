@@ -430,6 +430,7 @@ class ProcessManager(Obj):
                 self.ctx.debug(f"Async wait failed (event loop), using sync kill: {e}")
                 self._kill_remaining_children(children)
                 self._proc.kill()
+                self._sync_wait_for_exit()
             else:
                 raise
 
@@ -452,6 +453,34 @@ class ProcessManager(Obj):
                 self.ctx.debug(f"Process wait skipped after kill (event loop): {e}")
             else:
                 raise
+
+    def _sync_wait_for_exit(self, timeout: float = 2.0) -> None:
+        """Synchronize wait for process exit when async is unavailable.
+
+        Used as fallback when event loop mismatch prevents async wait.
+        Polls process status until exit or timeout.
+
+        Parameters
+        ----------
+        timeout : float
+            Maximum time to wait in seconds
+        """
+        if not self._proc or not self._proc.pid:
+            return
+
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if self._proc.returncode is not None:
+                self.ctx.debug(f"Process {self._proc.pid} exited (sync wait)")
+                return
+            try:
+                os.kill(self._proc.pid, 0)  # Check if alive
+                time.sleep(0.1)
+            except OSError:
+                self.ctx.debug(f"Process {self._proc.pid} no longer exists")
+                return
+
+        self.ctx.warning(f"Process {self._proc.pid} did not exit within {timeout}s")
 
     async def _close_process_transports(self) -> None:
         """Close subprocess transports with event loop safety."""
