@@ -285,11 +285,20 @@ jobs:
           merge-multiple: true
         continue-on-error: true
 
+      - name: List downloaded coverage files
+        run: |
+          echo "=== Coverage directory contents ==="
+          find coverage/ -type f -name "*.xml" 2>/dev/null || echo "No coverage files found"
+          echo ""
+          echo "=== Coverage file count ==="
+          find coverage/ -type f -name "*.xml" 2>/dev/null | wc -l || echo "0"
+
       - name: Upload combined coverage to codecov
         uses: codecov/codecov-action@v4
         with:
           directory: coverage/
           fail_ci_if_error: false
+          verbose: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         continue-on-error: true

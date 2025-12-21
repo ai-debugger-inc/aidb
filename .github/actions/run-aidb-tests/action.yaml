@@ -75,7 +75,7 @@ runs:
           echo '{"suite": "${{ inputs.suite }}", "flaky_tests": [], "consistently_failing": [], "rerun_count": 0}' > flakes.json
         fi
 
-    - name: Combine parallel coverage data
+    - name: Combine parallel coverage data and generate XML
       if: inputs.skip-coverage != 'true'
       shell: bash
       run: |
@@ -93,6 +93,22 @@ runs:
             echo "Single .coverage file exists"
           else
             echo "No coverage data found"
+            exit 0
+          fi
+        fi
+
+        # Generate XML for Codecov with unique filename per suite
+        # Use --ignore-errors because Docker tests have /workspace paths that do not exist on the runner
+        # Also handle cases where coverage data exists but is empty (e.g., unit tests with heavy mocking)
+        # Filename includes suite and optional suffix to prevent overwriting when artifacts are merged
+        COVERAGE_FILENAME="coverage-${{ inputs.suite }}${{ inputs.artifact-suffix && format('-{0}', inputs.artifact-suffix) || '' }}.xml"
+        if [ -f .coverage ]; then
+          echo "Generating ${COVERAGE_FILENAME} for Codecov..."
+          if coverage xml --ignore-errors -o "${COVERAGE_FILENAME}" 2>&1; then
+            echo "Generated ${COVERAGE_FILENAME}:"
+            ls -la "${COVERAGE_FILENAME}"
+          else
+            echo "Warning: Could not generate ${COVERAGE_FILENAME} (coverage data may be empty)"
           fi
         fi
 
@@ -101,10 +117,9 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: coverage-${{ inputs.suite }}${{ inputs.artifact-suffix && format('-{0}', inputs.artifact-suffix) || '' }}
-        path: .coverage
+        path: coverage-${{ inputs.suite }}${{ inputs.artifact-suffix && format('-{0}', inputs.artifact-suffix) || '' }}.xml
         retention-days: 1
         if-no-files-found: ignore
-        include-hidden-files: true
 
     - name: Upload test summary
       if: always()

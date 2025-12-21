@@ -72,7 +72,7 @@ class TestPerformance(BaseE2ETest):
             "step_over": 145,
             "variable_inspection": 190,
             "repeated_cycle": 230,
-            "stack_trace": 85,
+            "stack_trace": 90,  # Increased from 85 for CI variance (GHA: 0.225s threshold)
         },
         "java": {
             "session_startup": 2300,

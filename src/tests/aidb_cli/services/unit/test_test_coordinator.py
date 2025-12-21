@@ -82,13 +82,20 @@ class TestBuildPytestArgs:
         assert result == ["-n", "2", "--dist", "loadgroup", "--no-cov"]
 
     def test_build_pytest_args_with_coverage(self):
-        """Test pytest args with coverage."""
+        """Test pytest args with coverage tracks all modules."""
         result = self.service.build_pytest_args(
             suite="cli",
             coverage=True,
         )
 
-        assert result == ["--cov=aidb_cli", "--cov-report=term-missing"]
+        assert result == [
+            "--cov=aidb",
+            "--cov=aidb_mcp",
+            "--cov=aidb_cli",
+            "--cov=aidb_common",
+            "--cov=aidb_logging",
+            "--cov-report=term-missing",
+        ]
 
     def test_build_pytest_args_with_verbose(self):
         """Test pytest args with verbose output."""
@@ -166,7 +173,11 @@ class TestBuildPytestArgs:
             "2",
             "--dist",
             "loadgroup",
+            "--cov=aidb",
             "--cov=aidb_mcp",
+            "--cov=aidb_cli",
+            "--cov=aidb_common",
+            "--cov=aidb_logging",
             "--cov-report=term-missing",
             "-v",
             "-x",
@@ -244,54 +255,18 @@ class TestBuildCoverageArgs:
             test_orchestrator=self.mock_orchestrator,
         )
 
-    def test_build_coverage_args_specific_suite(self):
-        """Test coverage args for specific suite."""
-        result = self.service._build_coverage_args("mcp")
+    def test_build_coverage_args_tracks_all_modules(self):
+        """Test coverage args track all source modules for cross-module coverage."""
+        result = self.service._build_coverage_args()
 
-        assert result == ["--cov=aidb_mcp", "--cov-report=term-missing"]
-
-    def test_build_coverage_args_cli_suite(self):
-        """Test coverage args for CLI suite."""
-        result = self.service._build_coverage_args("cli")
-
-        assert result == ["--cov=aidb_cli", "--cov-report=term-missing"]
-
-    def test_build_coverage_args_mcp_suite(self):
-        """Test coverage args for MCP suite."""
-        result = self.service._build_coverage_args("mcp")
-
-        assert result == ["--cov=aidb_mcp", "--cov-report=term-missing"]
-
-    def test_build_coverage_args_unknown_suite_falls_back_to_aidb(self):
-        """Test coverage args for unknown suite falls back to aidb module."""
-        result = self.service._build_coverage_args("unknown_suite")
-
-        # Unknown suites fall back to the core aidb module
-        assert result == ["--cov=aidb", "--cov-report=term-missing"]
-
-    def test_build_coverage_args_core_suite_maps_to_aidb(self):
-        """Test coverage args for core suite maps to aidb module."""
-        result = self.service._build_coverage_args("core")
-
-        assert result == ["--cov=aidb", "--cov-report=term-missing"]
-
-    def test_build_coverage_args_shared_suite_maps_to_aidb(self):
-        """Test coverage args for shared suite maps to aidb module."""
-        result = self.service._build_coverage_args("shared")
-
-        assert result == ["--cov=aidb", "--cov-report=term-missing"]
-
-    def test_build_coverage_args_common_suite(self):
-        """Test coverage args for common suite."""
-        result = self.service._build_coverage_args("common")
-
-        assert result == ["--cov=aidb_common", "--cov-report=term-missing"]
-
-    def test_build_coverage_args_logging_suite(self):
-        """Test coverage args for logging suite."""
-        result = self.service._build_coverage_args("logging")
-
-        assert result == ["--cov=aidb_logging", "--cov-report=term-missing"]
+        assert result == [
+            "--cov=aidb",
+            "--cov=aidb_mcp",
+            "--cov=aidb_cli",
+            "--cov=aidb_common",
+            "--cov=aidb_logging",
+            "--cov-report=term-missing",
+        ]
 
 
 class TestTestCoordinatorServiceIntegration:
@@ -329,7 +304,11 @@ class TestTestCoordinatorServiceIntegration:
             "2",
             "--dist",
             "loadgroup",
+            "--cov=aidb",
             "--cov=aidb_mcp",
+            "--cov=aidb_cli",
+            "--cov=aidb_common",
+            "--cov=aidb_logging",
             "--cov-report=term-missing",
             "-v",
         ]

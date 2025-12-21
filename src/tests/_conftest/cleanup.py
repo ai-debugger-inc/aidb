@@ -22,6 +22,11 @@ def cleanup_orphaned_processes(request):
     - Tests in integration/ or e2e/ directories
     - Tests marked with @pytest.mark.requires_cleanup
     - Tests using debug_interface, debug_session, or similar fixtures
+
+    IMPORTANT: This cleanup is DISABLED in parallel Docker test mode because it can
+    kill processes belonging to other workers' still-running tests, causing hangs.
+    Docker containers are ephemeral - any truly orphaned processes are cleaned up
+    when the container exits. Each test cleans up via debug_interface.stop_session().
     """
     # Skip if running inside an AIDB-spawned debuggee process.
     # Must still yield even for early exit - pytest yield fixtures require this.
@@ -32,6 +37,17 @@ def cleanup_orphaned_processes(request):
     test_path = str(request.node.fspath)
 
     yield
+
+    # CRITICAL: Skip post-test orphan cleanup in parallel Docker test mode.
+    # When multiple pytest workers run in Docker, one worker's cleanup can kill
+    # another worker's still-active processes, causing test hangs.
+    # Example: gw1 finishes a test and its cleanup kills gw0's running session.
+    # Docker containers are ephemeral - orphans are cleaned up on container exit.
+    is_docker_test = os.environ.get("AIDB_DOCKER_TEST_MODE") == "1"
+    worker_count = os.environ.get("PYTEST_XDIST_WORKER_COUNT", "1")
+    is_parallel = worker_count != "1"
+    if is_docker_test and is_parallel:
+        return
 
     # Determine if cleanup is needed for this test
     needs_cleanup = False

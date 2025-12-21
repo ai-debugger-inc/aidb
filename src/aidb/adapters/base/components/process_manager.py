@@ -438,6 +438,7 @@ class ProcessManager(Obj):
         """Wait for process after kill, handling event loop errors.
 
         Note: Caller must ensure self._proc is not None before calling.
+        Falls back to synchronous wait if async fails.
         """
         # Guard against None (should never happen if called correctly)
         if not self._proc:
@@ -448,9 +449,14 @@ class ProcessManager(Obj):
                 self._proc.wait(),
                 timeout=RECEIVE_POLL_TIMEOUT_S,
             )
+        except asyncio.TimeoutError:
+            # Async wait timed out, use sync polling as fallback
+            self.ctx.debug("Async wait timed out after kill, using sync fallback")
+            self._sync_wait_for_exit()
         except RuntimeError as e:
             if is_event_loop_error(e):
-                self.ctx.debug(f"Process wait skipped after kill (event loop): {e}")
+                self.ctx.debug(f"Process wait failed (event loop), sync fallback: {e}")
+                self._sync_wait_for_exit()
             else:
                 raise
 

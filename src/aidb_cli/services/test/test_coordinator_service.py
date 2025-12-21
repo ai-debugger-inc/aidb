@@ -72,7 +72,7 @@ class TestCoordinatorService(BaseService):
 
     def build_pytest_args(
         self,
-        suite: str,
+        suite: str,  # noqa: ARG002
         markers: list[str] | None = None,
         pattern: str | None = None,
         target: list[str] | None = None,
@@ -122,7 +122,7 @@ class TestCoordinatorService(BaseService):
             pytest_args.extend(["--dist", "loadgroup"])
 
         if coverage:
-            pytest_args.extend(self._build_coverage_args(suite))
+            pytest_args.extend(self._build_coverage_args())
         else:
             # Disable coverage by default to prevent terminal UI conflicts
             # with streaming output (pytest-cov interferes with ANSI escape sequences)
@@ -171,23 +171,20 @@ class TestCoordinatorService(BaseService):
 
         return target
 
-    def _build_coverage_args(self, suite: str) -> list[str]:
+    def _build_coverage_args(self) -> list[str]:
         """Build coverage-related arguments.
 
-        Uses the coverage_module field from SuiteDefinition to determine
-        which module to measure coverage for.
-
-        Args:
-            suite: Test suite name
+        Tracks all source modules to capture cross-module coverage.
+        This ensures that when tests in one module call code in another
+        module, that coverage is also recorded.
 
         Returns:
-            List of coverage arguments
+            List of coverage arguments for all source modules.
         """
-        from aidb_cli.services.test import TestSuites
-
-        suite_def = TestSuites.get(suite) if suite else None
-        module = suite_def.coverage_module if suite_def else "aidb"
-        return [f"--cov={module}", "--cov-report=term-missing"]
+        modules = ["aidb", "aidb_mcp", "aidb_cli", "aidb_common", "aidb_logging"]
+        cov_args = [f"--cov={mod}" for mod in modules]
+        cov_args.append("--cov-report=term-missing")
+        return cov_args
 
     def validate_prerequisites(
         self,
