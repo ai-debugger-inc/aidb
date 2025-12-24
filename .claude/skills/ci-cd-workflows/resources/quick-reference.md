@@ -96,13 +96,7 @@ Located in `.github/scripts/`:
 ## Version Management
 
 - `versions.json` - Infrastructure & adapter versions (updated manually)
-- `pyproject.toml` - App dependencies (Dependabot PRs)
-
-**Dependabot branch flow:**
-
-```
-Dependabot PR → dependabot-updates (manual merge) → release/X.Y.Z → main
-```
+- `pyproject.toml` - App dependencies (Dependabot PRs directly to main)
 
 ## Workflow Triggers
 

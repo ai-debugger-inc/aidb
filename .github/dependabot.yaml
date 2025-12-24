@@ -5,7 +5,7 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
-    target-branch: "dependabot-updates"
+    target-branch: "main"
     open-pull-requests-limit: 10
     commit-message:
       prefix: "deps(python)"
@@ -60,7 +60,7 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    target-branch: "dependabot-updates"
+    target-branch: "main"
     commit-message:
       prefix: "deps(actions)"
     labels:
@@ -77,7 +77,7 @@ updates:
     directory: "/.claude/hooks"
     schedule:
       interval: "weekly"
-    target-branch: "dependabot-updates"
+    target-branch: "main"
     commit-message:
       prefix: "deps(npm)"
     labels:
@@ -106,7 +106,7 @@ updates:
     directory: "/src/extensions/aidb-vscode-bridge"
     schedule:
       interval: "weekly"
-    target-branch: "dependabot-updates"
+    target-branch: "main"
     commit-message:
       prefix: "deps(vscode)"
     labels:

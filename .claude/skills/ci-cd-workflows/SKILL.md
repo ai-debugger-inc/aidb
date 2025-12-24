@@ -81,13 +81,13 @@ See `docs/developer-guide/ci-cd.md` for configuration overview.
 
 ### Dependabot Integration
 
-AIDB uses Dependabot with a **staging branch strategy**:
+Dependabot creates PRs directly against `main`:
 
-1. **Target Branch**: All Dependabot PRs target `dependabot-updates` (not `main`)
-1. **Manual Merge**: Dependabot PRs are reviewed and merged manually
-1. **Release Creation**: When ready to release, create `release/X.Y.Z` from `dependabot-updates`
+1. **Target Branch**: All Dependabot PRs target `main`
+2. **Manual Review**: PRs are reviewed and merged manually
+3. **Ecosystems**: pip (daily), github-actions (weekly), npm (weekly)
 
-**Configuration**: `.github/dependabot.yaml` (pip, github-actions, npm ecosystems)
+**Configuration**: `.github/dependabot.yaml`
 
 ## Common Tasks
 
