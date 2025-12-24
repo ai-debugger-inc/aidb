@@ -35,7 +35,7 @@ Hook reads stdin (JSON with prompt + session info)
 Loads skill-rules.json
     ↓
 DETECTION PHASE:
-  - Check if prompt is very short (<10 words)
+  - Check if prompt is very short (<6 words)
     → If yes: Use keyword matching (fallback)
     → If no: Use AI-powered intent analysis (primary)
   - AI sends prompt + all skill descriptions to Claude API (configurable model)
@@ -265,7 +265,7 @@ Prevent duplicate injection in the same conversation - once a skill is loaded, d
    - New conversation ID = new state file
    - Hook injects skill again
 
-**Implementation:** `.claude/hooks/lib/session-manager.ts`
+**Implementation:** `.claude/hooks/lib/skill-state-manager.ts`
 
 ______________________________________________________________________
 
@@ -380,17 +380,24 @@ The hook is registered in `.claude/settings.json`:
 ```json
 {
   "hooks": {
-    "UserPromptSubmit": {
-      "command": ".claude/hooks/skill-activation-prompt.sh",
-      "timeout": 30000
-    }
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/skill-activation-prompt.sh"
+          }
+        ]
+      }
+    ]
   }
 }
 ```
 
 **Key Configuration:**
 
-- `timeout`: 30 seconds (allows time for AI API call)
+- Uses `$CLAUDE_PROJECT_DIR` for portable paths
+- Hook type is "command" (shell execution)
 - No PreToolUse hook is registered
 
 ______________________________________________________________________

@@ -11,6 +11,13 @@ This guide covers Python-specific features and best practices for debugging with
 ```{include} /_snippets/about-examples-disclaimer.md
 ```
 
+## Requirements
+
+- **Python**: 3.10+ (3.12 recommended)
+- **Debug Adapter**: debugpy 1.8.16
+
+The adapter is installed automatically when you first debug Python code.
+
 ## Framework Support
 
 AI Debugger provides example configurations for popular Python frameworks. Use the framework parameter in init to get framework-specific debugging templates.

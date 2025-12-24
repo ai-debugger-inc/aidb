@@ -200,7 +200,6 @@ JavaScript/TypeScript debugging workflows:
 - Node.js application debugging
 - Express server debugging
 - TypeScript projects
-- Browser frameworks (React, Angular, Vue, Next.js): via pwa-chrome adapter - examples coming soon
 
 **[Java Guide](mcp/languages/java.md)**
 Java debugging workflows:

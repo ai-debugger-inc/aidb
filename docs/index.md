@@ -83,25 +83,29 @@ AI Debugger provides a comprehensive debugging platform designed for AI-assisted
 ### Core Debugging Capabilities
 
 **Comprehensive Core DAP Coverage**
+
 - Fully DAP compliant for core debugging operations with industry-standard adapters
 - Multi-language support: Python, JavaScript/TypeScript, Java (expanding to all major languages)
 - Essential debugging operations: execution control, stepping, introspection, variable manipulation, breakpoint management
 
 **Advanced Breakpoint Features**
+
 - Sophisticated hit conditions with 7 modes (`>`, `>=`, `=`, `<`, `<=`, `%`, `exact`) - pause on "5th hit" or "every 10th iteration"
 - Non-intrusive logpoints with template syntax (e.g., `"User: {user.name}, Status: {status}"`) for production debugging
 - Column-level breakpoints for debugging minified JavaScript/TypeScript
-- Real-time verification and state tracking (PENDING, VERIFIED, UNVERIFIED, ERROR)
+- Real-time verification and state tracking (PENDING, VERIFIED, UNVERIFIED)
 
 ### AI-Optimized Design
 
 **Intelligent MCP Server**
-- Context-aware next steps with 14 scenario-specific guides showing AI agents what to do next
+
+- Context-aware next steps with scenario-specific guidance showing AI agents what to do next
 - Responses are size-optimized to be as compact as possible, reserving context usage for your core work
 - Variable change tracking with 50-entry history answering "what changed?"
 - Error recovery with actionable guidance for autonomous agent recovery
 
 **Developer Experience**
+
 - Remote & attach mode debugging (PID, host:port, Docker containers) without restarts
 - Streamlined adapter installation with one-command setup (manual and offline install supported)
 - Framework-aware configuration for popular test runners and web frameworks
@@ -109,24 +113,27 @@ AI Debugger provides a comprehensive debugging platform designed for AI-assisted
 ### IDE & Workflow Integration
 
 **VS Code Ecosystem**
+
 - Full `launch.json` support with variable substitution (`${workspaceFolder}`, `${file}`, etc.)
 - Language-specific configuration translation for all supported languages
 - Zero duplicate configuration - leverage existing workspace settings
 
 **Framework Support**
+
 - Python: `pytest`, `django`, `flask`, `fastapi`, `pyramid`, `asyncio`, `behave`
 - JavaScript/TypeScript: `jest`, `mocha`, `node`, `express`, `typescript`
 - Java: JUnit, Spring, Maven, Gradle
-- Browser frameworks (React, Angular, Vue, Next.js): via `pwa-chrome` adapter - examples coming soon
 
 ### Production Features
 
 **Quality & Reliability**
+
 - Comprehensive E2E test coverage
 - Shared cross-language test framework validating identical operations across all supported languages
 - Health monitoring and automatic session recovery for long-running debugging
 
 **Compliance & Security**
+
 - Enterprise audit logging with configurable data masking for sensitive information
 - Retention policies and log rotation (default: 30 days)
 - DAP protocol logging for compliance requirements
@@ -140,6 +147,7 @@ AI Debugger provides a comprehensive debugging platform designed for AI-assisted
 AI Debugger provides enterprise-grade audit logging and security features for compliance-sensitive environments.
 
 **Audit Logging Features:**
+
 - **Comprehensive event tracking** - All debugging operations, breakpoints, variable access, and session lifecycle events
 - **Configurable data masking** - Automatically mask sensitive data in audit logs (credentials, API keys, PII)
 - **Retention policies** - Automatic log rotation with configurable retention periods
@@ -150,13 +158,10 @@ AI Debugger provides enterprise-grade audit logging and security features for co
 
 ```bash
 # Enable audit logging (default: disabled)
-export AIDB_AUDIT_ENABLED=true
+export AIDB_AUDIT_LOG=true
 
 # Set log retention period in days (default: 30)
-export AIDB_AUDIT_RETENTION_DAYS=90
-
-# Enable sensitive data masking (default: true)
-export AIDB_AUDIT_MASK_SENSITIVE=true
+export AIDB_AUDIT_LOG_RETENTION_DAYS=90
 
 # Enable DAP protocol trace logging (default: false)
 export AIDB_ADAPTER_TRACE=1
@@ -167,7 +172,7 @@ export AIDB_LOG_LEVEL=DEBUG
 
 **Audit Log Location:**
 
-Audit logs are stored in `~/.aidb/logs/audit/` with automatic rotation when size limits are reached.
+Audit logs are stored in `~/.aidb/audit/` with automatic rotation when size limits are reached.
 
 **Privacy & Data Handling:**
 
@@ -176,7 +181,7 @@ Audit logs are stored in `~/.aidb/logs/audit/` with automatic rotation when size
 - ✅ Sensitive data masking prevents credential leakage in logs
 - ✅ Full control over log retention and rotation
 
----
+______________________________________________________________________
 
 ## User Guide
 

@@ -81,11 +81,12 @@ See `docs/developer-guide/ci-cd.md` for configuration overview.
 
 ### Dependabot Integration
 
-Dependabot creates PRs directly against `main`:
+Dependabot creates PRs directly against `main`, but **no workflows run** on these PRs:
 
 1. **Target Branch**: All Dependabot PRs target `main`
-2. **Manual Review**: PRs are reviewed and merged manually
-3. **Ecosystems**: pip (daily), github-actions (weekly), npm (weekly)
+1. **No CI Triggers**: `release-pr.yaml` skips Dependabot PRs (`github.actor != 'dependabot[bot]'`)
+1. **Manual Management**: PRs are reviewed, typically retargeted to release branches, and merged manually
+1. **Ecosystems**: pip (daily), github-actions (weekly), npm (weekly)
 
 **Configuration**: `.github/dependabot.yaml`
 
