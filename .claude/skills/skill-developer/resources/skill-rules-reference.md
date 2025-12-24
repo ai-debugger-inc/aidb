@@ -22,19 +22,14 @@ interface SkillRules {
 
 interface SkillRule {
     type: 'guardrail' | 'domain';
-    enforcement: 'block' | 'suggest' | 'warn';
-    priority: 'critical' | 'high' | 'medium' | 'low';
-
+    description?: string;       // Sent to AI for intent analysis
+    autoInject?: boolean;       // Allow automatic injection (default: true)
+    requiredSkills?: string[];  // Dependencies that must be loaded first
+    injectionOrder?: number;    // Sort order for injection
     promptTriggers?: {
         keywords?: string[];
     };
-
-    affinity?: string[];  // Bidirectional complementary skills (auto-inject, max 2)
-
-    autoInject?: boolean;      // Allow automatic injection (default: true)
-    requiredSkills?: string[]; // Dependencies that must be loaded first
-    injectionOrder?: number;   // Sort order for injection
-    description?: string;      // Sent to AI for intent analysis
+    affinity?: string[];        // Bidirectional complementary skills (max 2)
 }
 ```
 
@@ -51,17 +46,15 @@ ______________________________________________________________________
 
 ### SkillRule Fields
 
-| Field            | Type     | Required | Description                                                              |
-| ---------------- | -------- | -------- | ------------------------------------------------------------------------ |
-| `type`           | string   | Yes      | "guardrail" or "domain" (validation only, doesn't affect behavior)       |
-| `enforcement`    | string   | Yes      | "block", "suggest", or "warn" (validation only, doesn't affect behavior) |
-| `priority`       | string   | Yes      | "critical", "high", "medium", or "low" (validation only)                 |
-| `description`    | string   | Optional | Sent to AI for intent analysis                                           |
-| `promptTriggers` | object   | Optional | Keyword triggers for detection                                           |
-| `affinity`       | string[] | Optional | Complementary skills (auto-inject bidirectionally, max 2)                |
-| `autoInject`     | boolean  | Optional | Allow automatic injection (default: true, set false for meta-skills)     |
-| `requiredSkills` | string[] | Optional | Dependencies that must be loaded first                                   |
-| `injectionOrder` | number   | Optional | Sort order for injection                                                 |
+| Field            | Type     | Required | Description                                                          |
+| ---------------- | -------- | -------- | -------------------------------------------------------------------- |
+| `type`           | string   | Yes      | "guardrail" or "domain" (categorization only)                        |
+| `description`    | string   | Optional | Sent to AI for intent analysis (recommended for all skills)          |
+| `autoInject`     | boolean  | Optional | Allow automatic injection (default: true, set false for meta-skills) |
+| `requiredSkills` | string[] | Optional | Dependencies that must be loaded first                               |
+| `injectionOrder` | number   | Optional | Sort order for injection                                             |
+| `promptTriggers` | object   | Optional | Keyword triggers for fallback detection                              |
+| `affinity`       | string[] | Optional | Complementary skills (auto-inject bidirectionally, max 2)            |
 
 ### promptTriggers Fields
 
@@ -120,8 +113,6 @@ Complete example of a domain skill with auto-injection:
 {
   "adapter-development": {
     "type": "domain",
-    "enforcement": "suggest",
-    "priority": "high",
     "autoInject": true,
     "requiredSkills": [],
     "affinity": ["aidb-architecture", "dap-protocol-guide"],
@@ -145,12 +136,10 @@ Complete example of a domain skill with auto-injection:
 
 ### Key Points for Domain Skills
 
-1. **type**: "domain" (validation only, doesn't affect behavior)
-1. **enforcement**: Usually "suggest" (validation only)
-1. **priority**: "high" or "medium" (validation only)
+1. **type**: "domain" (categorization for organization)
 1. **autoInject**: Set to true to allow automatic injection
-1. **description**: Sent to AI for intent analysis
-1. **promptTriggers**: Keywords for fallback matching
+1. **description**: Sent to AI for intent analysis (include relevant keywords)
+1. **promptTriggers**: Keywords for fallback matching when AI analysis unavailable
 1. **affinity**: Optional complementary skills that auto-inject together
 
 ______________________________________________________________________

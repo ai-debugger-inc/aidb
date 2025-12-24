@@ -8,7 +8,7 @@ Skills are categorized into two tiers with different activation and injection be
 
 ### Meta-Skills (Awareness Only, Never Injected)
 
-**Purpose:** Provide background context and awareness
+**Purpose:** Provide background context and awareness without consuming context
 
 **Characteristics:**
 
@@ -17,15 +17,15 @@ Skills are categorized into two tiers with different activation and injection be
 - Agent is aware of them but doesn't load full content
 - Provide passive awareness and context
 
-**Example:** `skill-developer` (meta-skill)
+**Current status:** No meta-skills are currently configured. All AIDB skills use `autoInject: true` (domain skill behavior).
 
-**When detected:** Display in status message but don't inject content
+**When to create a meta-skill:** Only when you need passive awareness without content injection.
 
-**Configuration in skill-rules.json:**
+**Configuration example:**
 
 ```json
 {
-  "skill-developer": {
+  "my-meta-skill": {
     "autoInject": false
   }
 }
@@ -207,9 +207,6 @@ The AI receives:
 ```
 📚 AUTO-LOADED SKILLS
 
-🧠 ALWAYS ACTIVE:
-  → skill-developer (skill maintenance awareness)
-
 🔥 AUTO-INJECTED (CRITICAL):
   → adapter-development (0.85 confidence)
 
@@ -227,11 +224,11 @@ The AI receives:
 
 - Keywords: None matching domain skills
 - Intent: Informational query
-- Result: Only `skill-developer` suggested
+- Result: No skills detected with high confidence
 
 **Behavior:**
 
-- Meta-skills only → No skills auto-injected
+- No domain skills matched → No skills auto-injected
 - Flow: Instant response without skill context
 
 **User experience:** ✅ No friction, immediate answer
@@ -384,14 +381,13 @@ Only create a meta-skill if it:
 - Provides passive awareness, not actionable guidance
 - Should NOT be injected (`autoInject: false`)
 
-**Current meta-skills:**
-
-- `skill-developer` (skills system awareness)
+**Current meta-skills:** None. All AIDB skills currently use `autoInject: true` (domain behavior).
 
 **To add a new meta-skill:**
 
 1. Add to skill-rules.json with `autoInject: false`
 1. Document why it's a meta-skill (high bar to justify)
+1. Meta-skills are rare - prefer domain skills for active guidance
 
 ## Troubleshooting
 

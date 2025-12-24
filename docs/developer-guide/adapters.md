@@ -619,9 +619,8 @@ def validate_adapter_dependencies(self, adapter: str) -> List[str]:
 
 ### 5.1 Test Constants
 
-**File**: `src/tests/_helpers/constants.py`
-
-Add language-specific test constants if needed (check existing patterns).
+Test constants are defined inline in test files or in `src/tests/_fixtures/`.
+Framework-specific constants are in their respective test directories (e.g., `src/tests/frameworks/<language>/`).
 
 ### 5.2 Test Fixtures and Hardcoded Mappings
 
@@ -669,12 +668,6 @@ def _inject_errors(content: str, language: str) -> str:
     }
     # ... rest of function
 ```
-
-#### 5.2.3 Test Helpers
-
-**File**: `src/tests/_helpers/mocks.py` (if needed)
-
-Update mock configurations if your tests use the mock DAP client with adapter-specific capabilities.
 
 **Other fixture locations:**
 

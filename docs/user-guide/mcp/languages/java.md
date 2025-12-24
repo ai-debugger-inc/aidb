@@ -11,6 +11,14 @@ This guide covers Java-specific debugging features, framework support, and commo
 ```{include} /_snippets/about-examples-disclaimer.md
 ```
 
+## Requirements
+
+- **Java**: JDK 17+ (21 LTS recommended)
+- **Debug Adapter**: java-debug 0.53.1
+- **Language Server**: Eclipse JDT LS 1.55.0
+
+The adapters are installed automatically when you first debug Java code.
+
 ## Overview
 
 The Java adapter uses Eclipse JDT Language Server (JDT LS) with the java-debug plugin to provide rich debugging capabilities including:

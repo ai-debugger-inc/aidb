@@ -35,7 +35,7 @@ jobs:
       matrix: ${{ steps.generate.outputs.matrix }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -69,7 +69,7 @@ jobs:
 
     steps:
       - name: Checkout aidb
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -97,13 +97,13 @@ jobs:
 
       - name: Setup Java (for Java adapter)
         if: matrix.adapter == 'java'
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: ${{ steps.adapter-config.outputs.java_distribution }}
           java-version: ${{ steps.adapter-config.outputs.java_version }}
 
       - name: Cache build dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.npm
@@ -116,7 +116,7 @@ jobs:
 
       - name: Cache JS adapter node_modules
         if: matrix.adapter == 'javascript'
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build/vscode-js-debug/node_modules
           key: ${{ runner.os }}-${{ matrix.arch }}-js-adapter-${{ hashFiles('versions.json') }}
@@ -146,7 +146,7 @@ jobs:
           find dist/ -name "*.sha256" -exec cat {} \;
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.adapter }}-${{ matrix.platform }}-${{ matrix.arch }}
           path: |
@@ -162,7 +162,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -208,7 +208,7 @@ jobs:
           echo "✓ Release $VERSION exists. Proceeding with adapter builds."
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           path: artifacts
 
@@ -230,7 +230,7 @@ jobs:
           echo "Total size: $(du -sh consolidated-adapters/ | cut -f1)"
 
       - name: Upload consolidated artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: adapter-artifacts-all
           path: consolidated-adapters/

@@ -114,6 +114,91 @@ Skills are modular knowledge bases that Claude loads when needed. They provide:
 
 **Main file:** `code-reuse-enforcement/SKILL.md`
 
+### 6. dev-cli-development
+
+**When it activates:**
+
+- Editing files in `src/aidb_cli/`
+- Mentioning "dev-cli", "CLI command", "Click"
+- Working with test orchestration or Docker commands
+
+**What it covers:**
+
+- Click framework patterns
+- Service architecture (CommandExecutor, BaseService)
+- Docker orchestration
+- Test program generation
+
+**Main file:** `dev-cli-development/SKILL.md`
+
+### 7. ci-cd-workflows
+
+**When it activates:**
+
+- Editing files in `.github/workflows/`
+- Mentioning "GitHub Actions", "CI", "workflow"
+- Working with releases or adapter builds
+
+**What it covers:**
+
+- GitHub Actions workflow patterns
+- Test orchestration in CI
+- Release workflows
+- Adapter build automation
+
+**Main file:** `ci-cd-workflows/SKILL.md`
+
+### 8. troubleshooting
+
+**When it activates:**
+
+- Mentioning "troubleshoot", "debug AIDB", "RCA"
+- Investigating errors or failures
+- Looking at logs
+
+**What it covers:**
+
+- Investigation workflows
+- Log locations and analysis
+- Common failure modes
+- Diagnostic commands
+
+**Main file:** `troubleshooting/SKILL.md`
+
+### 9. aidb-architecture
+
+**When it activates:**
+
+- Mentioning "architecture", "system design", "layers"
+- Understanding component relationships
+- Via affinity with other skills
+
+**What it covers:**
+
+- 6-layer architecture overview
+- Component responsibilities
+- Data flow patterns
+- Design decisions
+
+**Main file:** `aidb-architecture/SKILL.md`
+
+### 10. skill-developer
+
+**When it activates:**
+
+- Mentioning "skill", "skill-rules.json", "skill triggers"
+- Creating or modifying skills
+- Working with hook configuration
+
+**What it covers:**
+
+- Skill creation workflow
+- Trigger configuration
+- Hook mechanisms
+- 500-line rule and progressive disclosure
+
+**Main file:** `skill-developer/SKILL.md`
+
 ## How Skills Activate
 
 Skills auto-activate via the `UserPromptSubmit` hook, which uses two mechanisms:
@@ -135,14 +220,13 @@ Skills auto-activate via the `UserPromptSubmit` hook, which uses two mechanisms:
 - Example: "adapter" keyword in prompt → activates adapter-development
 - Activated only if intent analysis is unavailable
 
-### Priority Levels
+### Skill Injection
 
-When multiple skills match, they are automatically injected based on priority:
+When skills are detected, they are automatically injected based on:
 
-- **CRITICAL** - Always injected (fundamental architecture guidance)
-- **HIGH** - Always injected (important patterns and best practices)
-- **MEDIUM** - Injected when relevant
-- **LOW** - Available if requested manually
+- **AI Confidence Score** - Higher confidence skills are prioritized
+- **Affinity Relationships** - Related skills auto-inject together
+- **Session State** - Already-injected skills are not re-injected
 
 ### Auto-Injection
 
@@ -158,14 +242,12 @@ Skills are configured in `skill-rules.json` with these key fields:
   "skills": {
     "adapter-development": {
       "type": "domain",
-      "enforcement": "block",
-      "priority": "critical",
+      "autoInject": true,
       "description": "Domain knowledge about adapter architecture and patterns",
       "promptTriggers": {
         "keywords": ["adapter", "debugpy", "vscode-js-debug", "java-debug"]
       },
       "affinity": ["aidb-architecture", "dap-protocol-guide"],
-      "autoInject": true,
       "requiredSkills": []
     }
   }
@@ -174,14 +256,12 @@ Skills are configured in `skill-rules.json` with these key fields:
 
 **Configuration Fields:**
 
-- `type` - Skill category (domain, guardrail, infrastructure)
-- `enforcement` - How to handle skill guidance: block, suggest, or warn
-- `priority` - When multiple skills match: CRITICAL, HIGH, MEDIUM, LOW
-- `description` - Sent to AI for intent analysis (determines when skill is relevant)
-- `promptTriggers.keywords` - Keywords that trigger the skill
-- `affinity` - Other skills that are conceptually related
+- `type` - Skill category ("domain" or "guardrail")
 - `autoInject` - Automatically inject into context (default: true)
-- `requiredSkills` - Other skills that must be injected first
+- `description` - Sent to AI for intent analysis (determines when skill is relevant)
+- `promptTriggers.keywords` - Keywords that trigger the skill (fallback detection)
+- `affinity` - Complementary skills that auto-inject together
+- `requiredSkills` - Dependencies that must be loaded first
 
 ## Session Tracking
 
@@ -301,12 +381,11 @@ To create a new skill:
    {
      "my-skill": {
        "type": "domain",
-       "priority": "medium",
-       "description": "Brief description",
+       "autoInject": true,
+       "description": "Brief description (include keywords for AI detection)",
        "promptTriggers": {
          "keywords": ["my", "skill"]
-       },
-       "autoInject": true
+       }
      }
    }
    ```

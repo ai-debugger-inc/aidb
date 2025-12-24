@@ -77,6 +77,8 @@ MCP Response
 For detailed guidance, see these resources:
 
 - **[Tool Architecture](resources/tool-architecture.md)** - Tool structure, handlers, decorators
+- **[Handler Decorators](resources/handler-decorators-reference.md)** - @with_execution_context, @require_initialized_session
+- **[Composition Patterns](resources/handler-composition-patterns.md)** - @timed, best practices, performance
 - **[Testing MCP Tools](resources/testing-mcp-tools.md)** - E2E and integration testing
 
 ## Code Reuse: Don't Reinvent
