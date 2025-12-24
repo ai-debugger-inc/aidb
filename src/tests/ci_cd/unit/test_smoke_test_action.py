@@ -97,7 +97,7 @@ class TestImportVerification:
             "import aidb_mcp",
             "import aidb_common",
             "from aidb_common.config.runtime import config",
-            "from aidb import AIDB",
+            "from aidb import DebugService, Session, DAPClient",
         ]
 
         # These are the critical imports the smoke test verifies
@@ -118,7 +118,7 @@ class TestImportVerification:
             ("import aidb_mcp", "aidb_mcp"),
             ("import aidb_common", "aidb_common"),
             ("from aidb_common.config.runtime import config", "config"),
-            ("from aidb import AIDB", "AIDB"),
+            ("from aidb import DebugService, Session, DAPClient", "DebugService"),
         ],
     )
     def test_import_statements(self, import_statement, expected_module):
@@ -521,7 +521,9 @@ class TestImportChecks:
             "aidb_mcp",
             "aidb_common",
             "aidb_common.config.runtime",
-            "aidb.AIDB",
+            "aidb.DebugService",
+            "aidb.Session",
+            "aidb.DAPClient",
         }
 
         # All these modules must be importable for smoke test to pass
@@ -536,7 +538,8 @@ class TestImportChecks:
         assert version_attr == "__version__"
 
     def test_basic_instantiation_check(self):
-        """Verify AIDB class is accessible."""
-        # The script verifies: from aidb import AIDB
-        class_name = "AIDB"
-        assert class_name == "AIDB"
+        """Verify core classes are accessible."""
+        # The script verifies: from aidb import DebugService, Session, DAPClient
+        class_names = ["DebugService", "Session", "DAPClient"]
+        for class_name in class_names:
+            assert class_name in ["DebugService", "Session", "DAPClient"]
