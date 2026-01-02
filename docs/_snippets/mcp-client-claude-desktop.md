@@ -1,8 +1,8 @@
-Claude Code has built-in MCP support.
+Claude Desktop has built-in MCP support.
 
 #### Desktop Application
 
-1. Open Claude Code
+1. Open Claude Desktop
 1. Navigate to Settings → MCP Servers
 1. Click "Add Server"
 1. Enter the following configuration:
@@ -18,7 +18,7 @@ Claude Code has built-in MCP support.
 }
 ```
 
-5. Restart Claude Code
+5. Restart Claude Desktop
 
 #### CLI Configuration
 

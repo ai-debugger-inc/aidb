@@ -11,6 +11,14 @@ This guide covers Java-specific debugging features, framework support, and commo
 ```{include} /_snippets/about-examples-disclaimer.md
 ```
 
+## Requirements
+
+- **Java**: JDK 17+ (21 LTS recommended)
+- **Debug Adapter**: java-debug 0.53.1
+- **Language Server**: Eclipse JDT LS 1.55.0
+
+The adapters are installed automatically when you first debug Java code.
+
 ## Overview
 
 The Java adapter uses Eclipse JDT Language Server (JDT LS) with the java-debug plugin to provide rich debugging capabilities including:
@@ -592,7 +600,17 @@ The Java adapter uses Eclipse JDT LS behind the scenes, providing:
 
 **"Java not found" error**
 
-Set `JAVA_HOME` environment variable:
+Option 1: Use `runtime_path` to specify the JDK directly:
+
+```python
+session_start(
+    language="java",
+    target="src/Main.java",
+    runtime_path="/path/to/jdk"
+)
+```
+
+Option 2: Set `JAVA_HOME` environment variable:
 
 ```bash
 export JAVA_HOME=/path/to/jdk

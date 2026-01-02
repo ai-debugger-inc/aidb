@@ -149,8 +149,8 @@ runs:
             print(f'✅ Config accessible')
 
             # Verify core classes are accessible
-            from aidb import DebugAPI, Session, DAPClient
-            print(f'✅ Core classes accessible (DebugAPI, Session, DAPClient)')
+            from aidb import DebugService, Session, DAPClient
+            print(f'✅ Core classes accessible (DebugService, Session, DAPClient)')
 
             print('✅ All smoke tests passed!')
             sys.exit(0)
