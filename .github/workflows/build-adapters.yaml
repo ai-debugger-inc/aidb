@@ -18,7 +18,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup AIDB environment
         uses: ./.github/actions/setup-aidb-env
@@ -37,7 +37,7 @@ jobs:
           ./dev-cli -v adapters build
 
       - name: Upload adapter artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: debug-adapters
           path: .cache/adapters/

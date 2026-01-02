@@ -137,6 +137,7 @@ class JavaAdapter(DebugAdapter):
         module_path: list[str] | None = None,
         vmargs: list[str] | None = None,
         jdk_home: str | None = None,
+        runtime_path: str | None = None,
         project_name: str | None = None,
         # JDT LS parameters
         jdtls_workspace: str | None = None,
@@ -171,6 +172,9 @@ class JavaAdapter(DebugAdapter):
             JVM arguments
         jdk_home : str, optional
             Path to JDK installation
+        runtime_path : str, optional
+            Path to JDK installation (alias for jdk_home for cross-adapter consistency).
+            Takes precedence over jdk_home if both are provided.
         project_name : str, optional
             Project name for evaluation context
         jdtls_workspace : str, optional
@@ -182,10 +186,13 @@ class JavaAdapter(DebugAdapter):
         if config is None:
             config = JavaAdapterConfig()
 
+        # runtime_path is an alias for jdk_home (for cross-adapter consistency)
+        effective_jdk_home = runtime_path or jdk_home
+
         # Apply overrides
         self._apply_config_overrides(
             config,
-            jdk_home,
+            effective_jdk_home,
             classpath,
             module_path,
             vmargs,

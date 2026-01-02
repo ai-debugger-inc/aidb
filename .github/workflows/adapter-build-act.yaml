@@ -24,7 +24,7 @@ jobs:
       matrix: ${{ steps.generate.outputs.matrix }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Generate build matrix
         id: generate
@@ -76,7 +76,7 @@ jobs:
 
     steps:
       - name: Checkout aidb repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Display environment info
         run: |

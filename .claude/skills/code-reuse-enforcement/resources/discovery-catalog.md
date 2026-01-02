@@ -17,7 +17,6 @@ ______________________________________________________________________
 | `aidb/audit/constants.py`      | Audit    | Sensitive fields, masking patterns              |
 | `aidb_cli/core/constants.py`   | CLI      | Icons, exit codes, Docker profiles              |
 | `aidb_mcp/core/constants.py`   | MCP      | Tool names, actions, response formats           |
-| `tests/_helpers/constants.py`  | Tests    | Ports, timeouts, markers, patterns              |
 
 ______________________________________________________________________
 
