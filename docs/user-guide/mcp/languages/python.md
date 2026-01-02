@@ -409,9 +409,20 @@ session_start(
 
 ### Explicit Python Interpreter
 
-You can specify a custom Python interpreter either directly via parameters or through VS Code launch.json.
+You can specify a custom Python interpreter directly via the `runtime_path` parameter or through VS Code launch.json.
 
-**Option 1: Direct parameter (via launch.json reference)**
+**Option 1: Direct parameter**
+
+```python
+# Specify Python interpreter directly
+session_start(
+    target="pytest",
+    args=["-xvs", "tests/"],
+    runtime_path="/path/to/.venv/bin/python"
+)
+```
+
+**Option 2: Via launch.json reference**
 
 ```:json:.vscode/launch.json
 {
@@ -432,7 +443,7 @@ session_start(
 )
 ```
 
-**Note**: The `python_path` parameter is supported via launch.json configurations. Direct parameter usage is not currently exposed in the MCP interface - use launch.json for custom interpreter paths.
+**Note**: When debugging executables inside a virtual environment (e.g., `/path/to/venv/bin/pytest`), the Python interpreter is automatically detected from the venv. Use `runtime_path` only when you need to override this auto-detection.
 
 ### Environment Variables from .env Files
 
@@ -844,7 +855,19 @@ breakpoint(
 
 **Problem:** Debugger uses wrong Python interpreter.
 
-**Solution:** Create a launch.json configuration:
+**Solution 1:** Use `runtime_path` to specify the correct interpreter:
+
+```python
+session_start(
+    target="pytest",
+    args=["-xvs", "tests/"],
+    runtime_path="/path/to/project/.venv/bin/python"
+)
+```
+
+**Solution 2:** If targeting a venv executable (e.g., `/path/to/venv/bin/pytest`), the interpreter is auto-detected.
+
+**Solution 3:** Create a launch.json configuration for repeated use:
 
 ```:json:.vscode/launch.json
 {

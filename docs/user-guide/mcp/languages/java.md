@@ -600,7 +600,17 @@ The Java adapter uses Eclipse JDT LS behind the scenes, providing:
 
 **"Java not found" error**
 
-Set `JAVA_HOME` environment variable:
+Option 1: Use `runtime_path` to specify the JDK directly:
+
+```python
+session_start(
+    language="java",
+    target="src/Main.java",
+    runtime_path="/path/to/jdk"
+)
+```
+
+Option 2: Set `JAVA_HOME` environment variable:
 
 ```bash
 export JAVA_HOME=/path/to/jdk

@@ -212,6 +212,7 @@ The `session_start` tool creates and starts a debug session in a single operatio
 | `args`               | array  | Command-line arguments (launch mode)                                                                    |
 | `env`                | object | Environment variables (launch mode)                                                                     |
 | `cwd`                | string | Working directory (launch mode)                                                                         |
+| `runtime_path`       | string | Path to language runtime (Python: interpreter, JS: node, Java: JDK). Auto-detected when possible       |
 | `workspace_root`     | string | Workspace root directory                                                                                |
 | `launch_config_name` | string | VS Code launch configuration name                                                                       |
 | `session_id`         | string | Optional session ID (generated if not provided)                                                         |

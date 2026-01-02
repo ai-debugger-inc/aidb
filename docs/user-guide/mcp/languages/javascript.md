@@ -502,7 +502,17 @@ session_start(
 
 ### Runtime Version Selection
 
-To debug with specific Node.js versions, configure a VS Code launch.json with the `runtimeExecutable` property:
+To debug with a specific Node.js version, use `runtime_path` to specify the node executable directly:
+
+```python
+session_start(
+    language="javascript",
+    target="app.js",
+    runtime_path="/path/to/node18/bin/node"
+)
+```
+
+Alternatively, configure a VS Code launch.json with the `runtimeExecutable` property:
 
 ```json
 {

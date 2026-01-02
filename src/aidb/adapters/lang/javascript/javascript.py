@@ -59,6 +59,7 @@ class JavaScriptAdapter(DebugAdapter):
         target_port=None,
         config: JavaScriptAdapterConfig | None = None,
         runtime_executable: str | None = None,
+        runtime_path: str | None = None,
         runtime_args: list[str] | None = None,
         env_file: str | None = None,
         source_maps: bool | None = None,
@@ -85,6 +86,8 @@ class JavaScriptAdapter(DebugAdapter):
             JavaScript adapter configuration
         runtime_executable : str, optional
             Runtime to use (e.g., "node", "npm", "yarn", "pnpm")
+        runtime_path : str, optional
+            Explicit path to node executable. Takes precedence over config.node_path.
         runtime_args : List[str], optional
             Arguments for the runtime (e.g., ["run", "debug"] for npm scripts)
         env_file : str, optional
@@ -99,6 +102,10 @@ class JavaScriptAdapter(DebugAdapter):
         # Use provided config or create default
         if config is None:
             config = JavaScriptAdapterConfig()
+
+        # runtime_path takes precedence over config.node_path
+        if runtime_path:
+            config.node_path = runtime_path
 
         # Update config with JS-specific options from kwargs
         javascript_config_mappings = {
