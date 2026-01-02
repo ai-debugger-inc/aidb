@@ -885,7 +885,7 @@ If you use an unsupported mode, you'll receive an error:
 ```json
 {
   "error": "UnsupportedOperationError",
-  "message": "The python adapter doesn't support LESS_THAN hit conditions. Supported: EXACT, MODULO, GREATER_THAN"
+  "message": "The java adapter doesn't support MODULO hit conditions. Supported: EXACT"
 }
 ```
 

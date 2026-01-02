@@ -386,8 +386,9 @@ ______________________________________________________________________
 
 **Hooks:**
 
-- `.claude/hooks/skill-activation-prompt.ts` - UserPromptSubmit
-- `.claude/hooks/error-handling-reminder.ts` - Stop event (gentle reminders)
+- `.claude/hooks/skill-activation-prompt.sh` - UserPromptSubmit (calls skill-activation-prompt.ts)
+- `.claude/hooks/test-runner-suggestion.sh` - Stop event (test suggestions)
+- `.claude/hooks/lint-check.sh` - Stop event (lint reminders)
 
 **All Skills:**
 

@@ -218,7 +218,7 @@ class TestLaunchOrchestratorLaunch:
                 args=["--debug"],
             )
 
-        mock_internal.assert_called_once_with("test.py", 5678, ["--debug"])
+        mock_internal.assert_called_once_with("test.py", 5678, ["--debug"], None)
         assert result == (mock_proc, 5678)
 
 

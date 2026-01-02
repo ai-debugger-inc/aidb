@@ -5,7 +5,7 @@ version](https://badge.fury.io/py/ai-debugger-inc.svg)](https://badge.fury.io/py
 [![Python
 versions](https://img.shields.io/pypi/pyversions/ai-debugger-inc.svg)](https://pypi.org/project/ai-debugger-inc/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/ai-debugger-inc/aidb/blob/main/LICENSE)
-[![Downloads](https://static.pepy.tech/badge/aidb)](https://pepy.tech/project/aidb)
+[![Downloads](https://static.pepy.tech/badge/ai-debugger-inc)](https://pepy.tech/project/ai-debugger-inc)
 [![GitHub
 stars](https://img.shields.io/github/stars/ai-debugger-inc/aidb?style=social)](https://github.com/ai-debugger-inc/aidb)
 
@@ -174,7 +174,7 @@ ______________________________________________________________________
 | **Platforms**     | All         | All                   | All         |
 | **Debug Adapter** | debugpy     | vscode-js-debug       | java-debug  |
 
-**Platforms**: macOS, Linux, Windows (x64, arm64)
+**Platforms**: macOS, Linux, Windows (WSL recommended; native support in progress)
 
 **Coming Soon**: Built to support all DAP-compatible adapters––AIDB is designed
 to become the debugging standard for AI systems across every popular language

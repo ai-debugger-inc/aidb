@@ -121,6 +121,7 @@ class LaunchOrchestrator(Obj):
         target: str,
         port: int | None = None,
         args: list[str] | None = None,
+        cwd: str | None = None,
     ) -> tuple[asyncio.subprocess.Process, int]:
         """Launch debug adapter without VS Code config resolution.
 
@@ -132,13 +133,16 @@ class LaunchOrchestrator(Obj):
             Specific port to use, if None will find available port
         args : List[str], optional
             Additional arguments for the target
+        cwd : str, optional
+            Working directory for the adapter subprocess. This ensures tools
+            like pytest discover config files from the correct project root.
 
         Returns
         -------
         Tuple[asyncio.subprocess.Process, int]
             The launched process and the port it's listening on
         """
-        return await self._launch_internal(target, port, args)
+        return await self._launch_internal(target, port, args, cwd)
 
     async def launch_with_config(
         self,
@@ -169,6 +173,7 @@ class LaunchOrchestrator(Obj):
         target: str,
         port: int | None = None,
         args: list[str] | None = None,
+        cwd: str | None = None,
     ) -> tuple[asyncio.subprocess.Process, int]:
         """Handle launch args without launch.json resolution.
 
@@ -180,6 +185,8 @@ class LaunchOrchestrator(Obj):
             Specific port to use, if None will find available port
         args : List[str], optional
             Additional arguments for the target
+        cwd : str, optional
+            Working directory for the adapter subprocess
 
         Returns
         -------
@@ -235,13 +242,17 @@ class LaunchOrchestrator(Obj):
         self._log_launch_info(cmd, env)
 
         # Launch the process using ProcessManager with session tagging
+        # Pass cwd to ensure adapter runs from correct working directory
+        subprocess_kwargs = {"cwd": cwd} if cwd else {}
+        if cwd:
+            self.ctx.debug(f"Using working directory for adapter: {cwd}")
         proc = await self.process_manager.launch_subprocess(
             cmd=cmd,
             env=env,
             session_id=self.session.id,
             language=self.adapter.config.language,
             process_type=ProcessType.ADAPTER,
-            kwargs={},
+            kwargs=subprocess_kwargs,
         )
 
         self.ctx.debug(f"Launched debug adapter process with PID: {proc.pid}")

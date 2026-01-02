@@ -35,7 +35,7 @@ classifiers = [
 ]
 readme = "README.md"
 requires-python = ">=3.10"
-version = "0.0.9"
+version = "0.1.0"
 
 [project.urls]
 Homepage = "https://github.com/ai-debugger-inc/aidb"
@@ -193,6 +193,7 @@ max-complexity = 15
   "PTH123",  # open() vs Path.open() - acceptable in tests for simplicity
   "COM812",  # trailing comma - handled by formatter
   "PT011", "PT012",  # pytest.raises patterns - acceptable in tests
+  "TC003",  # type-checking imports - unnecessary complexity in tests
 ]
 "scripts/**/*.py" = ["E501", "S607", "S603"]  # line too long, safe subprocess calls with docker/git
 ".github/**/*.py" = ["E501"]  # line too long - CI scripts often have long URLs and commands

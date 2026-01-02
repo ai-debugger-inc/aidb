@@ -500,7 +500,28 @@ class DebugAdapter(ABC, Obj, AdapterHooksMixin):
         # Hooks may further modify target
         target = context.data.get("target", target)
 
-        proc, port = await self._launch_orchestrator.launch(target, port, args)
+        # Auto-infer cwd if not explicitly provided
+        # Priority: explicit cwd > workspace_root > target's parent directory
+        effective_cwd = cwd
+        if not effective_cwd and workspace_root:
+            effective_cwd = workspace_root
+            self.ctx.debug(f"Auto-inferred cwd from workspace_root: {effective_cwd}")
+        elif not effective_cwd:
+            # Try to derive from resolved target path
+            target_path = Path(target)
+            if target_path.exists():
+                # For files, use parent; for directories, use the directory itself
+                effective_cwd = str(
+                    target_path.parent if target_path.is_file() else target_path,
+                )
+                self.ctx.debug(f"Auto-inferred cwd from target path: {effective_cwd}")
+
+        proc, port = await self._launch_orchestrator.launch(
+            target,
+            port,
+            args,
+            effective_cwd,
+        )
 
         context = await self.execute_hook(
             LifecycleHook.POST_LAUNCH,

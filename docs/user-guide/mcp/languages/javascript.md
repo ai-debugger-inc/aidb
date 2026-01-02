@@ -11,6 +11,14 @@ AI Debugger MCP provides comprehensive debugging support for JavaScript and Type
 ```{include} /_snippets/about-examples-disclaimer.md
 ```
 
+## Requirements
+
+- **Node.js**: 18+ (22 LTS recommended)
+- **Debug Adapter**: vscode-js-debug v1.105.0
+- **TypeScript** (optional): ts-node 10.9.2, TypeScript 5.9.3
+
+The adapter is installed automatically when you first debug JavaScript/TypeScript code.
+
 ## Framework Support
 
 AI Debugger MCP provides example configurations for popular JavaScript frameworks and test runners.
@@ -119,6 +127,61 @@ The `--inspect-brk` flag starts the debugger and breaks before user code starts,
   "args": ["test/**/*.test.js"]
 }
 ```
+
+### Express Framework
+
+Debug Express.js web applications with full support for routes, middleware, and error handlers.
+
+**Example: Debugging an Express server**
+
+```python
+# MCP tool: session_start
+{
+    "language": "javascript",
+    "target": "/path/to/server.js",
+    "breakpoints": [
+        {"file": "/path/to/routes/index.js", "line": 12},
+        {"file": "/path/to/routes/api.js", "line": 25},
+        {"file": "/path/to/middleware/auth.js", "line": 8}
+    ]
+}
+```
+
+**Debug Express via npm scripts:**
+
+```python
+# MCP tool: session_start
+{
+    "language": "javascript",
+    "target": "npm",
+    "args": ["start"],
+    "cwd": "/path/to/express-app",
+    "breakpoints": [
+        {"file": "/path/to/express-app/routes/api.js", "line": 15}
+    ]
+}
+```
+
+**Launch configuration equivalent:**
+
+```json
+{
+  "type": "pwa-node",
+  "request": "launch",
+  "name": "Express Server",
+  "program": "${workspaceFolder}/server.js",
+  "skipFiles": ["<node_internals>/**"]
+}
+```
+
+:::{tip}
+**Express debugging tips:**
+
+- Set breakpoints in route handlers to inspect request/response objects
+- Debug middleware by setting breakpoints at the start of each middleware function
+- Use conditional breakpoints like `req.method === 'POST'` to catch specific requests
+- Set breakpoints in error handlers to debug error scenarios
+  :::
 
 ## Source Maps
 
@@ -251,7 +314,7 @@ session_start(
 1. **With source maps**: Set breakpoints in source files, they'll map to correct columns automatically
 1. **Without source maps**: Use browser DevTools to find column positions, then use those in your debug session
 1. **Programmatically**: Parse the minified file to find function/statement boundaries
-:::
+   :::
 
 :::{important}
 **Debugging Minified Code Best Practices:**
@@ -260,7 +323,7 @@ session_start(
 1. **Enable source map generation in your build** - Configure webpack/babel/tsc to generate `.map` files
 1. **Keep source maps secure** - Don't deploy them to production unless needed for debugging
 1. **Use smart stepping via launch.json** - Skip over library code automatically (see Step Filtering section)
-:::
+   :::
 
 ## Common Patterns
 
@@ -323,7 +386,7 @@ session_start(
 - `<5`: Break before 5th hit
 - `<=5`: Break on hits 1 through 5
 - `%5`: Break every 5th hit (modulo)
-:::
+  :::
 
 ### Logpoints
 
@@ -350,7 +413,7 @@ session_start(
 - **Production debugging**: Add logging without redeploying
 - **Performance monitoring**: Log timing information
 - **Trace analysis**: Follow execution flow without stopping
-:::
+  :::
 
 ### Async/Await Debugging
 
@@ -439,7 +502,17 @@ session_start(
 
 ### Runtime Version Selection
 
-To debug with specific Node.js versions, configure a VS Code launch.json with the `runtimeExecutable` property:
+To debug with a specific Node.js version, use `runtime_path` to specify the node executable directly:
+
+```python
+session_start(
+    language="javascript",
+    target="app.js",
+    runtime_path="/path/to/node18/bin/node"
+)
+```
+
+Alternatively, configure a VS Code launch.json with the `runtimeExecutable` property:
 
 ```json
 {
@@ -504,21 +577,23 @@ Attach to Node.js processes started with `--inspect`:
 Attach mode connects to an **already-running** Node.js process. This is different from launch mode, which starts a new process for you.
 
 **When to use attach:**
+
 - Production debugging (process is already running)
 - Long-running servers
 - Debugging without restarting the application
 
 **When to use launch:**
+
 - Development workflows
 - Running tests
 - Starting fresh debug sessions
-:::
+  :::
 
 **Requirements for attach mode:**
 
 1. Target process must already be running
-2. Process must be started with `--inspect` or `--inspect-brk` flag
-3. Debugger port must be accessible (default: 9229)
+1. Process must be started with `--inspect` or `--inspect-brk` flag
+1. Debugger port must be accessible (default: 9229)
 
 **Example workflow:**
 
@@ -542,34 +617,6 @@ session_start(
 - **Local development**: Attach to `localhost:9229`
 - **Docker container**: Forward port and attach to `localhost:9229`
 - **Remote server**: SSH tunnel or attach to `remote-host:9229` (if port exposed)
-
-### Chrome/Edge Debugging
-
-Debug browser JavaScript applications using a VS Code launch.json configuration:
-
-```json
-{
-  "type": "pwa-chrome",
-  "request": "launch",
-  "name": "Chrome Debugging",
-  "url": "http://localhost:3000",
-  "webRoot": "${workspaceFolder}/src"
-}
-```
-
-Then reference it:
-
-```python
-session_start(
-    language="javascript",
-    launch_config_name="Chrome Debugging",
-    breakpoints=[
-        {"file": "/path/to/web/root/src/app.js", "line": 25}
-    ]
-)
-```
-
-**Note**: Browser debugging requires a VS Code launch.json configuration. The `debugger_type`, `url`, and `web_root` parameters are configured through launch.json, not as direct MCP parameters.
 
 ## TypeScript-Specific Features
 
@@ -655,15 +702,68 @@ session_start(
 )
 ```
 
+## Child Session Architecture
+
+JavaScript debugging uses a **parent-child session pattern** to handle subprocess debugging. Understanding this architecture is important for debugging complex Node.js applications that spawn child processes.
+
+### How Child Sessions Work
+
+When you launch a debug session, the vscode-js-debug adapter creates:
+
+1. **Parent Session**: Manages the initial process launch and coordinates debugging
+1. **Child Session(s)**: Created automatically for each spawned subprocess that needs debugging
+
+This architecture is used for:
+
+- Worker threads
+- Child processes spawned via `child_process.fork()`
+- Subprocess debugging in general
+
+### Breakpoint Behavior
+
+Breakpoints are automatically transferred from the parent session to child sessions:
+
+- When a child session starts, breakpoints set via the parent are automatically applied
+- You don't need to re-set breakpoints for child processes
+- The adapter handles the coordination between parent and child sessions
+
+### Practical Implications
+
+:::{note}
+**For most debugging scenarios, child sessions are transparent** - you don't need to manage them manually. The adapter handles session coordination automatically.
+
+**When it matters:**
+
+- Debugging worker threads or forked processes
+- Complex multi-process Node.js applications
+- Microservices running locally
+  :::
+
+Example scenario with worker threads:
+
+```python
+# MCP tool: session_start
+{
+    "language": "javascript",
+    "target": "/path/to/main.js",  # Main file spawns workers
+    "breakpoints": [
+        {"file": "/path/to/main.js", "line": 15},
+        {"file": "/path/to/worker.js", "line": 8}  # Breakpoint in worker file
+    ]
+}
+```
+
+When `main.js` spawns a worker from `worker.js`, the breakpoint at line 8 in the worker file will be hit automatically - the adapter creates a child session for the worker and transfers the breakpoint.
+
 ## Performance Tips
 
 ### Reduce Startup Time
 
 1. **Use targeted breakpoints:** Set breakpoints only where needed instead of stepping through code
 
-2. **Limit outFiles patterns:** Be specific about where to look for source maps in launch.json
+1. **Limit outFiles patterns:** Be specific about where to look for source maps in launch.json
 
-3. **Configure step filtering via launch.json:**
+1. **Configure step filtering via launch.json:**
 
 ```json
 {
@@ -725,14 +825,14 @@ session_start(
 
    Then use: `session_start(launch_config_name="Debug with Source Maps")`
 
-2. **Verify file paths are absolute:**
+1. **Verify file paths are absolute:**
 
    ```python
    # Use absolute paths for breakpoints
    breakpoints=[{"file": "/absolute/path/to/file.js", "line": 15}]
    ```
 
-3. **Ensure source maps are generated** by your build tool (webpack, tsc, etc.)
+1. **Ensure source maps are generated** by your build tool (webpack, tsc, etc.)
 
 ### Source Maps Not Working
 
@@ -760,7 +860,7 @@ session_start(
    }
    ```
 
-3. **Use pauseForSourceMap via launch.json:**
+1. **Use pauseForSourceMap via launch.json:**
 
    ```json
    {
@@ -827,7 +927,7 @@ session_start(
    npx tsc --noEmit
    ```
 
-3. **Use pre-compiled JavaScript with launch.json:**
+1. **Use pre-compiled JavaScript with launch.json:**
 
    Configure source maps in launch.json and debug the compiled output:
 
@@ -845,15 +945,18 @@ session_start(
 **Understanding JavaScript/TypeScript Debugging Modes:**
 
 **Attach mode** connects to an already-running Node.js process:
+
 - ℹ️ Process must be started with `--inspect` or `--inspect-brk` flag
 - ℹ️ Best for production debugging, long-running servers, debugging without restart
 - ✅ All debugging features supported (breakpoints, stepping, inspection, etc.)
 
 **Launch mode** starts a new process for you:
+
 - ✅ Best for development, running tests, fresh debug sessions
 - ✅ No manual setup required
 
 **All debugging features work in both modes:**
+
 - ✅ Conditional breakpoints with all hit condition modes (`>`, `>=`, `=`, `<`, `<=`, `%`, exact)
 - ✅ Logpoints with template syntax
 - ✅ Source maps (TypeScript, minified code)

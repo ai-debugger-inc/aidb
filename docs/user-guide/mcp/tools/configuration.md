@@ -29,6 +29,10 @@ Display current debugging configuration including active session, environment va
 
 **When to use:** Get a quick overview of your current debugging setup.
 
+:::{tip}
+The `list` action is an alias for `show` and provides the same functionality.
+:::
+
 #### env
 
 Show or set AIDB environment variables.

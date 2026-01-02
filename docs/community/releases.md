@@ -72,11 +72,12 @@ Pre-built adapter binaries are published with each release:
 When an AI agent attempts to start a debugging session without the required adapter, the system raises an error with installation instructions. The agent then uses MCP tools to download the adapter.
 
 **Download workflow:**
+
 1. System checks if adapter exists in `~/.aidb/adapters/`
-2. If missing, raises error with installation instructions
-3. AI agent calls MCP `adapter` tool with `download` action
-4. System fetches from GitHub releases and verifies metadata
-5. Adapter cached locally for future sessions
+1. If missing, raises error with installation instructions
+1. AI agent calls MCP `adapter` tool with `download` action
+1. System fetches from GitHub releases and verifies metadata
+1. Adapter cached locally for future sessions
 
 ### Supported Adapters
 
@@ -92,7 +93,7 @@ When an AI agent attempts to start a debugging session without the required adap
 
 ## Current Status
 
-**Version**: 0.0.9
+**Version**: 0.1.0
 
 ### What's Working ✓
 
@@ -109,7 +110,7 @@ When an AI agent attempts to start a debugging session without the required adap
 
 ### Known Limitations
 
-- Windows support pending (WSL works)
+- Windows: WSL recommended; native support in progress
 - Limited framework-specific features
 - Documentation still evolving
 
@@ -152,8 +153,8 @@ When an AI agent attempts to start a debugging session without the required adap
 AI Debugger is free and open source. Get started in minutes:
 
 1. Install AI Debugger: `pip install ai-debugger-inc`
-2. Set up MCP integration with your AI assistant
-3. Join our [Discord community](https://discord.com/invite/UGS92b6KgR)
+1. Set up MCP integration with your AI assistant
+1. Join our [Discord community](https://discord.com/invite/UGS92b6KgR)
 
 ### Community & Support
 
@@ -186,6 +187,6 @@ Very stable for core features. We have comprehensive test coverage, CI/CD automa
 
 Python, JavaScript/TypeScript, and Java are fully supported. Additional languages and frameworks are planned for future releases based on community needs.
 
----
+______________________________________________________________________
 
 **Ready to join?** Start with our [Quick Start Guide](../user-guide/mcp/quickstart) or explore the [full documentation](../user-guide/index).

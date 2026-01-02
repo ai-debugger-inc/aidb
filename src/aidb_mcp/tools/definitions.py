@@ -217,6 +217,18 @@ def get_all_mcp_tools() -> list[Tool]:
                         "type": "string",
                         "description": "Working directory (for launch mode)",
                     },
+                    ParamName.RUNTIME_PATH: {
+                        "type": "string",
+                        "description": (
+                            "Path to the language runtime/interpreter. "
+                            "For Python: path to python executable "
+                            "(e.g., /path/to/venv/bin/python). "
+                            "For JavaScript: path to node executable. "
+                            "For Java: JAVA_HOME path. "
+                            "If not provided, auto-detected from target "
+                            "path when possible."
+                        ),
+                    },
                     ParamName.LAUNCH_CONFIG_NAME: {
                         "type": "string",
                         "description": "VS Code launch configuration name",

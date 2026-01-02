@@ -302,6 +302,7 @@ class ParamName:
     WORKSPACE_ROOTS = "workspace_roots"
     LAUNCH_CONFIG_NAME = "launch_config_name"
     CWD = "cwd"
+    RUNTIME_PATH = "runtime_path"
     PID = "pid"
     HOST = "host"
     PORT = "port"

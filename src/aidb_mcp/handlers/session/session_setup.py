@@ -204,6 +204,7 @@ def _create_session_for_mode(
             env=args.get(ParamName.ENV),
             args=args.get(ParamName.ARGS, []),
             cwd=args.get(ParamName.CWD),
+            runtime_path=args.get(ParamName.RUNTIME_PATH),
             launch_config_name=args.get(ParamName.LAUNCH_CONFIG_NAME),
             workspace_root=args.get(ParamName.WORKSPACE_ROOT),
             on_child_created_callback=on_child_created_callback,
