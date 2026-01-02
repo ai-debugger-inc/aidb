@@ -137,7 +137,7 @@ The cornerstone of our test strategy is the **DebugInterface abstraction** - a u
 **For implementation details**, see:
 
 - [DebugInterface](resources/debug-interface.md) - Skill resource file
-- `src/tests/_interfaces/` - Debug interface source and docstrings
+- `src/tests/_helpers/debug_interface/` - Debug interface source and docstrings
 
 **Why?** One test validates both entry points.
 
@@ -208,9 +208,12 @@ src/tests/
 │   └── e2e/                  # Complex workflows, parallel sessions
 ├── aidb/                      # Core API tests - organized by component
 │   ├── adapters/             # Adapter-specific tests
-│   ├── api/                  # Public API tests
 │   ├── audit/                # Audit logging tests
+│   ├── common/               # Common utilities tests
 │   ├── dap/                  # DAP client tests
+│   ├── models/               # Model tests
+│   ├── resources/            # Resource management tests
+│   ├── service/              # Service layer tests
 │   └── session/              # Session management tests
 ├── aidb_mcp/                  # MCP server tests - organized by component
 ├── frameworks/                # Framework integration tests
@@ -427,7 +430,7 @@ Don't start from scratch:
 | [DebugInterface](resources/debug-interface.md)        | Unified API abstraction, shared suite architecture   |
 | [Debugging Failures](resources/debugging-failures.md) | Log locations, investigation workflow, common issues |
 
-**Test Infrastructure:** `src/tests/` (see \_interfaces/, \_fixtures/, \_helpers/ for core components)
+**Test Infrastructure:** `src/tests/` (see \_fixtures/, \_helpers/ for core components)
 
 ## Getting Started
 
@@ -442,7 +445,7 @@ Don't start from scratch:
 
 **Internal Documentation**:
 
-- `src/tests/` - Test infrastructure (see \_interfaces/, \_fixtures/, \_helpers/)
+- `src/tests/` - Test infrastructure (see \_fixtures/, \_helpers/)
 - `docs/developer-guide/overview.md` - System architecture
 
 **Code References**:

@@ -83,7 +83,8 @@ graph TB
    - `SessionState` (`state.py`): Manages session status and error state
    - `SessionConnector` (`connector.py`): Manages DAP connection lifecycle
    - `ResourceManager` (`resource.py`): Manages process and port registries
-   - `SessionDebugOperations` (`ops/`): Executes debug operations via mixins
+   - Debug Mixins: `SessionBreakpointsMixin`, `SessionLifecycleMixin`, `SessionRelationshipsMixin`
+   - `ops/`: Operation helpers (`base.py`, `initialization.py`)
    - `SessionRegistry` (`registry.py`): Tracks active sessions with cleanup support
 
 4. **Adapter Layer** (`aidb/adapters/`): Language-specific debug adapter implementations
