@@ -35,7 +35,7 @@ jobs:
       adapter-languages-json: ${{ steps.versions.outputs.adapter-languages-json }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Python (bootstrap)
         uses: actions/setup-python@v6

@@ -27,10 +27,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ needs.load-versions.outputs.python-version }}
 
@@ -106,10 +106,10 @@ jobs:
     if: always()
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Download all test summaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: test-summary-*
           path: summaries/
@@ -123,7 +123,7 @@ jobs:
             >> $GITHUB_STEP_SUMMARY
 
       - name: Upload flaky tests report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: flaky-tests-report
           path: flaky-tests-report.json
@@ -137,7 +137,7 @@ jobs:
           python3 .github/scripts/format_job_summary.py
 
       - name: Download all coverage files
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: coverage-*
           path: coverage/
@@ -145,7 +145,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload combined coverage to codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           directory: coverage/
           fail_ci_if_error: false
@@ -163,7 +163,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -171,7 +171,7 @@ jobs:
           node-version: ${{ needs.load-versions.outputs.node-version }}
 
       - name: Cache extension node_modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: src/extensions/aidb-vscode-bridge/node_modules
           key: ${{ runner.os }}-extension-${{ hashFiles('src/extensions/aidb-vscode-bridge/package-lock.json') }}
@@ -203,7 +203,7 @@ jobs:
           echo "✅ Extension built successfully"
 
       - name: Upload extension artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: vscode-extension
           path: src/extensions/aidb-vscode-bridge/aidb-vscode-bridge.vsix
@@ -217,12 +217,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Download extension artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: vscode-extension
           path: build/vsix/
@@ -279,7 +279,7 @@ jobs:
           ls -la dist/
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: distribution
           path: dist/
@@ -323,10 +323,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Download extension artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: vscode-extension
           path: build/vsix/
@@ -411,7 +411,7 @@ jobs:
       matrix: ${{ steps.generate.outputs.matrix }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -447,7 +447,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -492,7 +492,7 @@ jobs:
           find dist/ -name "*.sha256" -exec cat {} \;
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.adapter }}-${{ matrix.platform }}-${{ matrix.arch }}
           path: |
@@ -508,7 +508,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -521,19 +521,19 @@ jobs:
           python3 -m pip install pyyaml
 
       - name: Download Python adapter artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           path: artifacts
           pattern: python-*-*
 
       - name: Download JavaScript adapter artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           path: artifacts
           pattern: javascript-*-*
 
       - name: Download Java adapter artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           path: artifacts
           pattern: java-*-*
@@ -602,7 +602,7 @@ jobs:
           ls -la consolidated-adapters/
 
       - name: Upload consolidated artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: adapter-artifacts-all
           path: consolidated-adapters/
@@ -616,10 +616,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Download consolidated adapter artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: adapter-artifacts-all
           path: adapters/
