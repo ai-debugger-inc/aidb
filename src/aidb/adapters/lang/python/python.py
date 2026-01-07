@@ -48,6 +48,7 @@ class PythonAdapter(DebugAdapter):
         config: PythonAdapterConfig | None = None,
         module: bool = False,
         python_path: str | None = None,
+        runtime_path: str | None = None,
         env_file: str | None = None,
         **kwargs,
     ):
@@ -73,7 +74,11 @@ class PythonAdapter(DebugAdapter):
             If True, treat target as a Python module name (e.g., "pytest"). If
             False, treat target as a file path. By default False
         python_path : str, optional
-            Path to custom Python interpreter. If None, uses sys.executable
+            Path to custom Python interpreter. If None, uses sys.executable.
+            Deprecated: use runtime_path instead.
+        runtime_path : str, optional
+            Path to Python interpreter. Takes precedence over python_path.
+            If neither provided, auto-detected from target path when possible.
         env_file : str, optional
             Path to .env file to load environment variables from
         ``**kwargs`` : Any
@@ -110,8 +115,24 @@ class PythonAdapter(DebugAdapter):
         )
 
         self.module = module
-        self.python_path = python_path
         self.env_file = env_file
+
+        # Resolve python_path priority:
+        # 1. Explicit runtime_path
+        # 2. Explicit python_path (legacy/adapter-specific)
+        # 3. Auto-detect from target path (if target is in a venv)
+        # 4. Fall back to sys.executable (handled in _build_launch_command)
+        effective_python_path = runtime_path or python_path
+
+        if not effective_python_path and session.target:
+            from aidb.adapters.lang.python.venv_detector import detect_venv_from_path
+
+            venv_info = detect_venv_from_path(session.target)
+            if venv_info:
+                effective_python_path = str(venv_info.python_path)
+                self.ctx.info(f"Auto-detected venv Python: {effective_python_path}")
+
+        self.python_path = effective_python_path
 
         # Override module flag if passed via kwargs from launch config
         if "module" in kwargs:

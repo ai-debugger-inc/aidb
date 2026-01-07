@@ -105,7 +105,7 @@ ______________________________________________________________________
 
 ## Quick Discovery
 
-### Constants Files (8 total)
+### Constants Files
 
 | Location                       | Contents                           |
 | ------------------------------ | ---------------------------------- |
@@ -114,7 +114,6 @@ ______________________________________________________________________
 | `aidb/common/constants.py`     | Timeouts (seconds), defaults       |
 | `aidb_mcp/core/constants.py`   | MCP tool names, actions            |
 | `aidb_cli/core/constants.py`   | Icons, exit codes, Docker          |
-| `tests/_helpers/constants.py`  | Test ports, timeouts, patterns     |
 
 ### Utility Packages
 
