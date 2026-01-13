@@ -149,7 +149,7 @@ class MCPConfig:
 
     # Server configuration
     server_name: str = "ai-debugger"
-    server_version: str = "0.1.0"
+    server_version: str = "0.1.1"
 
     @classmethod
     def from_env(cls) -> MCPConfig:
