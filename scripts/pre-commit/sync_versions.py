@@ -243,6 +243,39 @@ def update_versions_json(version, repo_root):
     return False
 
 
+def update_server_json(version, repo_root):
+    """Update version in server.json (MCP registry manifest)."""
+    server_json_path = repo_root / "server.json"
+    if not server_json_path.exists():
+        return False
+
+    with server_json_path.open() as f:
+        data = json.load(f)
+
+    updated = False
+
+    # Update top-level version
+    if data.get("version") != version:
+        data["version"] = version
+        updated = True
+
+    # Update package version(s)
+    if "packages" in data:
+        for package in data["packages"]:
+            if package.get("version") != version:
+                package["version"] = version
+                updated = True
+
+    if updated:
+        with server_json_path.open("w") as f:
+            json.dump(data, f, indent=2)
+            f.write("\n")  # Add trailing newline
+
+        print(f"Updated server.json to version {version}")
+        return True
+    return False
+
+
 def update_vscode_extension_package_json(version, repo_root):
     """Update version in VSCode extension package.json."""
     package_json_path = (
@@ -359,6 +392,7 @@ def main():
     changes |= update_python_init_files(version, repo_root)
     changes |= update_config_files(version, repo_root)
     changes |= update_versions_json(version, repo_root)
+    changes |= update_server_json(version, repo_root)
     changes |= update_vscode_extension_package_json(version, repo_root)
     changes |= update_workflow_aidb_version(version, repo_root)
     changes |= update_releases_md(version, repo_root)

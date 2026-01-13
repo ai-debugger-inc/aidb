@@ -127,3 +127,6 @@ docs/developer-guide/api/
 # VS Code local settings (machine-specific overrides)
 .vscode/settings.json
 .vscode/launch.local.json
+
+# MCP Registry auth tokens
+.mcpregistry_*

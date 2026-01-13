@@ -28,5 +28,6 @@ Releases](https://github.com/ai-debugger-inc/aidb/releases) page.
 maxdepth: 1
 caption: Releases
 ---
+0.1.1
 0.1.0
 ```

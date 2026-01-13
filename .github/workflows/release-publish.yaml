@@ -12,6 +12,9 @@ jobs:
     # Only run if PR was merged (not just closed) and came from a release branch
     if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write  # Required for MCP registry OIDC auth
 
     steps:
       - name: Checkout code
@@ -112,3 +115,52 @@ jobs:
           echo "1. Verify installation from PyPI: \`pip install ai-debugger-inc==$VERSION\`" >> $GITHUB_STEP_SUMMARY
           echo "2. Test VS Code extension from release assets" >> $GITHUB_STEP_SUMMARY
           echo "3. Announce release to community" >> $GITHUB_STEP_SUMMARY
+
+  publish-mcp-registry:
+    # Publish to MCP Registry after GitHub release is published
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # Required for OIDC authentication
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Extract version from branch name
+        id: extract
+        uses: ./.github/actions/extract-version
+        with:
+          branch_name: ${{ github.event.pull_request.head.ref }}
+          fail_on_invalid: true
+
+      - name: Install mcp-publisher
+        run: |
+          curl -fsSL https://registry.modelcontextprotocol.io/install.sh | bash
+          echo "$HOME/.mcp/bin" >> $GITHUB_PATH
+
+      - name: Authenticate with MCP Registry (OIDC)
+        run: mcp-publisher login github-oidc
+
+      - name: Publish to MCP Registry
+        run: |
+          mcp-publisher publish
+          echo "✅ Published to MCP Registry"
+
+      - name: Verify MCP Registry publication
+        run: |
+          # Give the registry a moment to index
+          sleep 5
+          # Query the registry to verify
+          curl -s "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.ai-debugger-inc/aidb" | jq .
+
+      - name: Add MCP Registry summary
+        if: always()
+        run: |
+          VERSION="${{ steps.extract.outputs.version }}"
+          echo "## 📦 MCP Registry Publication" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Server**: io.github.ai-debugger-inc/aidb" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: $VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "- **Registry**: https://registry.modelcontextprotocol.io" >> $GITHUB_STEP_SUMMARY

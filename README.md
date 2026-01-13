@@ -9,6 +9,8 @@ versions](https://img.shields.io/pypi/pyversions/ai-debugger-inc.svg)](https://p
 [![GitHub
 stars](https://img.shields.io/github/stars/ai-debugger-inc/aidb?style=social)](https://github.com/ai-debugger-inc/aidb)
 
+<!-- mcp-name: io.github.ai-debugger-inc/aidb -->
+
 **AI-Powered Debugging for Every Language**
 
 AI Debugger (AIDB) brings the proven Debug Adapter Protocol (DAP) ecosystem to
