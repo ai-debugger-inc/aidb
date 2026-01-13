@@ -6,11 +6,14 @@ on:
       - closed
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   publish:
-    # Only run if PR was merged (not just closed) and came from a release branch
-    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/')
+    # Run on merged release PR or manual trigger
+    if: |
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/')) ||
+      (github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -20,12 +23,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Extract version from branch name
+      - name: Get version
         id: extract
-        uses: ./.github/actions/extract-version
-        with:
-          branch_name: ${{ github.event.pull_request.head.ref }}
-          fail_on_invalid: true
+        run: |
+          # On PR merge, extract from branch name; on manual dispatch, read from pyproject.toml
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BRANCH="${{ github.event.pull_request.head.ref }}"
+            VERSION="${BRANCH#release/}"
+          else
+            VERSION=$(grep -m1 '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag_name=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
 
       - name: Find and publish draft release
         env:
@@ -128,23 +138,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Extract version from branch name
+      - name: Get version from server.json
         id: extract
-        uses: ./.github/actions/extract-version
-        with:
-          branch_name: ${{ github.event.pull_request.head.ref }}
-          fail_on_invalid: true
+        run: |
+          VERSION=$(jq -r '.version' server.json)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version from server.json: $VERSION"
 
       - name: Install mcp-publisher
         run: |
-          curl -fsSL https://registry.modelcontextprotocol.io/install.sh | bash
+          curl -sL https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz | tar xz
+          chmod +x mcp-publisher
+          ./mcp-publisher --version
 
       - name: Authenticate with MCP Registry (OIDC)
-        run: $HOME/.mcp/bin/mcp-publisher login github-oidc
+        run: ./mcp-publisher login github-oidc
 
       - name: Publish to MCP Registry
         run: |
-          $HOME/.mcp/bin/mcp-publisher publish
+          ./mcp-publisher publish
           echo "✅ Published to MCP Registry"
 
       - name: Verify MCP Registry publication
