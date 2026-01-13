@@ -138,14 +138,13 @@ jobs:
       - name: Install mcp-publisher
         run: |
           curl -fsSL https://registry.modelcontextprotocol.io/install.sh | bash
-          echo "$HOME/.mcp/bin" >> $GITHUB_PATH
 
       - name: Authenticate with MCP Registry (OIDC)
-        run: mcp-publisher login github-oidc
+        run: $HOME/.mcp/bin/mcp-publisher login github-oidc
 
       - name: Publish to MCP Registry
         run: |
-          mcp-publisher publish
+          $HOME/.mcp/bin/mcp-publisher publish
           echo "✅ Published to MCP Registry"
 
       - name: Verify MCP Registry publication
