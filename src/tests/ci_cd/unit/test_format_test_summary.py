@@ -41,8 +41,8 @@ src/tests/aidb/audit/unit/test_logger.py::TestAuditLoggerOperations::test_log_ev
 src/tests/aidb/session/test_session.py::TestSession::test_start RERUN [ 30%]
 src/tests/aidb/session/test_session.py::TestSession::test_start PASSED  [ 30%]
 
-src/tests/aidb/api/test_api.py::TestAPI::test_connection RERUN [ 50%]
-src/tests/aidb/api/test_api.py::TestAPI::test_connection PASSED        [ 50%]
+src/tests/aidb/service/test_service.py::TestService::test_connection RERUN [ 50%]
+src/tests/aidb/service/test_service.py::TestService::test_connection PASSED        [ 50%]
 
 ======================== 220 passed, 3 rerun in 45.23s =======================
 """

@@ -170,15 +170,15 @@ ______________________________________________________________________
 
 ### Key Design Decisions
 
-| Decision                | Why                                       |
-| ----------------------- | ----------------------------------------- |
-| Component Delegation    | Testability, maintainability, readability |
-| Language-Agnostic API   | Same Python API for Python/JS/Java        |
-| Human-Cadence Debugging | Matches real debugger usage               |
-| Single Request Path     | Prevents race conditions, deadlocks       |
-| Three-Tier Cleanup      | Defense-in-depth, prevents leaks          |
-| Socket Reservation      | Eliminates TOCTOU races                   |
-| Environment Tagging     | Reliable orphan detection                 |
+| Decision                    | Why                                       |
+| --------------------------- | ----------------------------------------- |
+| Component Delegation        | Testability, maintainability, readability |
+| Language-Agnostic Interface | Same Python interface for Python/JS/Java  |
+| Human-Cadence Debugging     | Matches real debugger usage               |
+| Single Request Path         | Prevents race conditions, deadlocks       |
+| Three-Tier Cleanup          | Defense-in-depth, prevents leaks          |
+| Socket Reservation          | Eliminates TOCTOU races                   |
+| Environment Tagging         | Reliable orphan detection                 |
 
 ### When to Apply
 

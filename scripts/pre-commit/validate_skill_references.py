@@ -183,7 +183,7 @@ def suggest_new_path_patterns(repo_root: Path) -> list[str]:
 
     key_dirs = [
         "aidb/adapters/lang/",
-        "aidb/api/",
+        "aidb/service/",
         "aidb/session/",
         "aidb_mcp/",
         "aidb_cli/",

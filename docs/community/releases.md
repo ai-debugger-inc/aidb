@@ -93,7 +93,7 @@ When an AI agent attempts to start a debugging session without the required adap
 
 ## Current Status
 
-**Version**: 0.1.1
+**Version**: 0.1.2
 
 ### What's Working ✓
 

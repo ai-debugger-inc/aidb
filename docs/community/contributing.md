@@ -214,7 +214,7 @@ Adding support for a new language is a significant contribution. Please:
 src/
 ├── aidb/              # Core debugging API
 │   ├── adapters/      # Language adapters (Python, JavaScript, Java)
-│   ├── api/           # High-level Python API
+│   ├── service/       # Stateless debugging operations (DebugService)
 │   ├── dap/           # DAP protocol client
 │   └── session/       # Session management
 ├── aidb_cli/          # Developer CLI
