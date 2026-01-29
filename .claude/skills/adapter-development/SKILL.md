@@ -33,7 +33,7 @@ DebugAdapter (base class)
 1. **Lifecycle Hooks**: Customize behavior via hooks rather than overriding entire methods
 1. **Resource Management**: Centralized cleanup via ResourceManager
 1. **Human-Cadence Debugging**: Operations happen at human speed, not API speed
-1. **Language-Agnostic API**: Same Python API works across Python, JavaScript, Java
+1. **Language-Agnostic Interface**: Same Python interface works across Python, JavaScript, Java
 
 ## Resource Files
 

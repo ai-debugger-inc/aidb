@@ -52,9 +52,9 @@ detect_aidb_domain() {
         src/aidb/session/*)
             echo "session"
             ;;
-        # Core API
-        src/aidb/api/*)
-            echo "api"
+        # Service layer
+        src/aidb/service/*)
+            echo "service"
             ;;
         # Testing
         src/tests/*)

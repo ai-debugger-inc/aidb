@@ -35,7 +35,7 @@ typical, super-fast API. For example:
 AI Debugger is built on a layered architecture that provides language-agnostic debugging capabilities:
 
 1. **MCP Layer** (`aidb_mcp/`): Model Context Protocol server exposing 12 agent-optimized debugging tools
-1. **API Layer** (`aidb/api/`): High-level Python API with `.introspection` and `.orchestration` operations
+1. **Service Layer** (`aidb/service/`): Stateless debugging operations via DebugService with sub-services for execution, stepping, breakpoints, variables, and stack inspection
 1. **Session Layer** (`aidb/session/`): Core session orchestration, state management, and lifecycle control
 1. **Adapter Layer** (`aidb/adapters/`): Language-specific debug adapters (Python, JavaScript, Java)
 1. **DAP Client Layer** (`aidb/dap/client/`): Debug Adapter Protocol client implementation
@@ -44,7 +44,8 @@ AI Debugger is built on a layered architecture that provides language-agnostic d
 ### Key Architectural Concepts
 
 - **Human-Cadence Debugging**: Operations happen at human speed, not API speed. For fast-executing programs, breakpoints must be set when starting the session.
-- **Language-Agnostic API**: The same Python API works for Python, JavaScript, and Java through pluggable adapters.
+- **Stateless Service Design**: Service components hold no state; all state resides in the Session object. Services operate on Session's state for easier testing and cleaner separation of concerns.
+- **Language-Agnostic Interface**: The same Python interface works for Python, JavaScript, and Java through pluggable adapters.
 - **Component-Based Design**: Adapters delegate to focused components (`ProcessManager`, `PortManager`, `LaunchOrchestrator`) rather than monolithic classes.
 - **Child Sessions**: JavaScript/TypeScript use parent-child session patterns to handle subprocess debugging.
 - **Resource Management**: Centralized cleanup of ports, PIDs, and processes via `ResourceManager`.
@@ -53,6 +54,7 @@ AI Debugger is built on a layered architecture that provides language-agnostic d
 
 - **Full DAP Protocol**: `src/aidb/dap/protocol.py` (fully typed, authoritative source)
 - **Architecture Documentation**: `docs/developer-guide/overview.md`
+- **Service Layer**: `src/aidb/service/` (DebugService and sub-services)
 - **Adapter Implementations**: `src/aidb/adapters/lang/{python,javascript,java}/`
 
 ## Skills System

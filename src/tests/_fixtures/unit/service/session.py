@@ -1,6 +1,6 @@
-"""Mock session fixtures for API unit tests.
+"""Mock session fixtures for service unit tests.
 
-Provides mock Session and SessionManager objects for testing the API layer without
+Provides mock Session and SessionManager objects for testing the service layer without
 requiring actual debug adapter connections.
 """
 
