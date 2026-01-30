@@ -203,7 +203,7 @@ src/tests/test_example.py::test_one PASSED              [ 50%]
         assert len(failing) == 0
         assert any("test_logger.py" in test for test in flaky)
         assert any("test_session.py" in test for test in flaky)
-        assert any("test_api.py" in test for test in flaky)
+        assert any("test_service.py" in test for test in flaky)
 
     def test_extract_with_ansi_codes(self):
         """Test extracting reruns with ANSI codes."""
@@ -264,7 +264,7 @@ class TestExtractRerunTestsDetailed:
         assert len(failing) == 0
         assert any("test_logger.py" in test for test in flaky)
         assert any("test_session.py" in test for test in flaky)
-        assert any("test_api.py" in test for test in flaky)
+        assert any("test_service.py" in test for test in flaky)
 
     def test_extract_consistently_failing_tests(self, mock_log_fail_with_retries):
         """Test extracting tests that failed despite retry."""

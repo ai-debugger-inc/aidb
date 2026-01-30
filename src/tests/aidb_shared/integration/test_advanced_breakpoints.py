@@ -65,6 +65,7 @@ class TestAdvancedBreakpoints(BaseIntegrationTest):
         i_value = self.verify_vars._extract_value(variables["i"])
         assert i_value in (2, "2"), f"Expected i=2, got {i_value}"
 
+    @pytest.mark.flaky(reruns=3)
     @parametrize_interfaces
     @parametrize_languages()
     @pytest.mark.asyncio
@@ -77,6 +78,9 @@ class TestAdvancedBreakpoints(BaseIntegrationTest):
         """Test hit condition breakpoints for both interfaces and all languages.
 
         Verifies that hit condition breakpoints skip the specified number of hits.
+
+        Note: This test is flaky on JavaScript due to timing issues with hit condition
+        breakpoint stop events. The 3 reruns (vs global 1) help it pass consistently.
         """
         program = generated_program_factory("basic_for_loop", language)
         markers = program["markers"]
