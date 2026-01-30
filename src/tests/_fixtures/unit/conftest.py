@@ -50,18 +50,6 @@ from tests._fixtures.unit.adapter.process import (
     mock_process_manager_running,
 )
 
-# Re-export API component mocks
-from tests._fixtures.unit.api import (
-    mock_adapter_registry,
-    mock_breakpoint_converter,
-    mock_session,
-    mock_session_manager,
-    sample_breakpoint_spec,
-    sample_breakpoint_specs,
-    sample_launch_config,
-    sample_launch_config_attach,
-)
-
 # Re-export assertions
 from tests._fixtures.unit.assertions import UnitAssertions
 
@@ -128,6 +116,18 @@ from tests._fixtures.unit.mcp.state import (
     multiple_sessions_state,
     populated_session_state,
     reset_mcp_session_state,
+)
+
+# Re-export service component mocks
+from tests._fixtures.unit.service import (
+    mock_adapter_registry,
+    mock_breakpoint_converter,
+    mock_session,
+    mock_session_manager,
+    sample_breakpoint_spec,
+    sample_breakpoint_specs,
+    sample_launch_config,
+    sample_launch_config_attach,
 )
 
 # Re-export session component mocks
@@ -283,7 +283,7 @@ __all__ = [
     "populated_session_state",
     "multiple_sessions_state",
     "mock_logging_functions",
-    # API
+    # Service
     "mock_adapter_registry",
     "mock_breakpoint_converter",
     "mock_session",

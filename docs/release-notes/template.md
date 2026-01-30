@@ -1,7 +1,8 @@
 # AI Debugger Release Notes: #.#.#
 
-**GitHub Release**:
-[#.#.#](https://github.com/ai-debugger-inc/aidb/releases/tag/#.#.#)
+**GitHub Release**: [#.#.#](https://github.com/ai-debugger-inc/aidb/releases/tag/#.#.#)
+
+**PyPI**: [ai-debugger-inc](https://pypi.org/project/ai-debugger-inc/)
 
 ## Breaking Changes
 

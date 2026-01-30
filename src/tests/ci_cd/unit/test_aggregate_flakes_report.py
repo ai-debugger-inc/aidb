@@ -20,7 +20,7 @@ def mock_flakes_data_suite1() -> dict:
         "suite": "shared-python",
         "flaky_tests": [
             "src/tests/aidb/session/test_session.py::test_connect",
-            "src/tests/aidb/api/test_api.py::test_call",
+            "src/tests/aidb/service/test_service.py::test_call",
         ],
         "consistently_failing": [],
         "rerun_count": 2,
