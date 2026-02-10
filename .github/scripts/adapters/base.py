@@ -3,6 +3,9 @@
 import hashlib
 import platform
 import subprocess
+import time
+import urllib.error
+import urllib.request
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -36,6 +39,7 @@ class AdapterBuilder(ABC):
         # This ensures no ._* files are created in archives or during any file operations
         if platform.system() == "Darwin":
             import os
+
             os.environ["COPYFILE_DISABLE"] = "1"
 
     @property
@@ -107,6 +111,75 @@ class AdapterBuilder(ABC):
                 sha256_hash.update(chunk)
         return sha256_hash.hexdigest()
 
+    def download_file(
+        self,
+        url: str,
+        dest: Path,
+        description: str,
+        max_retries: int = 3,
+        backoff_base: float = 5.0,
+    ) -> Path:
+        """Download a file from a URL with retry and exponential backoff.
+
+        Parameters
+        ----------
+        url : str
+            URL to download from
+        dest : Path
+            Local path to save the downloaded file
+        description : str
+            Human-readable description for log messages (e.g., 'JDT LS 1.55.0')
+        max_retries : int
+            Maximum number of retry attempts after the initial try
+        backoff_base : float
+            Base delay in seconds between retries (doubles each attempt)
+
+        Returns
+        -------
+        Path
+            Path to the downloaded file
+
+        Raises
+        ------
+        BuildError
+            If download fails after all attempts
+        """
+        print(f"Downloading {description}...")
+        print(f"URL: {url}")
+
+        last_error = None
+        total_attempts = max_retries + 1
+
+        for attempt in range(1, total_attempts + 1):
+            try:
+                urllib.request.urlretrieve(url, dest)  # noqa: S310
+                file_size = dest.stat().st_size
+                print(
+                    f"Downloaded {file_size:,} bytes "
+                    f"({file_size / 1024 / 1024:.1f} MB)",
+                )
+                return dest
+            except (urllib.error.URLError, OSError) as e:
+                last_error = e
+                if attempt < total_attempts:
+                    delay = backoff_base * (2 ** (attempt - 1))
+                    print(
+                        f"Attempt {attempt}/{total_attempts} failed: {e}. "
+                        f"Retrying in {delay:.0f}s...",
+                    )
+                    time.sleep(delay)
+                else:
+                    print(
+                        f"Attempt {attempt}/{total_attempts} failed: {e}. "
+                        f"No retries remaining.",
+                    )
+
+        msg = (
+            f"Failed to download {description} from {url} "
+            f"after {total_attempts} attempts: {last_error}"
+        )
+        raise BuildError(msg) from last_error
+
     def run_command(
         self,
         cmd: list[str],
@@ -144,6 +217,7 @@ class AdapterBuilder(ABC):
         # On macOS, prevent creation of ._* resource fork files in archives
         if platform.system() == "Darwin":
             import os
+
             if env is None:
                 env = os.environ.copy()
             env["COPYFILE_DISABLE"] = "1"
