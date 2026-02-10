@@ -7,7 +7,6 @@ import {
   formatActivationBanner,
   formatAlreadyLoadedSection,
   formatRecommendedSection,
-  formatManualLoadSection,
   formatClosingBanner
 } from "../output-formatter.js";
 
@@ -188,32 +187,6 @@ describe("Output Formatter", () => {
       const output = formatRecommendedSection(skills, scores);
 
       expect(output).toContain("(0.56)"); // Rounded to 2 decimals
-    });
-  });
-
-  describe("formatManualLoadSection", () => {
-    it("should list skills requiring manual load", () => {
-      const manualSkills = ["manual-skill-1", "manual-skill-2"];
-
-      const output = formatManualLoadSection(manualSkills);
-
-      expect(output).toContain("📚 MANUAL LOAD REQUIRED (autoInject: false):");
-      expect(output).toContain("→ manual-skill-1");
-      expect(output).toContain("→ manual-skill-2");
-      expect(output).toContain("ACTION: Use Skill tool for these skills");
-    });
-
-    it("should return empty string for empty array", () => {
-      const output = formatManualLoadSection([]);
-
-      expect(output).toBe("");
-    });
-
-    it("should format single manual skill", () => {
-      const output = formatManualLoadSection(["single-manual"]);
-
-      expect(output).toContain("→ single-manual");
-      expect(output).toContain("ACTION: Use Skill tool");
     });
   });
 

@@ -18,53 +18,42 @@ describe("Skill Filtering", () => {
     it("should filter out already acknowledged skills", () => {
       const skills = ["skill-a", "skill-b", "skill-c"];
       const acknowledged = ["skill-a", "skill-b"];
-      const skillRules: Record<string, SkillRule> = {
-        "skill-a": { type: "domain" },
-        "skill-b": { type: "domain" },
-        "skill-c": { type: "domain" }
-      };
 
-      const unacknowledged = filterUnacknowledgedSkills(
-        skills,
-        acknowledged,
-        skillRules
-      );
+      const unacknowledged = filterUnacknowledgedSkills(skills, acknowledged);
 
       expect(unacknowledged).toEqual(["skill-c"]);
     });
 
-    it("should filter out skills with autoInject: false", () => {
+    it("should return all skills when none acknowledged", () => {
       const skills = ["skill-a", "skill-b", "skill-c"];
       const acknowledged: string[] = [];
-      const skillRules: Record<string, SkillRule> = {
-        "skill-a": { type: "domain" },
-        "skill-b": {
-          type: "domain",
-          autoInject: false
-        },
-        "skill-c": { type: "domain" }
-      };
 
-      const unacknowledged = filterUnacknowledgedSkills(
-        skills,
-        acknowledged,
-        skillRules
-      );
+      const unacknowledged = filterUnacknowledgedSkills(skills, acknowledged);
 
-      expect(unacknowledged).toEqual(["skill-a", "skill-c"]);
+      expect(unacknowledged).toEqual(["skill-a", "skill-b", "skill-c"]);
     });
   });
 
   describe("applyInjectionLimits", () => {
-    it("should inject up to 2 critical skills when acknowledgedCriticalCount = 0", () => {
+    // All domain skills for basic limit tests
+    const domainRules: Record<string, SkillRule> = {
+      "skill-a": { type: "domain" },
+      "skill-b": { type: "domain" },
+      "skill-c": { type: "domain" },
+      "skill-d": { type: "domain" },
+      "skill-e": { type: "domain" }
+    };
+
+    it("should inject up to 2 domain skills when acknowledgedCriticalCount = 0", () => {
       const critical = ["skill-a", "skill-b", "skill-c"];
       const recommended: string[] = [];
-      const acknowledgedCriticalCount = 0; // No critical skills loaded yet
+      const acknowledgedCriticalCount = 0;
 
       const { toInject } = applyInjectionLimits(
         critical,
         recommended,
-        acknowledgedCriticalCount
+        acknowledgedCriticalCount,
+        domainRules
       );
 
       expect(toInject).toHaveLength(2);
@@ -72,17 +61,17 @@ describe("Skill Filtering", () => {
     });
 
     it("should promote recommended skills to fill empty slots", () => {
-      const critical = ["skill-a"]; // 1 critical
+      const critical = ["skill-a"];
       const recommended = ["skill-b", "skill-c", "skill-d"];
       const acknowledgedCriticalCount = 0;
 
       const { toInject, promoted } = applyInjectionLimits(
         critical,
         recommended,
-        acknowledgedCriticalCount
+        acknowledgedCriticalCount,
+        domainRules
       );
 
-      // Should inject 1 critical + 1 promoted = 2 total
       expect(toInject).toHaveLength(2);
       expect(toInject).toEqual(["skill-a", "skill-b"]);
       expect(promoted).toEqual(["skill-b"]);
@@ -96,43 +85,42 @@ describe("Skill Filtering", () => {
       const { toInject, promoted } = applyInjectionLimits(
         critical,
         recommended,
-        acknowledgedCriticalCount
+        acknowledgedCriticalCount,
+        domainRules
       );
 
-      // Should promote 2 recommended to reach target
       expect(toInject).toHaveLength(2);
       expect(toInject).toEqual(["skill-a", "skill-b"]);
       expect(promoted).toEqual(["skill-a", "skill-b"]);
     });
 
     it("should reduce target when critical skills already acknowledged", () => {
-      const critical = ["skill-a"]; // 1 unacknowledged critical
+      const critical = ["skill-a"];
       const recommended = ["skill-b", "skill-c"];
-      const acknowledgedCriticalCount = 1; // 1 critical already loaded
+      const acknowledgedCriticalCount = 1;
 
-      // Target = 2 - 1 = 1 slot available
       const { toInject, promoted } = applyInjectionLimits(
         critical,
         recommended,
-        acknowledgedCriticalCount
+        acknowledgedCriticalCount,
+        domainRules
       );
 
-      // Should inject only 1 skill (target = 1)
       expect(toInject).toHaveLength(1);
       expect(toInject).toEqual(["skill-a"]);
       expect(promoted).toEqual([]);
     });
 
-    it("should inject 0 skills when 2 critical skills already acknowledged", () => {
-      const critical: string[] = []; // No unacknowledged critical
+    it("should inject 0 domain skills when 2 already acknowledged", () => {
+      const critical: string[] = [];
       const recommended = ["skill-a", "skill-b"];
-      const acknowledgedCriticalCount = 2; // 2 critical already loaded (target met)
+      const acknowledgedCriticalCount = 2;
 
-      // Target = 2 - 2 = 0 slots available
       const { toInject, promoted } = applyInjectionLimits(
         critical,
         recommended,
-        acknowledgedCriticalCount
+        acknowledgedCriticalCount,
+        domainRules
       );
 
       expect(toInject).toEqual([]);
@@ -147,33 +135,53 @@ describe("Skill Filtering", () => {
       const { toInject, promoted, remainingSuggested } = applyInjectionLimits(
         critical,
         recommended,
-        acknowledgedCriticalCount
+        acknowledgedCriticalCount,
+        domainRules
       );
 
       expect(toInject).toEqual(["skill-a", "skill-b"]);
       expect(promoted).toEqual(["skill-b"]);
       expect(remainingSuggested).toEqual(["skill-c", "skill-d", "skill-e"]);
     });
+
+    it("should always include guardrail skills exempt from 2-skill cap", () => {
+      const mixedRules: Record<string, SkillRule> = {
+        "guardrail-a": { type: "guardrail" },
+        "domain-a": { type: "domain" },
+        "domain-b": { type: "domain" },
+        "domain-c": { type: "domain" }
+      };
+
+      const critical = ["guardrail-a", "domain-a", "domain-b", "domain-c"];
+      const recommended: string[] = [];
+      const acknowledgedCriticalCount = 0;
+
+      const { toInject } = applyInjectionLimits(
+        critical,
+        recommended,
+        acknowledgedCriticalCount,
+        mixedRules
+      );
+
+      // Guardrail always included + 2 domain skills (cap)
+      expect(toInject).toContain("guardrail-a");
+      expect(toInject).toContain("domain-a");
+      expect(toInject).toContain("domain-b");
+      expect(toInject).not.toContain("domain-c");
+      expect(toInject).toHaveLength(3);
+    });
   });
 
   describe("filterAndPromoteSkills (Integration)", () => {
-    it("should filter + promote when 1 critical already loaded", () => {
-      const requiredSkills = ["critical-a", "critical-b"]; // critical-b already loaded
+    it("should not count acknowledged guardrails toward domain slot reduction", () => {
+      const requiredSkills = ["critical-a", "guardrail-a"];
       const suggestedSkills = ["suggested-a", "suggested-b"];
-      const acknowledged = ["critical-b"];
+      const acknowledged = ["guardrail-a"]; // guardrail — doesn't reduce domain slots
       const skillRules: Record<string, SkillRule> = {
-        "critical-a": {
-          type: "domain"
-        },
-        "critical-b": {
-          type: "domain"
-        },
-        "suggested-a": {
-          type: "domain"
-        },
-        "suggested-b": {
-          type: "domain"
-        }
+        "critical-a": { type: "domain" },
+        "guardrail-a": { type: "guardrail" },
+        "suggested-a": { type: "domain" },
+        "suggested-b": { type: "domain" }
       };
 
       const result = filterAndPromoteSkills(
@@ -183,33 +191,22 @@ describe("Skill Filtering", () => {
         skillRules
       );
 
-      // Target = 2 - 1 (acknowledged critical) = 1 slot
-      // Should inject critical-a only (fills the 1 slot)
-      expect(result.toInject).toEqual(["critical-a"]);
-      expect(result.promoted).toEqual([]);
-      expect(result.remainingSuggested).toEqual(["suggested-a", "suggested-b"]);
+      // Target = 2 - 0 (guardrail doesn't count) = 2 domain slots
+      // critical-a (critical) + suggested-a (promoted)
+      expect(result.toInject).toEqual(["critical-a", "suggested-a"]);
+      expect(result.promoted).toEqual(["suggested-a"]);
+      expect(result.remainingSuggested).toEqual(["suggested-b"]);
     });
 
-    it("should promote when all critical skills already loaded", () => {
-      const requiredSkills = ["critical-a", "critical-b"]; // Both already loaded
-      const suggestedSkills = ["suggested-a", "suggested-b", "suggested-c"];
-      const acknowledged = ["critical-a", "critical-b"];
+    it("should reduce slots only for acknowledged domain skills", () => {
+      const requiredSkills = ["critical-a", "guardrail-a"];
+      const suggestedSkills = ["suggested-a", "suggested-b"];
+      const acknowledged = ["critical-a", "guardrail-a"]; // 1 domain + 1 guardrail
       const skillRules: Record<string, SkillRule> = {
-        "critical-a": {
-          type: "domain"
-        },
-        "critical-b": {
-          type: "domain"
-        },
-        "suggested-a": {
-          type: "domain"
-        },
-        "suggested-b": {
-          type: "domain"
-        },
-        "suggested-c": {
-          type: "domain"
-        }
+        "critical-a": { type: "domain" },
+        "guardrail-a": { type: "guardrail" },
+        "suggested-a": { type: "domain" },
+        "suggested-b": { type: "domain" }
       };
 
       const result = filterAndPromoteSkills(
@@ -219,31 +216,21 @@ describe("Skill Filtering", () => {
         skillRules
       );
 
-      // Target = 2 - 2 (acknowledged) = 0 slots
-      // Should inject nothing (target met)
-      expect(result.toInject).toEqual([]);
-      expect(result.promoted).toEqual([]);
-      expect(result.remainingSuggested).toEqual([
-        "suggested-a",
-        "suggested-b",
-        "suggested-c"
-      ]);
+      // Target = 2 - 1 (only domain critical-a counts) = 1 domain slot
+      // suggested-a promoted to fill the 1 slot
+      expect(result.toInject).toEqual(["suggested-a"]);
+      expect(result.promoted).toEqual(["suggested-a"]);
+      expect(result.remainingSuggested).toEqual(["suggested-b"]);
     });
 
-    it("should promote 2 suggested when no critical skills", () => {
+    it("should promote 2 suggested domain skills and always include guardrails", () => {
       const requiredSkills: string[] = [];
-      const suggestedSkills = ["suggested-a", "suggested-b", "suggested-c"];
+      const suggestedSkills = ["suggested-a", "guardrail-a", "suggested-b"];
       const acknowledged: string[] = [];
       const skillRules: Record<string, SkillRule> = {
-        "suggested-a": {
-          type: "domain"
-        },
-        "suggested-b": {
-          type: "domain"
-        },
-        "suggested-c": {
-          type: "domain"
-        }
+        "suggested-a": { type: "domain" },
+        "guardrail-a": { type: "guardrail" },
+        "suggested-b": { type: "domain" }
       };
 
       const result = filterAndPromoteSkills(
@@ -253,27 +240,26 @@ describe("Skill Filtering", () => {
         skillRules
       );
 
-      // Target = 2, no critical → promote 2 suggested
-      expect(result.toInject).toEqual(["suggested-a", "suggested-b"]);
+      // Guardrail (guardrail-a) always included + 2 domain promoted
+      expect(result.toInject).toContain("guardrail-a");
+      expect(result.toInject).toContain("suggested-a");
+      expect(result.toInject).toContain("suggested-b");
+      expect(result.toInject).toHaveLength(3);
       expect(result.promoted).toEqual(["suggested-a", "suggested-b"]);
-      expect(result.remainingSuggested).toEqual(["suggested-c"]);
+      expect(result.remainingSuggested).toEqual([]);
     });
 
-    it("should handle skills with autoInject: false correctly", () => {
+    it("should include all skills when AI scores them (autoInject: false no longer filters)", () => {
       const requiredSkills = ["critical-a"];
       const suggestedSkills = ["suggested-a", "suggested-b"];
       const acknowledged: string[] = [];
       const skillRules: Record<string, SkillRule> = {
-        "critical-a": {
-          type: "domain"
-        },
+        "critical-a": { type: "domain" },
         "suggested-a": {
           type: "domain",
-          autoInject: false // Manual load only
+          autoInject: false
         },
-        "suggested-b": {
-          type: "domain"
-        }
+        "suggested-b": { type: "domain" }
       };
 
       const result = filterAndPromoteSkills(
@@ -283,10 +269,11 @@ describe("Skill Filtering", () => {
         skillRules
       );
 
-      // Should skip suggested-a (autoInject: false) and promote suggested-b
-      expect(result.toInject).toEqual(["critical-a", "suggested-b"]);
-      expect(result.promoted).toEqual(["suggested-b"]);
-      expect(result.remainingSuggested).toEqual([]);
+      // autoInject: false no longer blocks AI-scored skills from injection
+      // critical-a (critical) + suggested-a (promoted) fill 2 slots
+      expect(result.toInject).toEqual(["critical-a", "suggested-a"]);
+      expect(result.promoted).toEqual(["suggested-a"]);
+      expect(result.remainingSuggested).toEqual(["suggested-b"]);
     });
   });
 });
