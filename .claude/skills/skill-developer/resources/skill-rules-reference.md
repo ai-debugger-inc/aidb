@@ -50,7 +50,7 @@ ______________________________________________________________________
 | ---------------- | -------- | -------- | -------------------------------------------------------------------- |
 | `type`           | string   | Yes      | "guardrail" or "domain" (categorization only)                        |
 | `description`    | string   | Optional | Sent to AI for intent analysis (recommended for all skills)          |
-| `autoInject`     | boolean  | Optional | Allow automatic injection (default: true, set false for meta-skills) |
+| `autoInject`     | boolean  | Optional | Allow automatic injection (default: true). When false, skill is excluded from keyword-fallback path only; AI-scored and affinity paths still inject. |
 | `requiredSkills` | string[] | Optional | Dependencies that must be loaded first                               |
 | `injectionOrder` | number   | Optional | Sort order for injection                                             |
 | `promptTriggers` | object   | Optional | Keyword triggers for fallback detection                              |
@@ -70,7 +70,7 @@ ______________________________________________________________________
 
 **How it works (Bidirectional Auto-Injection):**
 
-- Standard injection limit: 2 skills maximum (critical or promoted)
+- Standard injection limit: 2 domain skills maximum (critical or promoted); guardrail skills always inject (exempt from cap)
 - Affinity skills auto-inject **bidirectionally** at **no slot cost** (don't count toward 2-skill limit)
 - **Direction 1 (Parent→Child):** If skill A is injected and lists `affinity: ["B", "C"]`, both B and C auto-inject
 - **Direction 2 (Child→Parent):** If skill A is injected and skill B lists `affinity: ["A"]`, skill B auto-injects
@@ -189,8 +189,7 @@ If valid, jq will pretty-print the JSON. If invalid, it will show the error.
 - [ ] Affinity skills actually exist in skill-rules.json
 - [ ] Required skills actually exist in skill-rules.json
 - [ ] No duplicate skill names
-- [ ] Meta-skills have `autoInject: false`
-- [ ] Domain skills have `autoInject: true`
+- [ ] `autoInject: false` only used for skills that should be excluded from keyword-fallback detection
 
 ______________________________________________________________________
 

@@ -44,7 +44,7 @@ DETECTION PHASE:
 FILTRATION PHASE:
   - Load session state (.claude/hooks/state/{session_id}-skills-suggested.json)
   - Remove already-injected skills (deduplication)
-  - Filter out skills with autoInject: false
+  - Separate guardrail skills (exempt from 2-skill cap) from domain skills
     ↓
 AFFINITY RESOLUTION:
   - Check affinity arrays (bidirectional relationships)
@@ -216,6 +216,7 @@ Skills can declare "affinity" relationships that cause automatic bidirectional i
 **Key Features:**
 
 - Affinity skills are "free" (don't count toward standard 2-skill limit)
+- Guardrail skills also always inject (exempt from 2-skill cap)
 - Respects session state (won't re-inject already-loaded skills)
 - Max 2 affinities per skill
 - Helps load complementary context automatically

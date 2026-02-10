@@ -10,7 +10,7 @@
  */
 
 import { createHash } from "crypto";
-import { SHORT_PROMPT_WORD_THRESHOLD } from "./constants.js";
+import { SHORT_PROMPT_WORD_THRESHOLD, DEBUG_ENABLED } from "./constants.js";
 import { readCache, writeCache } from "./cache-manager.js";
 import { callAnthropicAPI } from "./anthropic-client.js";
 import { matchSkillsByKeywords } from "./keyword-matcher.js";
@@ -73,7 +73,7 @@ export async function analyzeIntent(
     const analysis = await callAnthropicAPI(prompt, availableSkills);
 
     // Debug logging
-    if (process.env.AIDB_SKILL_DEBUG === "true") {
+    if (DEBUG_ENABLED) {
       formatDebugOutput(analysis);
     }
 
@@ -84,8 +84,21 @@ export async function analyzeIntent(
     const result = buildAnalysisResult(
       categorized,
       analysis,
-      process.env.AIDB_SKILL_DEBUG === "true"
+      DEBUG_ENABLED
     );
+
+    // Guarantee guardrail skills are included even on long prompts where AI
+    // might under-score them. Keyword matcher only returns guardrail skills
+    // (autoInject !== false), so this union is safe.
+    const keywordHits = matchSkillsByKeywords(prompt, availableSkills);
+    for (const skill of keywordHits.required) {
+      if (
+        !result.required.includes(skill) &&
+        !result.suggested.includes(skill)
+      ) {
+        result.required.push(skill);
+      }
+    }
 
     writeCache(cacheKey, {
       required: result.required,

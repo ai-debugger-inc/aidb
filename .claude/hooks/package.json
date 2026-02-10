@@ -12,20 +12,19 @@
         "format:check": "prettier --config ../../.github/linters/prettierrc.json --check '**/*.ts'",
         "test": "vitest run",
         "test:watch": "vitest watch",
-        "test:coverage": "vitest run --coverage",
-        "test:integration": "tsx skill-activation-prompt.ts < test-input.json"
+        "test:coverage": "vitest run --coverage"
     },
     "dependencies": {
-        "@anthropic-ai/sdk": "^0.74.0",
-        "@types/node": "^25.0.9",
+        "@anthropic-ai/sdk": "^0.71.2",
+        "@types/node": "^25.2.2",
         "tsx": "^4.21.0",
         "typescript": "^5.3.3"
     },
     "devDependencies": {
-        "@typescript-eslint/eslint-plugin": "^8.53.1",
+        "@typescript-eslint/eslint-plugin": "^8.55.0",
         "@typescript-eslint/parser": "^8.46.4",
-        "eslint": "^9.39.2",
-        "prettier": "^3.8.0",
+        "eslint": "^10.0.0",
+        "prettier": "^3.8.1",
         "vitest": "^4.0.18"
     }
 }

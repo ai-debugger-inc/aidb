@@ -158,23 +158,6 @@ export function formatRecommendedSection(
 }
 
 /**
- * Format manual load required section
- *
- * Shows skills with autoInject: false that must be manually loaded via Skill tool.
- *
- * @param manualSkills - Skills requiring manual load
- * @returns Formatted section string
- */
-export function formatManualLoadSection(manualSkills: string[]): string {
-  if (manualSkills.length === 0) return "";
-
-  let output = "\n📚 MANUAL LOAD REQUIRED (autoInject: false):\n";
-  manualSkills.forEach((name) => (output += `  → ${name}\n`));
-  output += "\nACTION: Use Skill tool for these skills\n";
-  return output;
-}
-
-/**
  * Format closing banner for skill activation check
  *
  * @returns Formatted closing banner

@@ -39,15 +39,20 @@ Skills are categorized into two tiers with different activation and injection be
 
 - Detected based on prompt keywords and AI intent analysis
 - Automatically injected when detected (`autoInject: true`)
-- Up to 2 CRITICAL skills injected per prompt (3 with affinity bonus)
+- Up to 2 domain skills injected per prompt; guardrail skills always inject (exempt from cap)
+- Affinity skills inject free of slot cost (don't count toward 2-skill limit)
 - RECOMMENDED skills shown but not injected
 - Provide actionable domain-specific guidance
 
+**Guardrail Exemption:**
+
+Guardrail skills (e.g., `code-reuse-enforcement`, `adapter-development`) are always injected when detected, regardless of the 2-skill cap. Only domain skills count toward the limit.
+
 **Affinity Bonus:**
 
-Skills can declare complementary relationships via `affinity` configuration. When complementary skills are detected together, the injection limit increases from 2 to 3, allowing both related skills to load.
+Skills can declare complementary relationships via `affinity` configuration. Affinity skills auto-inject bidirectionally at no slot cost.
 
-**Example:** `adapter-development` declares affinity with `dap-protocol-guide`. When a prompt triggers both skills (e.g., "Fix DAP initialization in Java adapter"), both inject even though it exceeds the standard 2-skill limit.
+**Example:** `adapter-development` declares affinity with `dap-protocol-guide`. When adapter-development injects, dap-protocol-guide auto-injects via affinity (free of slot cost).
 
 **Examples:**
 
@@ -199,7 +204,7 @@ The AI receives:
 1. Analyze prompt for keywords
 1. Perform AI-powered intent analysis for confidence scoring
 1. Identify relevant skills (both meta and domain)
-1. Auto-inject CRITICAL skills (confidence > 0.65) up to 2 per prompt
+1. Auto-inject CRITICAL skills (confidence > 0.65) up to 2 domain skills per prompt (guardrails always inject)
 1. Show RECOMMENDED skills for optional manual loading
 
 **Output Example:**
@@ -305,7 +310,7 @@ The AI receives:
 **State lifecycle:**
 
 1. UserPromptSubmit detects skills via AI analysis
-1. CRITICAL skills (up to 2) are automatically injected
+1. CRITICAL skills are automatically injected (up to 2 domain; guardrails always inject)
 1. Injected skills tracked in `acknowledgedSkills` and `injectedSkills` arrays
 1. RECOMMENDED skills shown but not injected
 1. Subsequent prompts reuse already-injected skills (no duplicate injection)
@@ -324,7 +329,7 @@ The AI receives:
 **Guaranteed expertise on domain prompts:**
 
 - Technical work → automatically receive relevant guidance
-- Up to 2 CRITICAL skills injected per prompt
+- Up to 2 domain CRITICAL skills injected per prompt (guardrails always inject)
 - RECOMMENDED skills suggested for optional loading
 - 95% of technical prompts get proper skill coverage
 
@@ -340,7 +345,7 @@ The AI receives:
 
 - Meta-skills always present (background awareness)
 - Domain skills auto-injected when relevant
-- Up to 2 CRITICAL skills per prompt (prevents context overload)
+- Up to 2 domain CRITICAL skills per prompt; guardrails always inject
 
 **Maintains skill coverage goals:**
 

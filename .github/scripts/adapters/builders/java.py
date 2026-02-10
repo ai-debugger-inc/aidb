@@ -1,7 +1,6 @@
 """Java adapter builder."""
 
 import shutil
-import urllib.request
 from pathlib import Path
 
 from ..base import AdapterBuilder, BuildError
@@ -55,7 +54,6 @@ class JavaAdapterBuilder(AdapterBuilder):
         Path
             Path to downloaded JAR file
         """
-        # Maven Central download URL
         base_url = "https://repo1.maven.org/maven2"
         group_path = "com/microsoft/java"
         artifact = "com.microsoft.java.debug.plugin"
@@ -64,18 +62,11 @@ class JavaAdapterBuilder(AdapterBuilder):
 
         jar_path = dist_dir / "java-debug.jar"
 
-        print(f"Downloading {jar_name} from Maven Central...")
-        print(f"URL: {download_url}")
-
-        # Download JAR using urllib (no external dependencies)
-        try:
-            urllib.request.urlretrieve(download_url, jar_path)  # noqa: S310
-        except Exception as e:
-            msg = f"Failed to download JAR from Maven Central: {e}"
-            raise BuildError(msg) from e
-
-        file_size = jar_path.stat().st_size
-        print(f"Downloaded {file_size:,} bytes ({file_size / 1024 / 1024:.1f} MB)")
+        self.download_file(
+            url=download_url,
+            dest=jar_path,
+            description=f"{jar_name} from Maven Central",
+        )
 
         return jar_path
 
@@ -97,7 +88,6 @@ class JavaAdapterBuilder(AdapterBuilder):
         jdtls_dir = dist_dir / "jdtls"
         jdtls_dir.mkdir(exist_ok=True)
 
-        # Eclipse download URL
         download_url = (
             f"https://download.eclipse.org/jdtls/snapshots/"
             f"jdt-language-server-{jdtls_version}.tar.gz"
@@ -105,22 +95,22 @@ class JavaAdapterBuilder(AdapterBuilder):
 
         tarball = dist_dir / "jdtls.tar.gz"
 
-        print(f"Downloading JDT LS {jdtls_version}...")
-        print(f"URL: {download_url}")
-
-        try:
-            urllib.request.urlretrieve(download_url, tarball)  # noqa: S310
-        except Exception as e:
-            msg = f"Failed to download JDT LS from Eclipse: {e}"
-            raise BuildError(msg) from e
-
-        tarball_size = tarball.stat().st_size
-        print(f"Downloaded {tarball_size:,} bytes ({tarball_size / 1024 / 1024:.1f} MB)")
+        self.download_file(
+            url=download_url,
+            dest=tarball,
+            description=f"JDT LS {jdtls_version} from Eclipse",
+        )
 
         print("Extracting JDT LS...")
-        self.run_command([
-            "tar", "-xzf", str(tarball), "-C", str(jdtls_dir),
-        ])
+        self.run_command(
+            [
+                "tar",
+                "-xzf",
+                str(tarball),
+                "-C",
+                str(jdtls_dir),
+            ]
+        )
 
         # Clean up tarball
         tarball.unlink()
@@ -219,15 +209,23 @@ class JavaAdapterBuilder(AdapterBuilder):
         # Create tarball
         tarball_path = self.dist_dir / f"{adapter_name}.tar.gz"
         print(f"Creating tarball: {tarball_path}")
-        self.run_command([
-            "tar", "-czf", str(tarball_path),
-            "-C", str(self.dist_dir), adapter_name,
-        ])
+        self.run_command(
+            [
+                "tar",
+                "-czf",
+                str(tarball_path),
+                "-C",
+                str(self.dist_dir),
+                adapter_name,
+            ]
+        )
 
         # Clean up package directory
         shutil.rmtree(package_dir)
 
         tarball_size = tarball_path.stat().st_size
-        print(f"Package size: {tarball_size:,} bytes ({tarball_size / 1024 / 1024:.1f} MB)")
+        print(
+            f"Package size: {tarball_size:,} bytes ({tarball_size / 1024 / 1024:.1f} MB)"
+        )
 
         return tarball_path
