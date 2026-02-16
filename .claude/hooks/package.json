@@ -16,7 +16,7 @@
         "test:integration": "tsx skill-activation-prompt.ts < test-input.json"
     },
     "dependencies": {
-        "@anthropic-ai/sdk": "^0.71.2",
+        "@anthropic-ai/sdk": "^0.74.0",
         "@types/node": "^25.0.9",
         "tsx": "^4.21.0",
         "typescript": "^5.3.3"
