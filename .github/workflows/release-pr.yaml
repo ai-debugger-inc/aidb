@@ -118,7 +118,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download all test summaries
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: test-summary-*
           path: summaries/
@@ -132,7 +132,7 @@ jobs:
             >> $GITHUB_STEP_SUMMARY
 
       - name: Upload flaky tests report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: flaky-tests-report
           path: flaky-tests-report.json
@@ -146,7 +146,7 @@ jobs:
           python3 .github/scripts/format_job_summary.py
 
       - name: Download all coverage files
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: coverage-*
           path: coverage/
@@ -212,7 +212,7 @@ jobs:
           echo "✅ Extension built successfully"
 
       - name: Upload extension artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: vscode-extension
           path: src/extensions/aidb-vscode-bridge/aidb-vscode-bridge.vsix
@@ -230,7 +230,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download extension artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: vscode-extension
           path: build/vsix/
@@ -287,7 +287,7 @@ jobs:
           ls -la dist/
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: distribution
           path: dist/
@@ -333,7 +333,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download extension artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: vscode-extension
           path: build/vsix/
@@ -499,7 +499,7 @@ jobs:
           find dist/ -name "*.sha256" -exec cat {} \;
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.adapter }}-${{ matrix.platform }}-${{ matrix.arch }}
           path: |
@@ -528,19 +528,19 @@ jobs:
           python3 -m pip install pyyaml
 
       - name: Download Python adapter artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           pattern: python-*-*
 
       - name: Download JavaScript adapter artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           pattern: javascript-*-*
 
       - name: Download Java adapter artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           pattern: java-*-*
@@ -609,7 +609,7 @@ jobs:
           ls -la consolidated-adapters/
 
       - name: Upload consolidated artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: adapter-artifacts-all
           path: consolidated-adapters/
@@ -626,7 +626,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Download consolidated adapter artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: adapter-artifacts-all
           path: adapters/
