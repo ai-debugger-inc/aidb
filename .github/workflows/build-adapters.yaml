@@ -37,7 +37,7 @@ jobs:
           ./dev-cli -v adapters build
 
       - name: Upload adapter artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: debug-adapters
           path: .cache/adapters/
