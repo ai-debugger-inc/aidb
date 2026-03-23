@@ -19,13 +19,13 @@
         "@anthropic-ai/sdk": "^0.71.2",
         "@types/node": "^25.0.9",
         "tsx": "^4.21.0",
-        "typescript": "^5.3.3"
+        "typescript": "^6.0.2"
     },
     "devDependencies": {
-        "@typescript-eslint/eslint-plugin": "^8.53.1",
+        "@typescript-eslint/eslint-plugin": "^8.57.2",
         "@typescript-eslint/parser": "^8.46.4",
-        "eslint": "^9.39.2",
-        "prettier": "^3.8.0",
+        "eslint": "^10.1.0",
+        "prettier": "^3.8.1",
         "vitest": "^4.0.18"
     }
 }
