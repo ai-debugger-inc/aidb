@@ -16,7 +16,7 @@ programmatically control and introspect live debugging sessions."""
 dependencies = [
   "aiofiles>=23.0.0,<26.0.0",
   "mcp>=1.0.0,<2.0.0",
-  "psutil>=5.9.0,<8.0.0",
+  "psutil>=7.2.2,<8.0.0",
 ]
 keywords = ["AI Debugger", "aidb", "debugging"]
 license = {file = "LICENSE"}
@@ -97,7 +97,7 @@ ci-validation = [
   "aiofiles>=24.1.0,<26.0.0",
   "click>=8.0.0,<9.0.0",
   "jinja2>=3.1.6,<4.0.0",
-  "psutil>=7.0.0,<8.0.0",
+  "psutil>=7.2.2,<8.0.0",
   "pyyaml>=6.0,<8.0",
 ]
 
